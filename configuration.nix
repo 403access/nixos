@@ -63,10 +63,17 @@
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
 
+  # Docker
+  virtualisation.docker.enable = true;
+
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.nixos = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" ]; # Enable ‘sudo’ for the user.
+    extraGroups = [
+      "wheel" # Enable 'sudo' for the user.
+      "networkmanager"
+      "docker"
+  ];
   #   packages = with pkgs; [
   #     tree
   #   ];
@@ -106,6 +113,9 @@
 
     # WhiteSur Dock
     plank
+
+    # Docker
+    docker-compose
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
