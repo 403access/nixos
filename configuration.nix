@@ -36,8 +36,14 @@
 
   # Enable the X11 windowing system.
   services.xserver.enable = true;
-  services.xserver.displayManager.lightdm.enable = true;
-  services.xserver.desktopManager.xfce.enable = true;
+  
+  # GNOME
+  services.xserver.displayManager.gdm.enable = true;
+  services.xserver.desktopManager.gnome.enable = true;
+  
+  # XFCE
+  # services.xserver.displayManager.lightdm.enable = true;
+  # services.xserver.desktopManager.xfce.enable = true;
 
   # Configure keymap in X11
   # services.xserver.xkb.layout = "us";
@@ -71,11 +77,21 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    gdm
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     wget
     git
     firefox
-    xfce.xfce4-whiskermenu-plugin
+    
+    # GNOME
+    gnome-tweaks
+    gnome-shell
+    gnomeExtensions.dash-to-dock
+    gnomeExtensions.blur-my-shell
+    gnomeExtensions.user-themes
+    
+    # XFCE
+    # xfce.xfce4-whiskermenu-plugin
     
     # WhiteSur Theme
     sassc
@@ -86,7 +102,8 @@
     optipng
     inkscape
     imagemagick
-    
+    dialog    
+
     # WhiteSur Dock
     plank
   ];
