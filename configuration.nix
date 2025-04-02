@@ -63,6 +63,9 @@
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
 
+  # SPICE: Communication between host and guest system.
+  services.spice-vdagentd.enable = true;
+
   # Docker
   virtualisation.docker.enable = true;
 
@@ -110,6 +113,9 @@
     inkscape
     imagemagick
     dialog    
+
+    # SPICE
+    spice-vdagent
 
     # WhiteSur Dock
     plank
