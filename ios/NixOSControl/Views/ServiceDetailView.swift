@@ -25,6 +25,7 @@ struct ServiceDetailView: View {
                         .frame(width: 10, height: 10)
                     Text(current.active.capitalized)
                         .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
                     Spacer()
                     StatusBadge(text: current.sub, tint: Color.serviceStatus(current.active))
                 }
@@ -34,16 +35,18 @@ struct ServiceDetailView: View {
                     InfoRow(label: "Description", value: current.description)
                 }
             }
+            .listRowBackground(Theme.surface)
+            .listRowSeparatorTint(Theme.border)
 
             Section("Actions") {
                 HStack(spacing: 10) {
-                    actionButton("Start", "play.fill", tint: .green, disabled: current.isActive) {
+                    actionButton("Start", "play.fill", tint: Theme.success, disabled: current.isActive) {
                         perform("start")
                     }
-                    actionButton("Restart", "arrow.clockwise", tint: .blue) {
+                    actionButton("Restart", "arrow.clockwise", tint: Theme.accent) {
                         showRestartConfirm = true
                     }
-                    actionButton("Stop", "stop.fill", tint: .red, disabled: !current.isActive) {
+                    actionButton("Stop", "stop.fill", tint: Theme.danger, disabled: !current.isActive) {
                         showStopConfirm = true
                     }
                 }
@@ -59,6 +62,8 @@ struct ServiceDetailView: View {
                     Label("Boot behaviour", systemImage: "power")
                 }
             }
+            .listRowBackground(Theme.surface)
+            .listRowSeparatorTint(Theme.border)
 
             Section {
                 Toggle("Auto refresh", isOn: $autoRefresh)
@@ -71,7 +76,7 @@ struct ServiceDetailView: View {
                     }
                 } else if logs.isEmpty {
                     Text("No journal entries.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 } else {
                     ForEach(Array(logs.enumerated()), id: \.offset) { _, line in
                         Text(line)
@@ -84,9 +89,14 @@ struct ServiceDetailView: View {
             } footer: {
                 Text("Showing the last \(lineCount) lines.")
                     .font(.caption2)
+                    .foregroundStyle(Theme.textMuted)
             }
+            .listRowBackground(Theme.surface)
+            .listRowSeparatorTint(Theme.border)
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
         .navigationTitle(service.shortName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

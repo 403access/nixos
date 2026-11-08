@@ -18,18 +18,24 @@ struct LogsView: View {
                     ProgressView()
                     Spacer()
                 }
+                .listRowBackground(Theme.surface)
             } else if lines.isEmpty {
                 Text("No journal entries.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
+                    .listRowBackground(Theme.surface)
             } else {
                 ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                     Text(line)
                         .font(.system(.caption2, design: .monospaced))
                         .textSelection(.enabled)
+                        .listRowBackground(Theme.surface)
+                        .listRowSeparatorTint(Theme.border)
                 }
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(AppBackground())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

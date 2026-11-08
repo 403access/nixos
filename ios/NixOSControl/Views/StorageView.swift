@@ -30,7 +30,7 @@ struct StorageView: View {
                 }
                 .padding(16)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .appBackground()
             .navigationTitle("Storage")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -77,7 +77,7 @@ struct StorageView: View {
                                 StatusBadge(text: pool.health, tint: .poolHealth(pool.health))
                                 Image(systemName: "chevron.right")
                                     .font(.caption2)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(Theme.textMuted)
                             }
 
                             UsageBar(
@@ -91,12 +91,12 @@ struct StorageView: View {
                                 Text("\(ByteFormat.string(pool.free)) free")
                             }
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textMuted)
 
                             if pool.fragmentation != "-" && !pool.fragmentation.isEmpty {
                                 Text("Fragmentation \(pool.fragmentation)")
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Theme.textMuted)
                             }
                         }
                         .contentShape(Rectangle())
@@ -123,7 +123,7 @@ struct StorageView: View {
                                 .lineLimit(1)
                             Text(dataset.mountpoint)
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textSecondary)
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 8)
@@ -132,7 +132,7 @@ struct StorageView: View {
                                 .font(.caption)
                             Text("\(ByteFormat.string(dataset.available)) free")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textMuted)
                         }
                     }
 
@@ -157,11 +157,11 @@ struct StorageView: View {
                             Spacer()
                             Text(PercentFormat.zero(filesystem.usePercent))
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(filesystem.usePercent >= 90 ? .red : .secondary)
+                                .foregroundStyle(filesystem.usePercent >= 90 ? Theme.danger : Theme.textSecondary)
                         }
                         UsageBar(
                             fraction: filesystem.usePercent / 100,
-                            tint: filesystem.usePercent >= 90 ? .red : .accentColor
+                            tint: filesystem.usePercent >= 90 ? Theme.danger : Theme.accent
                         )
                         HStack {
                             Text("\(filesystem.source) · \(filesystem.fstype)")
@@ -169,7 +169,7 @@ struct StorageView: View {
                             Text("\(ByteFormat.string(filesystem.used)) of \(ByteFormat.string(filesystem.size))")
                         }
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textMuted)
                         .lineLimit(1)
                     }
 
@@ -207,6 +207,7 @@ struct PoolStatusSheet: View {
                 }
                 .padding()
             }
+            .appBackground()
             .navigationTitle(pool.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -23,7 +23,7 @@ struct SetupView: View {
 
                         Label(app.connectionMethod.subtitle, systemImage: app.connectionMethod.systemImage)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
 
@@ -42,7 +42,7 @@ struct SetupView: View {
 
                         Text("The token is stored in the iOS Keychain.")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textMuted)
                     }
                 }
 
@@ -57,34 +57,37 @@ struct SetupView: View {
                 if let message {
                     Text(message)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.danger)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
-                        .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(Theme.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Theme.danger.opacity(0.25), lineWidth: 1)
+                        )
                 }
 
                 Button(action: connect) {
                     HStack(spacing: 8) {
                         if isTesting {
                             ProgressView()
-                                .tint(.white)
+                                .tint(Theme.onAccent)
                         }
                         Text(isTesting ? "Connecting…" : "Save & Connect")
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(PrimaryButtonStyle())
                 .disabled(url.isEmpty || token.isEmpty || isTesting)
 
                 Text(app.connectionMethod.footnote)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textMuted)
                     .multilineTextAlignment(.center)
             }
             .padding(20)
         }
-        .background(background)
+        .appBackground()
         .onAppear {
             if url.isEmpty {
                 url = app.serverURL
@@ -99,46 +102,35 @@ struct SetupView: View {
         VStack(spacing: 12) {
             Image(systemName: "server.rack")
                 .font(.system(size: 46, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.onAccent)
                 .frame(width: 92, height: 92)
                 .background(
-                    LinearGradient(
-                        colors: [.accentColor, .accentColor.opacity(0.65)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
+                    Theme.brandGradient,
                     in: RoundedRectangle(cornerRadius: 24, style: .continuous)
                 )
-                .shadow(color: .accentColor.opacity(0.3), radius: 18, y: 8)
+                .shadow(color: Theme.teal.opacity(0.3), radius: 18, y: 8)
 
             Text("NixOS Control")
                 .font(.largeTitle.bold())
+                .foregroundStyle(Theme.textPrimary)
 
             Text("Monitor and manage your NixOS machine from your pocket.")
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
         .padding(.top, 20)
-    }
-
-    private var background: some View {
-        LinearGradient(
-            colors: [Color.accentColor.opacity(0.16), Color(uiColor: .systemGroupedBackground)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
     }
 
     private func checklistRow(_ number: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Text(number)
                 .font(.caption2.bold())
+                .foregroundStyle(Theme.accentLight)
                 .frame(width: 22, height: 22)
-                .background(Color.accentColor.opacity(0.15), in: Circle())
+                .background(Theme.accent.opacity(0.15), in: Circle())
             Text(text)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

@@ -58,7 +58,7 @@ struct SystemView: View {
                 }
                 .padding(16)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .appBackground()
             .navigationTitle("System")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -190,7 +190,7 @@ struct SystemView: View {
 
             Text(rebuildDescription)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
@@ -199,7 +199,7 @@ struct SystemView: View {
                 Label("Start rebuild", systemImage: "hammer.fill")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(PrimaryButtonStyle())
             .disabled(app.activeJob?.isRunning == true)
 
             if let job = app.activeJob {
@@ -215,7 +215,7 @@ struct SystemView: View {
                 Spacer()
                 Text(job.kind)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textMuted)
             }
 
             if job.isRunning {
@@ -233,8 +233,12 @@ struct SystemView: View {
                 .frame(maxHeight: 220)
                 .padding(8)
                 .background(
-                    Color(uiColor: .tertiarySystemGroupedBackground),
+                    Theme.sunken,
                     in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Theme.border, lineWidth: 1)
                 )
             }
 
@@ -266,12 +270,12 @@ struct SystemView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .tint(.red)
+                .tint(Theme.danger)
             }
 
             Text("Power actions take the server offline immediately.")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textMuted)
         }
     }
 
@@ -283,7 +287,7 @@ struct SystemView: View {
                 } else {
                     Text("No generations reported.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             } else {
                 ForEach(Array(app.generations.sorted { $0.number > $1.number }.prefix(20))) { generation in
@@ -292,11 +296,11 @@ struct SystemView: View {
                             .font(.subheadline)
                         Spacer(minLength: 8)
                         if generation.current {
-                            StatusBadge(text: "current", tint: .green)
+                            StatusBadge(text: "current", tint: Theme.success)
                         }
                         Text(generation.date)
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textMuted)
                     }
                 }
             }
@@ -312,12 +316,16 @@ struct SystemView: View {
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.textMuted)
             }
             .padding(16)
             .background(
-                Color(uiColor: .secondarySystemGroupedBackground),
+                Theme.cardGradient,
                 in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Theme.border, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

@@ -23,11 +23,13 @@
 		9C300B787CF21F10647D39D3 /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478886ACBF4BAEE4414F51B9 /* ServiceDetailView.swift */; };
 		AE8054F791B900FE92BFD0FA /* NixOSControlApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07734709A334DECB144E22A /* NixOSControlApp.swift */; };
 		B0760A2B73AE83558223F180 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 51AAE64334025D33949AC402 /* Assets.xcassets */; };
+		B7BC8BDB64BD635A33E0421A /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C98735EBF25290620673100 /* Theme.swift */; };
 		BAB62597E70E7862084B8866 /* ServicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C770326FF5E45ECAD21A5727 /* ServicesView.swift */; };
 		DD6B3FF27E6CE47DD6AEF231 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AD6643B6DF20601FB95228 /* RootView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0C98735EBF25290620673100 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		1A4ED095D2199FF299B302E2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3B82ED80E955E4479EDE48A9 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		448986A5AE3A93E376BC897D /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -94,6 +96,7 @@
 			isa = PBXGroup;
 			children = (
 				76EFB762F279BAB92C83D977 /* Format.swift */,
+				0C98735EBF25290620673100 /* Theme.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -227,6 +230,7 @@
 				0BA6345920E1D854214A9475 /* SetupView.swift in Sources */,
 				4E60EC71EB23FBA672997173 /* StorageView.swift in Sources */,
 				4D4F639DD151776C120BE0C4 /* SystemView.swift in Sources */,
+				B7BC8BDB64BD635A33E0421A /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

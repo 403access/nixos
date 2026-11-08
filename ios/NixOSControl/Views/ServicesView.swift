@@ -31,24 +31,28 @@ struct ServicesView: View {
                             Spacer()
                         }
                     }
+                    .listRowBackground(Theme.surface)
                 } else if filteredServices.isEmpty {
                     Section {
                         VStack(spacing: 8) {
                             Image(systemName: "gearshape.2")
                                 .font(.title2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textMuted)
                             Text(app.services.isEmpty ? "No services loaded." : "No matching services.")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textSecondary)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 28)
                     }
+                    .listRowBackground(Theme.surface)
                 } else {
                     ForEach(filteredServices) { service in
                         NavigationLink(value: service) {
                             ServiceRow(service: service)
                         }
+                        .listRowBackground(Theme.surface)
+                        .listRowSeparatorTint(Theme.border)
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             if service.isActive {
                                 Button {
@@ -56,14 +60,14 @@ struct ServicesView: View {
                                 } label: {
                                     Label("Restart", systemImage: "arrow.clockwise")
                                 }
-                                .tint(.blue)
+                                .tint(Theme.accent)
                             } else {
                                 Button {
                                     perform(service, "start")
                                 } label: {
                                     Label("Start", systemImage: "play.fill")
                                 }
-                                .tint(.green)
+                                .tint(Theme.success)
                             }
                         }
                         .swipeActions(edge: .trailing) {
@@ -79,6 +83,8 @@ struct ServicesView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppBackground())
             .navigationTitle("Services")
             .navigationDestination(for: ServiceUnit.self) { service in
                 ServiceDetailView(service: service)
@@ -202,7 +208,7 @@ struct ServiceRow: View {
                 if !service.description.isEmpty {
                     Text(service.description)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .lineLimit(1)
                 }
             }
@@ -211,7 +217,7 @@ struct ServiceRow: View {
 
             Text(service.sub)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textMuted)
         }
         .padding(.vertical, 2)
     }

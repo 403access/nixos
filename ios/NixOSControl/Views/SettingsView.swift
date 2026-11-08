@@ -26,18 +26,21 @@ struct SettingsView: View {
                         HStack {
                             if isSaving {
                                 ProgressView()
+                                    .tint(Theme.onAccent)
                             }
                             Text(isSaving ? "Testing…" : "Save & test")
                         }
                     }
+                    .buttonStyle(PrimaryButtonStyle())
                     .disabled(url.isEmpty || token.isEmpty || isSaving)
 
                     if let message {
                         Text(message)
                             .font(.footnote)
-                            .foregroundStyle(isSuccess ? .green : .red)
+                            .foregroundStyle(isSuccess ? Theme.success : Theme.danger)
                     }
                 }
+                .listRowBackground(Theme.surface)
 
                 Section {
                     Picker("Method", selection: $app.connectionMethod) {
@@ -50,7 +53,9 @@ struct SettingsView: View {
                     Text("Connection method")
                 } footer: {
                     Text("Choose how this iPhone reaches the server. Changing the method does not alter the saved URL.")
+                        .foregroundStyle(Theme.textMuted)
                 }
+                .listRowBackground(Theme.surface)
 
                 Section("Server") {
                     LabeledContent("Status") {
@@ -81,6 +86,7 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .listRowBackground(Theme.surface)
 
                 Section {
                     Text("sudo nixos-control-token")
@@ -88,7 +94,7 @@ struct SettingsView: View {
                         .textSelection(.enabled)
                     Text("or")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textMuted)
                     Text("sudo cat /var/lib/nixos-control/token")
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
@@ -96,13 +102,16 @@ struct SettingsView: View {
                     Text("Reading the API token")
                 } footer: {
                     Text("The token is generated on the NixOS machine at first start and stored in the iOS Keychain.")
+                        .foregroundStyle(Theme.textMuted)
                 }
+                .listRowBackground(Theme.surface)
 
                 Section(app.connectionMethod.title) {
                     Text(app.connectionMethod.settingsHelp)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
+                .listRowBackground(Theme.surface)
 
                 Section("About") {
                     LabeledContent("App") {
@@ -112,13 +121,17 @@ struct SettingsView: View {
                         Text(app.serverURL.isEmpty ? "Not configured" : app.serverURL)
                     }
                 }
+                .listRowBackground(Theme.surface)
 
                 Section {
                     Button("Disconnect", role: .destructive) {
                         showDisconnectConfirm = true
                     }
                 }
+                .listRowBackground(Theme.surface)
             }
+            .scrollContentBackground(.hidden)
+            .background(AppBackground())
             .navigationTitle("Settings")
             .onAppear {
                 url = app.serverURL

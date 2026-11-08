@@ -47,41 +47,41 @@ extension Color {
     static func serviceStatus(_ active: String) -> Color {
         switch active {
         case "active":
-            return .green
+            return Theme.success
         case "failed":
-            return .red
+            return Theme.danger
         case "activating", "deactivating", "reloading":
-            return .orange
+            return Theme.warning
         default:
-            return .secondary
+            return Theme.textMuted
         }
     }
 
     static func poolHealth(_ health: String) -> Color {
         switch health.uppercased() {
         case "ONLINE":
-            return .green
+            return Theme.success
         case "DEGRADED", "OFFLINE", "FAULTED", "UNAVAIL":
-            return .orange
+            return Theme.warning
         case "REMOVED":
-            return .red
+            return Theme.danger
         default:
-            return .secondary
+            return Theme.textMuted
         }
     }
 
     static func jobStatus(_ status: String) -> Color {
         switch status {
         case "running":
-            return .orange
+            return Theme.warning
         case "succeeded":
-            return .green
+            return Theme.success
         case "failed":
-            return .red
+            return Theme.danger
         case "cancelled":
-            return .gray
+            return Theme.textMuted
         default:
-            return .secondary
+            return Theme.textSecondary
         }
     }
 }

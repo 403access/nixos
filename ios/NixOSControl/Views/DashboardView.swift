@@ -36,7 +36,7 @@ struct DashboardView: View {
                 }
                 .padding(16)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .appBackground()
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -75,9 +75,10 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(app.status?.hostname ?? "NixOS")
                             .font(.title2.bold())
+                            .foregroundStyle(Theme.textPrimary)
                         Text(app.status?.os ?? "Connecting to your machine…")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()
                     connectionBadge
@@ -89,7 +90,7 @@ struct DashboardView: View {
                         Label(status.kernel, systemImage: "cpu")
                     }
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
                     .lineLimit(1)
                 }
             }
@@ -114,13 +115,13 @@ struct DashboardView: View {
     private var connectionInfo: (text: String, color: Color) {
         switch app.connectionState {
         case .online:
-            return ("Online", .green)
+            return ("Online", Theme.success)
         case .connecting:
-            return ("Connecting", .orange)
+            return ("Connecting", Theme.warning)
         case .offline:
-            return ("Offline", .red)
+            return ("Offline", Theme.danger)
         case .unknown:
-            return ("Unknown", .secondary)
+            return ("Unknown", Theme.textMuted)
         }
     }
 
@@ -134,7 +135,7 @@ struct DashboardView: View {
                 value: PercentFormat.one(status.cpu.usagePercent),
                 caption: "\(status.cpu.cores) cores",
                 icon: "cpu",
-                tint: .blue,
+                tint: Theme.accent,
                 progress: status.cpu.usagePercent / 100
             )
             MetricTile(
@@ -142,7 +143,7 @@ struct DashboardView: View {
                 value: ByteFormat.string(status.memory.used),
                 caption: "of \(ByteFormat.string(status.memory.total))",
                 icon: "memorychip",
-                tint: .purple,
+                tint: Theme.teal,
                 progress: usageFraction(status.memory.used, status.memory.total)
             )
             MetricTile(
@@ -150,14 +151,14 @@ struct DashboardView: View {
                 value: status.load.map { String(format: "%.2f", $0) }.joined(separator: "  "),
                 caption: "1 / 5 / 15 minutes",
                 icon: "waveform.path.ecg",
-                tint: .orange
+                tint: Theme.warning
             )
             MetricTile(
                 title: "Root disk",
                 value: PercentFormat.one(status.rootDisk.usePercent),
                 caption: "\(ByteFormat.string(status.rootDisk.used)) of \(ByteFormat.string(status.rootDisk.total))",
                 icon: "internaldrive",
-                tint: .green,
+                tint: Theme.success,
                 progress: status.rootDisk.usePercent / 100
             )
         }
@@ -166,19 +167,18 @@ struct DashboardView: View {
     private func servicesCard(_ status: SystemStatus) -> some View {
         Card("Services", systemImage: "gearshape.2") {
             HStack(spacing: 24) {
-                countPill(value: status.services.running, label: "running", color: .green)
+                countPill(value: status.services.running, label: "running", color: Theme.success)
                 countPill(
                     value: status.services.failed,
                     label: "failed",
-                    color: status.services.failed > 0 ? .red : .secondary
+                    color: status.services.failed > 0 ? Theme.danger : Theme.textMuted
                 )
-                countPill(value: status.services.total, label: "total", color: .secondary)
+                countPill(value: status.services.total, label: "total", color: Theme.textSecondary)
                 Spacer(minLength: 0)
                 Button("Manage") {
                     selection = .services
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .buttonStyle(PrimaryButtonStyle(compact: true))
             }
         }
     }
@@ -191,7 +191,7 @@ struct DashboardView: View {
                 .foregroundStyle(color)
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 
@@ -217,7 +217,7 @@ struct DashboardView: View {
                             Text("\(ByteFormat.string(pool.free)) free")
                         }
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textMuted)
                     }
 
                     if pool.id != status.pools.last?.id {
@@ -241,14 +241,18 @@ struct DashboardView: View {
                                     .monospacedDigit()
                                 Text(temperature.label)
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Theme.textSecondary)
                                     .lineLimit(1)
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
-                                Color(uiColor: .tertiarySystemGroupedBackground),
+                                Theme.raised,
                                 in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .strokeBorder(Theme.border, lineWidth: 1)
                             )
                         }
                     }
@@ -263,7 +267,7 @@ struct DashboardView: View {
             if status.addresses.isEmpty {
                 Text("No network addresses reported.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             } else {
                 ForEach(status.addresses, id: \.self) { address in
                     Text(address)
@@ -282,7 +286,7 @@ struct DashboardView: View {
                         text: tailscale.connected
                             ? (tailscale.dnsName.isEmpty ? "Connected" : tailscale.dnsName)
                             : tailscale.state.capitalized,
-                        tint: tailscale.connected ? .green : .orange
+                        tint: tailscale.connected ? Theme.success : Theme.warning
                     )
                 }
             }
@@ -294,7 +298,7 @@ struct DashboardView: View {
         if let updated = app.lastUpdated {
             Text("Updated \(updated.formatted(date: .omitted, time: .standard))")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textMuted)
                 .padding(.top, 4)
         }
     }
