@@ -35,6 +35,7 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      ./nixos-control.nix
     ];
 
   nixpkgs.config.allowUnfree = true;
@@ -55,6 +56,14 @@
     enable = true;
     allowedTCPPorts = [ 3000 3389 ];
   }; 
+
+  # Remote management API used by the iOS app. The server listens on
+  # 127.0.0.1:8787 and is exposed over Tailscale Serve (HTTPS).
+  services.nixos-control.enable = true;
+
+  # Private networking for the phone and automatic HTTPS for the API.
+  services.tailscale.enable = true;
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
 
  networking.nameservers = [
      # Google DNS
@@ -250,6 +259,9 @@ services.samba = {
 
       # virtual machine
       swtpm virtio-win qemu quickemu
+
+      # remote access / management
+      tailscale
 
       # backup
       jotta-cli

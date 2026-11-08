@@ -1,0 +1,323 @@
+# NixOS Control
+
+An iPhone app for monitoring and managing a NixOS machine, backed by a small authenticated API server that runs on the machine itself.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="200" alt="Dashboard">
+  <img src="docs/screenshots/services.png" width="200" alt="Services">
+  <img src="docs/screenshots/storage.png" width="200" alt="Storage">
+  <img src="docs/screenshots/system.png" width="200" alt="System">
+  <img src="docs/screenshots/settings.png" width="200" alt="Settings">
+</p>
+
+<p align="center"><em>Screenshots use fixture data from the iOS Simulator.</em></p>
+
+## Features
+
+- **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state.
+- **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
+- **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
+- **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
+- **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
+- **Tailscale-only networking** — the iPhone reaches the machine through the tailnet, even when it is away from home.
+
+## Architecture
+
+```text
+┌─────────────┐      HTTPS (Tailscale)      ┌──────────────────────────┐
+│  iPhone app │ ──────────────────────────► │  tailscale serve :443    │
+└─────────────┘                             └────────────┬─────────────┘
+                                                         │ HTTP localhost
+                                                         ▼
+                                            ┌──────────────────────────┐
+                                            │ nixos-control (Go)       │
+                                            │ 127.0.0.1:8787           │
+                                            └────────────┬─────────────┘
+                                                         │
+                                      systemd · journalctl · zfs · nixos-rebuild
+                                                         ▼
+                                            ┌──────────────────────────┐
+                                            │        NixOS host        │
+                                            └──────────────────────────┘
+```
+
+## Repository layout
+
+```text
+configuration.nix          Existing NixOS config (now imports the module)
+nixos-control.nix          NixOS module: packages and runs the server
+server/                    Dependency-free Go API server
+ios/                       SwiftUI app and XcodeGen project
+docs/screenshots/          App screenshots
+```
+
+## Deploy the server
+
+The server is a stdlib-only Go program packaged with `buildGoModule`, so there is nothing to install manually on the NixOS machine.
+
+1. Put this repository at `/etc/nixos` (or copy `configuration.nix`, `nixos-control.nix`, and the `server/` directory there). The existing config already contains:
+
+   ```nix
+   imports = [
+     ./hardware-configuration.nix
+     ./nixos-control.nix
+   ];
+
+   services.nixos-control.enable = true;
+
+   services.tailscale.enable = true;
+   networking.firewall.trustedInterfaces = [ "tailscale0" ];
+   ```
+
+2. Rebuild:
+
+   ```bash
+   sudo nixos-rebuild switch
+   ```
+
+   The first start generates `/var/lib/nixos-control/token`.
+
+3. Set up Tailscale:
+
+   ```bash
+   sudo tailscale up
+   ```
+
+   In the [Tailscale admin console](https://login.tailscale.com/admin/dns):
+   - Enable **MagicDNS**.
+   - Enable **HTTPS Certificates**.
+
+   Then start the Serve unit (it may already be running and retrying):
+
+   ```bash
+   sudo systemctl restart nixos-control-tailscale-serve
+   sudo systemctl status nixos-control nixos-control-tailscale-serve
+   sudo tailscale serve status
+   ```
+
+   The Serve unit runs:
+
+   ```bash
+   tailscale serve --bg --https=443 http://127.0.0.1:8787
+   ```
+
+4. Read the API token:
+
+   ```bash
+   sudo nixos-control-token
+   # or: sudo cat /var/lib/nixos-control/token
+   ```
+
+5. Verify the API:
+
+   ```bash
+   TOKEN=$(sudo nixos-control-token)
+   curl -s -H "Authorization: Bearer $TOKEN" \
+     "https://<machine>.<tailnet>.ts.net/api/health"
+   ```
+
+   Use the machine name shown by `tailscale status` and your tailnet's
+   `ts.net` domain.
+
+   You should see `{"ok":true,"version":"0.1.0",...}`.
+
+   > `nixos-control` deliberately does not restart itself during
+   > `nixos-rebuild` (so an in-flight rebuild cannot kill its own process).
+   > After changing the server or this module, run
+   > `sudo systemctl restart nixos-control` manually.
+
+## Build the iOS app
+
+Requirements: Xcode 26 or newer, [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), and iOS 17+.
+
+```bash
+cd ios
+xcodegen generate
+open NixOSControl.xcodeproj
+```
+
+In Xcode:
+
+1. Select the **NixOSControl** target → **Signing & Capabilities**.
+2. Choose your personal team. Change the bundle identifier if Xcode asks.
+3. Connect your iPhone, select it as the run destination, and press **Run**.
+4. On the phone, trust the developer certificate if prompted: **Settings → General → VPN & Device Management**.
+
+> The AppIcon asset is intentionally empty. Add a 1024×1024 PNG to
+> `ios/NixOSControl/Resources/Assets.xcassets/AppIcon.appiconset` if you want a
+> custom home-screen icon.
+
+On first launch, enter:
+
+- **Server URL**: `https://<machine>.<tailnet>.ts.net` (no trailing slash)
+- **API token**: the value from `sudo nixos-control-token`
+
+Tap **Save & Connect**.
+
+> The app stores the token in the iOS Keychain. The URL is stored in `UserDefaults`.
+
+### Local/LAN testing
+
+For testing without Tailscale, set:
+
+```nix
+services.nixos-control = {
+  address = "0.0.0.0";
+  openFirewall = true;
+  tailscaleServe.enable = false;
+};
+```
+
+Then connect to `http://<LAN-IP>:8787`. This traffic is unencrypted; use it only on a trusted network. The app allows plain HTTP (`NSAllowsArbitraryLoads`) to support this; Tailscale HTTPS remains the recommended path.
+
+## Configuration options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `services.nixos-control.enable` | `false` | Enable the API server |
+| `address` | `127.0.0.1` | Listen address |
+| `port` | `8787` | Listen port |
+| `openFirewall` | `false` | Open the port in the firewall |
+| `tokenFile` | `/var/lib/nixos-control/token` | Bearer-token file, generated if missing |
+| `flake` | `null` | When set, rebuilds use `--flake <value>` |
+| `allowRebuild` | `true` | Allow `nixos-rebuild` actions |
+| `allowPower` | `true` | Allow reboot/shutdown |
+| `tailscaleServe.enable` | `true` | Expose the API via Tailscale Serve |
+| `tailscaleServe.httpsPort` | `443` | HTTPS port used by Tailscale Serve |
+
+### Flakes
+
+The current `configuration.nix` is channel-based, so the default `nixos-rebuild switch` is used. If you migrate to flakes, set the flake reference:
+
+```nix
+services.nixos-control.flake = "/etc/nixos#nixos";
+```
+
+With a git-backed flake, make sure `server/` and `nixos-control.nix` are tracked (`git add`), otherwise Nix will not see them.
+
+### Read-only mode
+
+If you only want monitoring:
+
+```nix
+services.nixos-control = {
+  enable = true;
+  allowRebuild = false;
+  allowPower = false;
+};
+```
+
+The app reads these capabilities from `/api/status` and hides the corresponding actions.
+
+## API
+
+Every route requires:
+
+```http
+Authorization: Bearer <token>
+```
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/health` | Version and hostname |
+| `GET` | `/api/status` | Full system snapshot |
+| `GET` | `/api/services` | systemd service units |
+| `POST` | `/api/services/{unit}/{action}` | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `reset-failed`, … |
+| `GET` | `/api/services/{unit}/logs?lines=200` | Service journal |
+| `GET` | `/api/storage` | Pools, datasets, filesystems |
+| `GET` | `/api/storage/pools/{name}` | `zpool status` output |
+| `GET` | `/api/system/generations` | NixOS generations |
+| `POST` | `/api/system/rebuild` | `{"action":"switch"\|"boot"\|"test"\|"dry-activate"\|"dry-build"}` |
+| `GET` | `/api/jobs/{id}` | Rebuild job status/output |
+| `POST` | `/api/jobs/{id}/cancel` | Cancel a rebuild |
+| `POST` | `/api/system/power` | `{"action":"reboot"\|"shutdown"\|"poweroff"}` |
+| `GET` | `/api/logs?lines=300` | System journal |
+
+### Rotate the token
+
+```bash
+sudo systemctl stop nixos-control
+sudo rm /var/lib/nixos-control/token
+sudo systemctl start nixos-control
+sudo nixos-control-token
+```
+
+Update the token in the app afterwards.
+
+## Security notes
+
+- The server **never listens on a public interface** by default. Tailscale Serve terminates TLS and forwards to `127.0.0.1:8787`.
+- The token is 32 random bytes (hex-encoded), compared in constant time, with a small delay on failures.
+- The unit runs as root because it talks to systemd, reads the journal, manages ZFS, and invokes `nixos-rebuild`. It is token-protected; **a leaked token is effectively root access to the machine**.
+- Restrict access with Tailscale ACLs so only your phone can reach this machine on port 443.
+- Keep `allowRebuild`/`allowPower` disabled if you do not need them.
+- Keep ZFS snapshots/backups before using `switch`; use the `test` action to validate a configuration first.
+- Do not expose port `8787` to the internet. If you use the LAN mode, keep it behind the firewall and on a trusted network.
+
+## Development
+
+### Server
+
+```bash
+cd server
+go test ./...
+go run . \
+  --listen 127.0.0.1:8787 \
+  --token-file /tmp/nixos-control-token \
+  --allow-rebuild=false \
+  --allow-power=false
+```
+
+The server is intentionally dependency-free (`go.mod` only). It is built by NixOS with `buildGoModule`.
+
+### iOS
+
+```bash
+cd ios
+xcodegen generate
+xcodebuild -project NixOSControl.xcodeproj \
+  -scheme NixOSControl \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+In `DEBUG` builds, these environment variables can point the app at a local fixture server:
+
+- `NIXOS_CONTROL_SERVER`
+- `NIXOS_CONTROL_TOKEN`
+- `NIXOS_CONTROL_TAB` (`dashboard`, `services`, `storage`, `system`, `settings`)
+
+They are ignored in release builds.
+
+## Troubleshooting
+
+**`401 unauthorized`**
+: The token does not match. Read it again with `sudo nixos-control-token`, then save it in Settings.
+
+**Tailscale Serve fails**
+: HTTPS certificates or MagicDNS are not enabled for the tailnet, or `tailscale up` has not completed. Check `journalctl -u nixos-control-tailscale-serve -e` and `tailscale serve status`, then restart the unit.
+
+**App cannot connect**
+: Confirm Tailscale is connected on the phone and the machine. Use the MagicDNS HTTPS name, not the LAN IP, when relying on Serve.
+
+**Rebuild fails**
+: The job output is shown in the System tab. For channel-based systems, `NIX_PATH` is passed through from `config.nix.nixPath`; for flakes, set `services.nixos-control.flake`.
+
+**No ZFS data**
+: Confirm `zpool`/`zfs` are on the system path and the pool is imported (`zpool status`).
+
+**Logs are empty**
+: The server reads the journal as root; check `journalctl -u nixos-control -e` for server-side errors.
+
+**Service status**
+: `systemctl status nixos-control nixos-control-tailscale-serve`
+
+## Limitations / next steps
+
+- Logs and status are polled, not streamed.
+- Rebuild jobs are kept in memory and are lost if the server restarts.
+- Single-host only.
+- No Docker/container management yet; the server is structured so new endpoints can be added easily.
+- Token rotation is manual.
+- No push notifications for failed units or completed rebuilds.

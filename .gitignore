@@ -1,0 +1,15 @@
+.DS_Store
+
+# Xcode user-specific data and build products
+ios/**/xcuserdata/
+ios/**/*.xcuserstate
+ios/build/
+ios/DerivedData/
+
+# Nix build results
+/result
+/result-*
+
+# Local server binaries
+/server/nixos-control
+/server/server
