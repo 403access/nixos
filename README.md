@@ -305,6 +305,33 @@ go run . \
 
 The server is intentionally dependency-free (`go.mod` only). It is built by NixOS with `buildGoModule`.
 
+Running it on macOS is enough for API and app work, but `/proc`, `systemctl`, `journalctl`, and `zpool` are Linux-only, so the dashboard and system endpoints stay empty.
+
+### Local NixOS VM
+
+The module needs a real NixOS userspace. With [OrbStack](https://orbstack.dev):
+
+```bash
+./vm/apply.sh
+```
+
+This creates a `control-test` NixOS machine (if needed), copies the module and server into it, and runs `nixos-rebuild switch`. You get:
+
+- the API at `http://control-test.orb.local:8787`
+- an XFCE desktop over VNC at `vnc://control-test.orb.local:5901` (password `nixos`)
+- the real systemd unit, token generation, `/proc`, `systemctl`, and `journalctl`
+
+Day-to-day helpers:
+
+```bash
+./vm/vm.sh status          # units, token prefix, API health, URLs
+./vm/vm.sh ios services    # build/install/launch the app against the VM
+./vm/vm.sh vnc             # open the desktop
+./vm/vm.sh stop            # pause; `start` resumes, `delete` destroys
+```
+
+Point the iOS app at it manually with the debug environment variables below (`NIXOS_CONTROL_SERVER=http://control-test.orb.local:8787`). See [vm/README.md](vm/README.md) for details, limitations (no ZFS, no Tailscale, OrbStack kernel), and teardown.
+
 ### iOS
 
 ```bash
