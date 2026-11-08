@@ -15,6 +15,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'guides/configuration',
         'guides/tailscale',
+        'guides/fritzbox-wireguard',
         'guides/flakes',
         'guides/troubleshooting',
       ],

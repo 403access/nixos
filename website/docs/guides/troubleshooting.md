@@ -24,8 +24,15 @@ sudo systemctl restart nixos-control-tailscale-serve
 
 ## The app cannot connect
 
-Confirm Tailscale is connected on the phone and on the machine. Use the
-MagicDNS HTTPS name, not the LAN IP, when relying on Serve.
+First check which connection method the app is set to.
+
+**Tailscale:** confirm Tailscale is connected on the phone and on the machine.
+Use the MagicDNS HTTPS name, not the LAN IP, when relying on Serve.
+
+**WireGuard:** confirm the tunnel is active, use the machine's LAN address
+(`http://<LAN-IP>:8787`), and make sure the server listens on `0.0.0.0` with
+port `8787` open in the firewall. See
+[FRITZ!Box WireGuard](./fritzbox-wireguard.md).
 
 Also verify the API locally:
 
@@ -33,6 +40,19 @@ Also verify the API locally:
 TOKEN=$(sudo nixos-control-token)
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/health
 ```
+
+## WireGuard connection fails
+
+```bash
+ss -ltnp | grep 8787
+sudo systemctl status nixos-control
+journalctl -u nixos-control -e
+```
+
+The listener should be `0.0.0.0:8787` (or `*:8787`) for VPN access. Rebuild the
+configuration and restart `nixos-control` after changing `address`,
+`openFirewall` or `tailscaleServe.enable`. If Safari on the phone gets a `401`,
+the network path works and only the token is wrong.
 
 ## A rebuild fails
 

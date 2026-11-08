@@ -12,9 +12,24 @@ struct SetupView: View {
             VStack(spacing: 18) {
                 header
 
+                Card("Connection method", systemImage: "point.3.connected.trianglepath.dotted") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Picker("Connection method", selection: $app.connectionMethod) {
+                            ForEach(ConnectionMethod.allCases) { method in
+                                Text(method.title).tag(method)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Label(app.connectionMethod.subtitle, systemImage: app.connectionMethod.systemImage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Card("Server", systemImage: "network") {
                     VStack(alignment: .leading, spacing: 10) {
-                        TextField("https://nixos.tailnet.ts.net", text: $url)
+                        TextField(app.connectionMethod.urlPlaceholder, text: $url)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .keyboardType(.URL)
@@ -33,10 +48,9 @@ struct SetupView: View {
 
                 Card("Setup checklist", systemImage: "checklist") {
                     VStack(alignment: .leading, spacing: 12) {
-                        checklistRow("1", "Install Tailscale on this iPhone and sign in to the same tailnet as your NixOS machine.")
-                        checklistRow("2", "Enable HTTPS certificates for your tailnet in the Tailscale admin console, then run `sudo tailscale up` on the machine.")
-                        checklistRow("3", "Read the token with `sudo nixos-control-token` or `sudo cat /var/lib/nixos-control/token`.")
-                        checklistRow("4", "Enter the machine's Tailscale HTTPS URL above, for example `https://nixos.tailnet-name.ts.net`.")
+                        ForEach(Array(app.connectionMethod.checklist.enumerated()), id: \.offset) { _, item in
+                            checklistRow(item.number, item.text)
+                        }
                     }
                 }
 
@@ -63,7 +77,7 @@ struct SetupView: View {
                 .controlSize(.large)
                 .disabled(url.isEmpty || token.isEmpty || isTesting)
 
-                Text("All traffic stays inside your Tailscale network. The API server never listens on the public internet.")
+                Text(app.connectionMethod.footnote)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

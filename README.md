@@ -19,7 +19,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
-- **Tailscale-only networking** — the iPhone reaches the machine through the tailnet, even when it is away from home.
+- **Tailscale or WireGuard** — the iPhone reaches the machine through the tailnet, or through the WireGuard VPN that already runs on your FRITZ!Box.
 
 ## Architecture
 
@@ -143,6 +143,9 @@ The server is a stdlib-only Go program packaged with `buildGoModule`, so there i
 
    You should see `{"ok":true,"version":"0.1.0",...}`.
 
+   > **Using FRITZ!Box WireGuard instead?** Skip the Tailscale steps and follow
+   > the [WireGuard section](#wireguard-and-lan-access) below.
+
    > `nixos-control` deliberately does not restart itself during
    > `nixos-rebuild` (so an in-flight rebuild cannot kill its own process).
    > After changing the server or this module, run
@@ -169,18 +172,18 @@ In Xcode:
 > `ios/NixOSControl/Resources/Assets.xcassets/AppIcon.appiconset` if you want a
 > custom home-screen icon.
 
-On first launch, enter:
+On first launch, choose a connection method and enter:
 
-- **Server URL**: `https://<machine>.<tailnet>.ts.net` (no trailing slash)
+- **Server URL**: `https://<machine>.<tailnet>.ts.net` for Tailscale, or `http://<LAN-IP>:8787` over WireGuard (no trailing slash)
 - **API token**: the value from `sudo nixos-control-token`
 
 Tap **Save & Connect**.
 
-> The app stores the token in the iOS Keychain. The URL is stored in `UserDefaults`.
+> The app stores the token in the iOS Keychain. The URL and connection method are stored in `UserDefaults`. Bare IP addresses, single-label hostnames, `.local` names and `.fritz.box` hostnames default to `http://`.
 
-### Local/LAN testing
+### WireGuard and LAN access
 
-For testing without Tailscale, set:
+The module already supports an existing FRITZ!Box WireGuard VPN; no WireGuard configuration is needed on the NixOS host. Set:
 
 ```nix
 services.nixos-control = {
@@ -190,7 +193,16 @@ services.nixos-control = {
 };
 ```
 
-Then connect to `http://<LAN-IP>:8787`. This traffic is unencrypted; use it only on a trusted network. The app allows plain HTTP (`NSAllowsArbitraryLoads`) to support this; Tailscale HTTPS remains the recommended path.
+Rebuild and restart the server so the listen address changes:
+
+```bash
+sudo nixos-rebuild switch
+sudo systemctl restart nixos-control
+```
+
+Then connect to `http://<LAN-IP>:8787` with the WireGuard tunnel active. The app exposes both **Tailscale** and **WireGuard** presets in setup and Settings. WireGuard encrypts the phone-to-router leg; direct LAN access is unencrypted, so use it only on a trusted network. The app allows plain HTTP (`NSAllowsArbitraryLoads`) to support this; Tailscale HTTPS remains the recommended path when away from home without a VPN.
+
+See the [FRITZ!Box WireGuard guide](website/docs/guides/fritzbox-wireguard.md) for the router steps.
 
 ## Configuration options
 
@@ -199,7 +211,7 @@ Then connect to `http://<LAN-IP>:8787`. This traffic is unencrypted; use it only
 | `services.nixos-control.enable` | `false` | Enable the API server |
 | `address` | `127.0.0.1` | Listen address |
 | `port` | `8787` | Listen port |
-| `openFirewall` | `false` | Open the port in the firewall |
+| `openFirewall` | `false` | Open the port in the firewall on all interfaces |
 | `tokenFile` | `/var/lib/nixos-control/token` | Bearer-token file, generated if missing |
 | `flake` | `null` | When set, rebuilds use `--flake <value>` |
 | `allowRebuild` | `true` | Allow `nixos-rebuild` actions |
@@ -269,6 +281,7 @@ Update the token in the app afterwards.
 ## Security notes
 
 - The server **never listens on a public interface** by default. Tailscale Serve terminates TLS and forwards to `127.0.0.1:8787`.
+- In WireGuard/LAN mode the server listens on `0.0.0.0:8787` behind the firewall. Do not forward that port from the internet; the FRITZ!Box VPN is the only outside path. `openFirewall` opens the port on all interfaces, so bind to a LAN address and scope the rule per interface if the host has a public IPv6 address or joins untrusted networks.
 - The token is 32 random bytes (hex-encoded), compared in constant time, with a small delay on failures.
 - The unit runs as root because it talks to systemd, reads the journal, manages ZFS, and invokes `nixos-rebuild`. It is token-protected; **a leaked token is effectively root access to the machine**.
 - Restrict access with Tailscale ACLs so only your phone can reach this machine on port 443.
@@ -321,7 +334,10 @@ They are ignored in release builds.
 : HTTPS certificates or MagicDNS are not enabled for the tailnet, or `tailscale up` has not completed. Check `journalctl -u nixos-control-tailscale-serve -e` and `tailscale serve status`, then restart the unit.
 
 **App cannot connect**
-: Confirm Tailscale is connected on the phone and the machine. Use the MagicDNS HTTPS name, not the LAN IP, when relying on Serve.
+: Confirm the app's connection method. For Tailscale, check that it is connected on the phone and the machine, and use the MagicDNS HTTPS name. For WireGuard, turn on the tunnel, use `http://<LAN-IP>:8787`, and confirm the server listens on `0.0.0.0:8787` (`ss -ltnp | grep 8787`).
+
+**WireGuard connection fails**
+: Check the FRITZ!Box WireGuard connection, the server's listen address, `openFirewall`, and `journalctl -u nixos-control -e`. A `401` means the network path works and only the token is wrong.
 
 **Rebuild fails**
 : The job output is shown in the System tab. For channel-based systems, `NIX_PATH` is passed through from `config.nix.nixPath`; for flakes, set `services.nixos-control.flake`.

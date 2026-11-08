@@ -44,15 +44,16 @@ panel to the internet.
 - **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job
   output and cancellation, reboot, and shutdown.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every
-  request with a 256-bit bearer token, and is exposed over Tailscale Serve with
-  automatic HTTPS. No router ports are opened.
-- **Tailscale-only networking** — the iPhone reaches the machine through the
-  tailnet, even when it is away from home.
+  request with a 256-bit bearer token, and can be exposed over Tailscale Serve
+  with automatic HTTPS. No router ports are opened.
+- **Tailscale or WireGuard** — reach the machine through your tailnet, or use
+  the WireGuard VPN that already runs on your FRITZ!Box.
 
 ## What you need
 
 - A NixOS machine where you can run `nixos-rebuild switch`.
-- A Tailscale account and the Tailscale client on the NixOS machine.
+- One way to reach it from your phone: a Tailscale account and client, or an
+  existing WireGuard VPN such as the one built into a FRITZ!Box.
 - An iPhone on iOS 17 or newer, plus Xcode 26 and
   [XcodeGen](https://github.com/yonaskolb/XcodeGen) to build the app.
 
@@ -79,9 +80,13 @@ builds it for you.
                                             └──────────────────────────┘
 ```
 
-The API never listens on a public interface. Tailscale Serve terminates TLS and
-forwards requests to loopback, so the phone can reach the machine anywhere on
-the tailnet without any inbound firewall rules.
+With Tailscale, the API never listens on a public interface. Tailscale Serve
+terminates TLS and forwards requests to loopback, so the phone can reach the
+machine anywhere on the tailnet without any inbound firewall rules.
+
+If you use FRITZ!Box WireGuard instead, the server listens on the LAN and the
+router's VPN encrypts the path from the phone. Inside the tunnel the API uses
+plain HTTP. See [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md).
 
 ## Next steps
 
@@ -90,4 +95,6 @@ the tailnet without any inbound firewall rules.
 - [Build the iOS app](./getting-started/ios-app.md) — generate the Xcode project
   and pair your phone.
 - [Configuration](./guides/configuration.md) — every module option.
+- [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md) — use an existing router
+  VPN instead of Tailscale.
 - [API reference](./reference/api.md) — routes, payloads and authentication.

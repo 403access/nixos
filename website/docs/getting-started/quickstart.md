@@ -60,6 +60,12 @@ The Serve unit runs:
 tailscale serve --bg --https=443 http://127.0.0.1:8787
 ```
 
+:::tip Using a FRITZ!Box WireGuard VPN?
+You can skip Tailscale Serve and use the WireGuard VPN that already runs on your
+FRITZ!Box. The server must listen on `0.0.0.0`, open port `8787` and disable
+Tailscale Serve. See [FRITZ!Box WireGuard](../guides/fritzbox-wireguard.md).
+:::
+
 ## 4. Read the API token
 
 ```bash
@@ -94,3 +100,4 @@ changing the server or this module, run
 - [Build the iOS app](./ios-app.md)
 - [Configuration options](../guides/configuration.md)
 - [Tailscale and security](../guides/tailscale.md)
+- [FRITZ!Box WireGuard](../guides/fritzbox-wireguard.md)

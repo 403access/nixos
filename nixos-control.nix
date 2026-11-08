@@ -59,8 +59,10 @@ in
       type = lib.types.bool;
       default = false;
       description = ''
-        Open the API port in the firewall. Only needed when connecting directly
-        over the LAN instead of through Tailscale Serve.
+        Open the API port in the firewall on all interfaces. Only needed when
+        connecting directly over the LAN or through a router VPN such as
+        FRITZ!Box WireGuard. If the host is reachable from untrusted networks,
+        prefer binding to a LAN address and a per-interface firewall rule.
       '';
     };
 

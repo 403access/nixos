@@ -39,6 +39,19 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    Picker("Method", selection: $app.connectionMethod) {
+                        ForEach(ConnectionMethod.allCases) { method in
+                            Label(method.title, systemImage: method.systemImage)
+                                .tag(method)
+                        }
+                    }
+                } header: {
+                    Text("Connection method")
+                } footer: {
+                    Text("Choose how this iPhone reaches the server. Changing the method does not alter the saved URL.")
+                }
+
                 Section("Server") {
                     LabeledContent("Status") {
                         Text(statusText)
@@ -85,8 +98,8 @@ struct SettingsView: View {
                     Text("The token is generated on the NixOS machine at first start and stored in the iOS Keychain.")
                 }
 
-                Section("Tailscale") {
-                    Text("The app connects through your tailnet, so the server does not need an open port. If the connection fails, check that Tailscale is connected on both devices and that HTTPS is enabled for your tailnet.")
+                Section(app.connectionMethod.title) {
+                    Text(app.connectionMethod.settingsHelp)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

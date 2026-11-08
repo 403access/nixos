@@ -16,7 +16,7 @@ systemd units: the API server and an optional Tailscale Serve proxy.
 | `services.nixos-control.enable` | `false` | Enable the API server |
 | `address` | `127.0.0.1` | Listen address |
 | `port` | `8787` | Listen port |
-| `openFirewall` | `false` | Open the port in the firewall |
+| `openFirewall` | `false` | Open the port in the firewall on all interfaces |
 | `tokenFile` | `/var/lib/nixos-control/token` | Bearer-token file, generated if missing |
 | `flake` | `null` | When set, rebuilds use `--flake <value>` |
 | `allowRebuild` | `true` | Allow `nixos-rebuild` actions |
@@ -39,9 +39,10 @@ services.nixos-control = {
 The app reads these capabilities from `/api/status` and hides the corresponding
 actions.
 
-## LAN-only mode
+## LAN and WireGuard mode
 
-To skip Tailscale entirely on a trusted network:
+To skip Tailscale entirely on a trusted network, or to use the WireGuard VPN
+that already runs on your FRITZ!Box:
 
 ```nix
 services.nixos-control = {
@@ -51,9 +52,30 @@ services.nixos-control = {
 };
 ```
 
+Rebuild and restart the server so the new listen address takes effect:
+
+```bash
+sudo nixos-rebuild switch
+sudo systemctl restart nixos-control
+```
+
+The phone can then use `http://<LAN-IP>:8787`. The app offers both **Tailscale**
+and **WireGuard** presets during setup. For the FRITZ!Box walkthrough, see
+[FRITZ!Box WireGuard](./fritzbox-wireguard.md).
+
 :::warning
-LAN mode is plain HTTP. Do not use it on untrusted networks, and never expose
-port `8787` directly to the internet.
+This mode is plain HTTP. WireGuard encrypts the path from the phone to the
+FRITZ!Box, but a direct LAN connection is unencrypted. Do not use either on
+untrusted networks, and never expose port `8787` directly to the internet.
+
+`openFirewall` opens the port on every interface. If the host has a publicly
+routable IPv6 address, bind to the LAN address and open the port only on the
+LAN interface instead:
+
+```nix
+services.nixos-control.address = "192.168.178.10";
+networking.firewall.interfaces."enp1s0".allowedTCPPorts = [ 8787 ];
+```
 :::
 
 ## Custom token location

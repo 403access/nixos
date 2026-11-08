@@ -6,6 +6,11 @@ description: Expose the API safely with Tailscale Serve and understand the secur
 
 # Tailscale and security
 
+:::tip
+Already running WireGuard on a FRITZ!Box? You can use that VPN instead of
+Tailscale. See [FRITZ!Box WireGuard](./fritzbox-wireguard.md).
+:::
+
 ## The security model
 
 The server runs as root because it talks to systemd, reads the journal, manages
@@ -84,6 +89,8 @@ Update the token in the app afterwards.
 - [ ] Keep `address = "127.0.0.1"` and `openFirewall = false`.
 - [ ] Use Tailscale Serve instead of publishing port `8787`.
 - [ ] Restrict port 443 with Tailscale ACLs.
+- [ ] If you use FRITZ!Box WireGuard instead, open only port `8787` and never
+      forward it from the internet.
 - [ ] Disable `allowRebuild` and `allowPower` if you do not need them.
 - [ ] Take ZFS snapshots or backups before running `switch`.
 - [ ] Prefer the `test` rebuild action when validating a configuration.

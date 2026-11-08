@@ -127,7 +127,7 @@ const features: {icon: IconName; title: string; body: string}[] = [
   {
     icon: 'shield',
     title: 'Secure by default',
-    body: 'The server binds to 127.0.0.1 and requires a 256-bit bearer token on every request. Tailscale Serve adds automatic HTTPS. No ports are opened to the internet.',
+    body: 'The server requires a 256-bit bearer token on every request. Tailscale Serve adds automatic HTTPS, or use the WireGuard VPN already running on your FRITZ!Box.',
   },
   {
     icon: 'code',
@@ -153,9 +153,9 @@ const steps = [
   },
   {
     number: '02',
-    title: 'Expose it over Tailscale',
-    body: 'Tailscale Serve terminates TLS on your tailnet and forwards to localhost. Enable MagicDNS and HTTPS certificates in the admin console.',
-    link: {label: 'Tailscale guide', to: '/docs/guides/tailscale'},
+    title: 'Pick your VPN',
+    body: 'Tailscale Serve terminates TLS on your tailnet and forwards to localhost. Already use FRITZ!Box WireGuard? Point the app at the LAN address instead.',
+    link: {label: 'Connection guides', to: '/docs/guides/configuration'},
   },
   {
     number: '03',
@@ -258,7 +258,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app and a tiny Go API server for monitoring and managing a NixOS machine over Tailscale. Dashboards, systemd, ZFS and nixos-rebuild, self-hosted.">
+      description="An open-source iPhone app and a tiny Go API server for monitoring and managing a NixOS machine over Tailscale or WireGuard. Dashboards, systemd, ZFS and nixos-rebuild, self-hosted.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -266,7 +266,7 @@ export default function Home(): React.JSX.Element {
             <div className={styles.heroCopy}>
               <span className={styles.eyebrow}>
                 <span className={styles.statusDot} />
-                Open source · Self-hosted · Tailscale-native
+                Open source · Self-hosted · Tailscale or WireGuard
               </span>
               <h1>
                 Your NixOS machine,
@@ -369,16 +369,18 @@ export default function Home(): React.JSX.Element {
             <div className={styles.split}>
               <div className={styles.splitCopy}>
                 <span className={styles.kicker}>How it fits together</span>
-                <h2>One tailnet. One token. No open ports.</h2>
+                <h2>One token. Your VPN. No cloud.</h2>
                 <p>
-                  The API server listens only on loopback. Tailscale Serve
-                  terminates TLS and forwards traffic from your devices on the
-                  tailnet — so the phone reaches the machine even when it is away
+                  The API server listens only where you tell it to. Tailscale
+                  Serve terminates TLS and forwards traffic from your tailnet,
+                  or the app can use your FRITZ!Box WireGuard VPN over the home
+                  network — so the phone reaches the machine even when it is away
                   from home.
                 </p>
                 <ul className={styles.checkList}>
                   <li>256-bit random token, compared in constant time</li>
                   <li>Tailscale ACLs decide who can reach port 443</li>
+                  <li>WireGuard mode keeps port 8787 behind the firewall</li>
                   <li>Read-only mode available for monitoring only</li>
                   <li>Rebuilds can be disabled independently of power actions</li>
                 </ul>

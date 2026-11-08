@@ -18,6 +18,10 @@ final class AppState: ObservableObject {
         didSet { KeychainStore.save(token, account: Keys.tokenAccount) }
     }
 
+    @Published var connectionMethod: ConnectionMethod {
+        didSet { defaults.set(connectionMethod.rawValue, forKey: Keys.connectionMethod) }
+    }
+
     @Published private(set) var status: SystemStatus?
     @Published private(set) var services: [ServiceUnit] = []
     @Published private(set) var storage: StorageSnapshot?
@@ -38,11 +42,14 @@ final class AppState: ObservableObject {
     private enum Keys {
         static let serverURL = "serverURL"
         static let tokenAccount = "api-token"
+        static let connectionMethod = "connectionMethod"
     }
 
     init() {
         var initialURL = UserDefaults.standard.string(forKey: Keys.serverURL) ?? ""
         var initialToken = KeychainStore.read(account: Keys.tokenAccount) ?? ""
+        let initialMethod = UserDefaults.standard.string(forKey: Keys.connectionMethod)
+            .flatMap(ConnectionMethod.init(rawValue:)) ?? .tailscale
 
         #if DEBUG
         // Allows running the app against a local fixture server during development.
@@ -55,6 +62,7 @@ final class AppState: ObservableObject {
 
         serverURL = initialURL
         token = initialToken
+        connectionMethod = initialMethod
     }
 
     var isConfigured: Bool {
@@ -69,7 +77,10 @@ final class AppState: ObservableObject {
         var text = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
         if !text.contains("://") {
-            text = "https://" + text
+            // Tailscale names use HTTPS. IP addresses, mDNS names and
+            // FRITZ!Box hostnames are reached over plain HTTP when the app is
+            // connected through a LAN or router VPN.
+            text = (isLocalHost(text) ? "http://" : "https://") + text
         }
         guard var components = URLComponents(string: text),
               let host = components.host,
@@ -83,6 +94,25 @@ final class AppState: ObservableObject {
         return components.url
     }
 
+    private static func isLocalHost(_ value: String) -> Bool {
+        let authority = value.split(separator: "/", maxSplits: 1).first.map(String.init) ?? value
+        let host = authority.split(separator: ":", maxSplits: 1).first.map(String.init) ?? authority
+        let lowercased = host.lowercased()
+
+        if !lowercased.contains(".")
+            || lowercased.hasSuffix(".local")
+            || lowercased.hasSuffix(".fritz.box") {
+            return true
+        }
+
+        let parts = lowercased.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            guard !part.isEmpty, part.count <= 3, let value = Int(part) else { return false }
+            return (0...255).contains(value)
+        }
+    }
+
     private var client: APIClient? {
         guard let url = normalizedURL, !token.isEmpty else { return nil }
         return APIClient(baseURL: url, token: token)
@@ -92,7 +122,7 @@ final class AppState: ObservableObject {
 
     func testAndSave(serverURL: String, token: String) async -> String? {
         guard let url = Self.normalizeURL(serverURL) else {
-            return "Enter a valid server URL, for example https://nixos.tailnet.ts.net."
+            return "Enter a valid server URL, for example https://nixos.tailnet.ts.net or http://192.168.178.10:8787."
         }
 
         let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -122,6 +152,7 @@ final class AppState: ObservableObject {
         jobPollTask = nil
         serverURL = ""
         token = ""
+        connectionMethod = .tailscale
         status = nil
         services = []
         storage = nil
@@ -132,6 +163,7 @@ final class AppState: ObservableObject {
         lastError = nil
         lastUpdated = nil
         defaults.removeObject(forKey: Keys.serverURL)
+        defaults.removeObject(forKey: Keys.connectionMethod)
         KeychainStore.delete(account: Keys.tokenAccount)
     }
 

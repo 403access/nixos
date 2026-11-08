@@ -54,9 +54,9 @@ const config: Config = {
       {
         name: 'description',
         content:
-          'An open-source iPhone app and a tiny Go API server for monitoring and managing a NixOS machine over Tailscale.',
+          'An open-source iPhone app and a tiny Go API server for monitoring and managing a NixOS machine over Tailscale or WireGuard.',
       },
-      {name: 'keywords', content: 'NixOS, Tailscale, iOS, SwiftUI, Go, ZFS, systemd, self-hosted'},
+      {name: 'keywords', content: 'NixOS, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Go, ZFS, systemd, self-hosted'},
       {name: 'theme-color', content: '#080b14'},
       {property: 'og:type', content: 'website'},
     ],

@@ -32,11 +32,24 @@ iPhone ──HTTPS──► tailscale serve :443 ──HTTP──► nixos-contr
   with argument arrays (no shell interpolation of user input).
 - Results are returned as JSON.
 
+With a FRITZ!Box WireGuard VPN, the path is different but the server is the
+same:
+
+```text
+iPhone ──WireGuard──► FRITZ!Box ──HTTP (home LAN)──► nixos-control <LAN-IP>:8787
+```
+
+In that mode the server binds to `0.0.0.0` and port `8787` is opened in the
+firewall. WireGuard encrypts the phone-to-router leg; the token still protects
+the API.
+
 ## Trust boundaries
 
 | Boundary | Control |
 | --- | --- |
-| Phone → host | Tailscale identity, WireGuard encryption, HTTPS |
+| Phone → host (Tailscale) | Tailscale identity, WireGuard encryption, HTTPS |
+| Phone → FRITZ!Box (WireGuard) | WireGuard keys, router firewall |
+| FRITZ!Box → host | Home LAN, 256-bit bearer token |
 | HTTP → API | 256-bit bearer token, constant-time comparison |
 | API → system | root-owned unit, fixed command allowlist |
 | Tailnet → port 443 | Tailscale ACLs |
