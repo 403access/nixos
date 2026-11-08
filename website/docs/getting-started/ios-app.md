@@ -90,6 +90,15 @@ fixture server:
 
 They are ignored in release builds.
 
+To point the simulator at a real server instead, the repository includes a
+throwaway NixOS machine for OrbStack:
+
+```bash
+./vm/vm.sh ios services
+```
+
+See [Local NixOS VM](../development.md#local-nixos-vm) for details.
+
 ```bash
 cd ios
 xcodebuild -project NixOSControl.xcodeproj \

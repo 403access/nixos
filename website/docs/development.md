@@ -21,6 +21,50 @@ go run . \
 The server is intentionally dependency-free (`go.mod` only). It is built by
 NixOS with `buildGoModule`.
 
+Running it on macOS is enough for API work, but `/proc`, `systemctl`,
+`journalctl` and `zpool` are Linux-only, so the dashboard and system endpoints
+stay empty.
+
+## Local NixOS VM
+
+The module needs a real NixOS userspace. With [OrbStack](https://orbstack.dev):
+
+```bash
+./vm/vm.sh up          # create the machine if needed, sync, nixos-rebuild switch
+./vm/vm.sh status      # units, token prefix, API health, URLs
+```
+
+The machine is called `control-test`; `ORB_MACHINE=my-vm` overrides it. You get:
+
+- the API at `http://control-test.orb.local:8787`,
+- an XFCE desktop over VNC at `vnc://control-test.orb.local:5901` (password
+  `nixos`), opened with `./vm/vm.sh vnc`,
+- the real systemd unit, token generation, journal and `/proc`.
+
+Other helpers: `ip`, `shell`, `root`, `token`, `ios [tab]`, `vnc`, `logs`,
+`stop`, `start` and `delete`. `./vm/apply.sh` performs just the sync and
+`nixos-rebuild switch`. See
+[`vm/README.md`](https://github.com/403access/nixos/blob/main/vm/README.md) for
+the wrapper layout and caveats.
+
+Launch the app against the VM with:
+
+```bash
+./vm/vm.sh ios services
+```
+
+That builds for the booted iPhone simulator (or boots `iPhone 17`), installs the
+app, and sets `NIXOS_CONTROL_SERVER`, `NIXOS_CONTROL_TOKEN` and
+`NIXOS_CONTROL_TAB`.
+
+:::note
+The machine runs the `lxc-container` module on OrbStack's shared kernel, so
+kernel, initrd, bootloader and hardware configuration are not exercised, and
+ZFS is unavailable. Tailscale Serve is disabled because it needs a real tailnet.
+`POST /api/system/rebuild` targets `/etc/nixos`, which is OrbStack's base
+config — use `dry-build` while testing.
+:::
+
 ## iOS
 
 ```bash
