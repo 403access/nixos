@@ -13,3 +13,9 @@ ios/DerivedData/
 # Local server binaries
 /server/nixos-control
 /server/server
+
+# Website dependencies and build output
+website/node_modules/
+website/.docusaurus/
+website/build/
+website/.cache-loader/

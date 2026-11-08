@@ -48,7 +48,29 @@ configuration.nix          Existing NixOS config (now imports the module)
 nixos-control.nix          NixOS module: packages and runs the server
 server/                    Dependency-free Go API server
 ios/                       SwiftUI app and XcodeGen project
+website/                   Marketing site and documentation (Docusaurus)
 docs/screenshots/          App screenshots
+```
+
+## Website and documentation
+
+The marketing site lives at `/` and the documentation at `/docs`. Both are
+built from `website/` with [Docusaurus](https://docusaurus.io/).
+
+Live site: <https://403access.github.io/nixos/>
+
+Every push to `main` triggers the **Deploy website** workflow
+(`.github/workflows/deploy-website.yml`), which builds the site and publishes it
+to GitHub Pages. To enable it the first time, set **Settings → Pages → Build and
+deployment → Source** to **GitHub Actions**.
+
+Run the site locally:
+
+```bash
+cd website
+npm install
+npm run start    # http://localhost:3000/nixos/
+npm run build    # production output in website/build
 ```
 
 ## Deploy the server

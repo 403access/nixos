@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080b14"/>
+      <stop offset="1" stop-color="#111a33"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="1" stop-color="#4fd1c5"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="85%" cy="15%" r="60%">
+      <stop offset="0" stop-color="#4fd1c5" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#4fd1c5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g transform="translate(90 96)">
+    <rect width="96" height="96" rx="22" fill="url(#accent)"/>
+    <path d="M29 35l-12 13 12 13" fill="none" stroke="#08101f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M67 35l12 13-12 13" fill="none" stroke="#08101f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M55 28L41 68" fill="none" stroke="#08101f" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <text x="90" y="300" fill="#f5f8ff" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="82" font-weight="800" letter-spacing="-2">NixOS Control</text>
+  <text x="90" y="382" fill="#a9b7d0" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="38" font-weight="500">Your NixOS machine, in your pocket.</text>
+  <rect x="90" y="452" width="420" height="6" rx="3" fill="url(#accent)"/>
+  <text x="90" y="526" fill="#6f81a3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26">iOS · Go · Tailscale · systemd · ZFS · nixos-rebuild</text>
+</svg>
