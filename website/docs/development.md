@@ -39,7 +39,8 @@ The machine is called `control-test`; `ORB_MACHINE=my-vm` overrides it. You get:
 
 - the API at `http://control-test.orb.local:8787`,
 - the selected desktop profile over VNC at
-  `vnc://control-test.orb.local:5901` (password `nixos`), opened with
+  `vnc://control-test.orb.local:5901` (VNC password `nixos`; the `vnc` Linux
+  user is also `vnc` / `nixos` for lock screens), opened with
   `./vm/vm.sh vnc`; the VM defaults to the Catppuccin i3 `rice` profile,
 - the real systemd unit, token generation, journal and `/proc`.
 

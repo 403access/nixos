@@ -79,10 +79,11 @@ open vnc://control-test.orb.local:5901
 ```
 
 The password is `nixos` (change `vncPassword` in `configuration.nix` if the
-machine is reachable from untrusted networks). Any standard VNC client works;
-the desktop is the selected profile. The default `rice` profile opens with
-`Super+Return` (xterm), `Super+D` (Rofi), `Super+B` (Firefox) and
-`Super+Shift+X` (power menu).
+machine is reachable from untrusted networks). The same password is set for the
+`vnc` Linux user, so Plasma's lock screen and i3lock can unlock with
+`vnc` / `nixos`. Any standard VNC client works; the desktop is the selected
+profile. The default `rice` profile opens with `Super+Return` (xterm),
+`Super+D` (Rofi), `Super+B` (Firefox) and `Super+Shift+X` (power menu).
 
 > If Screen Sharing reports "Unable to communicate", check that the VNC port is
 > reachable (`nc -vz <host> 5901`). OrbStack's `<machine>.orb.local` name can be

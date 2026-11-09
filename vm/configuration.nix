@@ -67,6 +67,9 @@ in
     isNormalUser = true;
     createHome = true;
     home = "/home/${vncUser}";
+    # Also used by Plasma's lock screen and i3lock.  The VNC connection
+    # password is the same value.
+    password = vncPassword;
   };
 
   environment.systemPackages = with pkgs; [

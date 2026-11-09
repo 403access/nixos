@@ -126,4 +126,7 @@ OrbStack exposes no DRM device, so the VM cannot run a real Hyprland session;
 Hyprland's headless/nested backend fails without `/dev/dri`. Use `rice` or
 `plasma` in the VM and the dedicated host config above for Hyprland.
 
+The VNC connection password is `nixos`. The same password is set for the `vnc`
+Linux user, so Plasma's lock screen and i3lock unlock with `vnc` / `nixos`.
+
 See [Development](../development.md#local-nixos-vm) for the VM details.

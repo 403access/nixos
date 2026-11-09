@@ -404,7 +404,7 @@ The module needs a real NixOS userspace. With [OrbStack](https://orbstack.dev):
 This creates a `control-test` NixOS machine (if needed), copies the module, server and desktop profiles into it, and runs `nixos-rebuild switch`. You get:
 
 - the API at `http://control-test.orb.local:8787`
-- the selected desktop profile over VNC at `vnc://control-test.orb.local:5901` (password `nixos`); the VM defaults to the `rice` profile
+- the selected desktop profile over VNC at `vnc://control-test.orb.local:5901` (VNC password `nixos`; the `vnc` Linux user is `vnc` / `nixos` for lock screens); the VM defaults to the `rice` profile
 - the real systemd unit, token generation, `/proc`, `systemctl`, and `journalctl`
 
 Switch desktop profiles in the VM without recreating it:
