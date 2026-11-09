@@ -7,6 +7,7 @@
 #   rice      – Catppuccin i3 + polybar + picom (works over VNC and xrdp)
 #   plasma    – KDE Plasma 6 with the Catppuccin KDE theme
 #   hyprland  – Hyprland + waybar + mako (Wayland, real hardware)
+#   gnome     – GNOME Shell with the WhiteSur shell theme (macOS-style top bar)
 #
 # The GTK theme family is independent of the desktop profile: keep the
 # Catppuccin look, or switch `myDesktop.gtkTheme` to `whitesur` for the
@@ -65,6 +66,46 @@ let
     + lib.optionalString (whiteSurIconAccent != "default") "-${whiteSurIconAccent}"
     + (if cfg.whiteSur.variant == "dark" then "-dark" else "-light");
 
+  # WhiteSur ships a Plank dock theme inside each GTK theme directory.
+  whiteSurPlankTheme = pkgs.runCommand "whitesur-plank-${whiteSurGtkThemeName}" { } ''
+    mkdir -p "$out/share/plank/themes"
+    cp -r ${whiteSurGtk}/share/themes/${whiteSurGtkThemeName}/plank \
+      "$out/share/plank/themes/${whiteSurGtkThemeName}"
+  '';
+
+  plankSettings = pkgs.writeText "plank-settings" ''
+    [PlankDockPreferences]
+    CurrentWorkspaceOnly=false
+    IconSize=48
+    HideMode=0
+    UnhideDelay=0
+    HideDelay=0
+    Monitor=
+    DockItems=firefox.dockitem;;thunar.dockitem;;xfce4-terminal.dockitem
+    Position=3
+    Offset=0
+    Theme=${whiteSurGtkThemeName}
+    Alignment=3
+    ItemsAlignment=3
+    LockItems=true
+    PressureReveal=false
+    PinnedOnly=false
+    AutoPinning=true
+    ShowDockItem=false
+    ZoomEnabled=true
+    ZoomPercent=125
+  '';
+
+  plankLaunchers = pkgs.runCommand "plank-launchers" { } ''
+    mkdir -p "$out"
+    for app in firefox thunar xfce4-terminal; do
+      cat > "$out/$app.dockitem" <<EOF
+    [PlankDockItemPreferences]
+    Launcher=file:///run/current-system/sw/share/applications/$app.desktop
+    EOF
+    done
+  '';
+
   # Resolved names and packages shared with the individual profiles.
   gtkThemeName = if useWhiteSur then whiteSurGtkThemeName else catppuccinGtkThemeName;
   iconThemeName =
@@ -84,6 +125,7 @@ let
       [ whiteSurGtk ]
       ++ lib.optional cfg.whiteSur.icons whiteSurIcons
       ++ lib.optional cfg.whiteSur.cursors pkgs.whitesur-cursors
+      ++ lib.optionals (cfg.whiteSur.plank) [ pkgs.plank whiteSurPlankTheme ]
       ++ lib.optional (!cfg.whiteSur.icons) papirus
       ++ lib.optional (!cfg.whiteSur.cursors) catppuccinCursors
     else
@@ -120,19 +162,21 @@ in
     ./profiles/plasma.nix
     ./profiles/rice.nix
     ./profiles/hyprland.nix
+    ./profiles/gnome.nix
   ];
 
   options.myDesktop = {
     enable = lib.mkEnableOption "the themed desktop profiles";
 
     profile = lib.mkOption {
-      type = lib.types.enum [ "xfce" "rice" "plasma" "hyprland" ];
+      type = lib.types.enum [ "xfce" "rice" "plasma" "hyprland" "gnome" ];
       default = "xfce";
       description = ''
         Which desktop to enable. `xfce` preserves the original setup;
         `rice` is a Catppuccin i3 desktop that also works over VNC and
         xrdp; `plasma` is KDE Plasma 6; `hyprland` is a Wayland desktop
-        for real hardware.
+        for real hardware; `gnome` runs GNOME Shell with the WhiteSur
+        shell theme for a macOS-style top bar.
       '';
     };
 
@@ -209,6 +253,15 @@ in
             description = ''
               Install and use the WhiteSur cursor theme.  Disable to keep
               the Catppuccin cursors.
+            '';
+          };
+
+          plank = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              Install and autostart Plank with the matching WhiteSur dock
+              theme.  Hide the lower XFCE panel separately if you use Plank.
             '';
           };
         };
@@ -330,7 +383,7 @@ in
         exec ${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1
       '')
     ]) ++ lib.optionals
-      (cfg.enableDisplayManager && cfg.profile != "xfce")
+      (cfg.enableDisplayManager && cfg.profile != "xfce" && cfg.profile != "gnome")
       [ catppuccinSddm ];
 
     environment.sessionVariables = {
@@ -382,6 +435,71 @@ in
       standard_dialogs=default
     '';
 
+    # Optional WhiteSur Plank dock.  The settings and pinned launchers are
+    # seeded once; Plank then owns them like any normal user config.
+    environment.etc."xdg/autostart/plank.desktop" = lib.mkIf
+      (useWhiteSur && cfg.whiteSur.plank)
+      {
+        text = ''
+          [Desktop Entry]
+          Type=Application
+          Name=Plank
+          Comment=macOS-style dock
+          Exec=${pkgs.plank}/bin/plank
+          OnlyShowIn=XFCE;
+          NoDisplay=true
+          X-GNOME-Autostart-enabled=true
+        '';
+      };
+
+    systemd.tmpfiles.rules = lib.optionals
+      (useWhiteSur && cfg.whiteSur.plank)
+      [
+        "d ${cfg.home}/.local/share 0755 ${cfg.user} users -"
+        "d ${cfg.home}/.local/share/plank 0755 ${cfg.user} users -"
+        "d ${cfg.home}/.local/share/plank/themes 0755 ${cfg.user} users -"
+        "L+ ${cfg.home}/.local/share/plank/themes/${whiteSurGtkThemeName} - - - - ${whiteSurGtk}/share/themes/${whiteSurGtkThemeName}/plank"
+        "d ${cfg.home}/.config/plank 0755 ${cfg.user} users -"
+        "d ${cfg.home}/.config/plank/dock1 0755 ${cfg.user} users -"
+        "d ${cfg.home}/.config/plank/dock1/launchers 0755 ${cfg.user} users -"
+        "C ${cfg.home}/.config/plank/dock1/settings 0644 ${cfg.user} users - ${plankSettings}"
+        "C ${cfg.home}/.config/plank/dock1/launchers/firefox.dockitem 0644 ${cfg.user} users - ${plankLaunchers}/firefox.dockitem"
+        "C ${cfg.home}/.config/plank/dock1/launchers/thunar.dockitem 0644 ${cfg.user} users - ${plankLaunchers}/thunar.dockitem"
+        "C ${cfg.home}/.config/plank/dock1/launchers/xfce4-terminal.dockitem 0644 ${cfg.user} users - ${plankLaunchers}/xfce4-terminal.dockitem"
+      ];
+
+    # Plank uses GSettings.  Seed its dock settings for new users; an existing
+    # dconf user database keeps its own values.
+    programs.dconf.profiles.user.databases = lib.mkIf
+      (useWhiteSur && cfg.whiteSur.plank)
+      [
+        {
+          settings = {
+            "net/launchpad/plank/docks/dock1" = {
+              theme = whiteSurGtkThemeName;
+              icon-size = lib.gvariant.mkInt32 48;
+              hide-mode = "none";
+              position = "bottom";
+              alignment = "center";
+              items-alignment = "center";
+              zoom-enabled = true;
+              zoom-percent = lib.gvariant.mkInt32 125;
+              lock-items = true;
+              current-workspace-only = false;
+              pinned-only = false;
+              show-dock-item = false;
+              pressure-reveal = false;
+              auto-pinning = true;
+              dock-items = [
+                "firefox.dockitem"
+                "thunar.dockitem"
+                "xfce4-terminal.dockitem"
+              ];
+            };
+          };
+        }
+      ];
+
     # Shared plumbing that every desktop expects.
     security.polkit.enable = lib.mkDefault true;
     services.dbus.enable = lib.mkDefault true;
@@ -404,14 +522,14 @@ in
     services.xserver.xkb.layout = "de";
     services.xserver.xkb.variant = "";
 
-    # Only the XFCE profile uses lightdm; the others use SDDM or no
-    # display manager at all (the OrbStack VM starts its session directly).
+    # Only the XFCE profile uses lightdm; Plasma and the rice use SDDM;
+    # GNOME uses GDM; some machines start their session directly.
     services.xserver.displayManager.lightdm.enable =
       lib.mkForce (cfg.profile == "xfce" && cfg.enableDisplayManager);
 
-    # --- SDDM for the non-XFCE profiles ---------------------------------
+    # --- SDDM for the non-XFCE, non-GNOME profiles ----------------------
     services.displayManager.sddm = lib.mkIf
-      (cfg.enableDisplayManager && cfg.profile != "xfce")
+      (cfg.enableDisplayManager && cfg.profile != "xfce" && cfg.profile != "gnome")
       {
         enable = true;
         theme = sddmThemeName;

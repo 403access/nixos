@@ -43,11 +43,12 @@ XFCE. The original setup remains the default; switch by changing one value.
 | `rice` | A Catppuccin Mocha i3 rice: polybar, picom, Rofi, dunst, xterm, Thunar and Firefox. Works over VNC and xrdp. |
 | `plasma` | KDE Plasma 6 with the Catppuccin KDE colour scheme, window decoration and SDDM login theme. Works over the VM's X11 VNC display too. |
 | `hyprland` | Hyprland + waybar + mako + Rofi + hyprpaper/hypridle. Wayland only; xrdp is disabled for this profile. |
+| `gnome` | GNOME Shell with the WhiteSur GNOME Shell theme, dash-to-dock and blur-my-shell for the macOS-style top bar. Uses GDM. |
 
 ```nix
 myDesktop = {
   enable = true;
-  profile = "rice";          # xfce | rice | plasma | hyprland
+  profile = "rice";          # xfce | rice | plasma | hyprland | gnome
   user = "nixos";
   flavour = "mocha";         # mocha | macchiato | frappe | latte
   accent = "blue";
@@ -80,6 +81,7 @@ myDesktop = {
     accent = "blue";         # default | blue | purple | pink | red | orange | yellow | green | grey
     icons = true;            # WhiteSur icon theme (Papirus-Dark if false)
     cursors = true;          # WhiteSur cursors (Catppuccin cursors if false)
+    plank = true;            # WhiteSur Plank dock
   };
 };
 ```
@@ -89,6 +91,10 @@ and `whitesur-cursors` nixpkgs packages. The Catppuccin SDDM and Qt/Kvantum
 themes remain in place, so the login screen and Qt applications keep their
 Catppuccin styling. Rebuild to switch; setting `gtkTheme = "catppuccin"` (the
 default) restores the previous look.
+
+`whiteSur.plank = true` installs Plank, autostarts it, and uses the WhiteSur
+dock theme. Hide the lower XFCE panel yourself if you want Plank to be the only
+dock.
 
 ### Dedicated Hyprland config
 
@@ -124,6 +130,20 @@ you prefer to log in manually.
 > OrbStack has no DRM device and cannot run a real Hyprland session; Hyprland's
 > headless/nested backend fails without `/dev/dri`. Use the `rice` or `plasma`
 > profile in the VM and Hyprland on the host.
+
+### Dedicated GNOME config
+
+For the actual macOS-style WhiteSur top bar, the repository also ships a GNOME
+wrapper. GNOME Shell renders the WhiteSur shell theme, while `dash-to-dock` and
+`blur-my-shell` provide the dock and blur:
+
+```bash
+./switch-gnome.sh dry-build   # evaluate/build only
+./switch-gnome.sh switch      # replace XFCE with GNOME/GDM
+```
+
+`configuration-gnome.nix` imports the normal configuration and forces
+`myDesktop.profile = "gnome"`. Revert with `sudo nixos-rebuild switch`.
 
 The theme files are declarative: edit `desktop/rice/...`,
 `desktop/hyprland/...` or `desktop/wallpaper.svg` and rebuild. Dotfiles are

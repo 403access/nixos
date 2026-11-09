@@ -36,13 +36,14 @@ the whole desktop with one option — no separate config to maintain.
 | `rice` | X11 | A Catppuccin Mocha i3 desktop: polybar, picom, Rofi, dunst, xterm, Thunar and Firefox. Works over VNC and xrdp. |
 | `plasma` | X11 / Wayland | KDE Plasma 6 with the Catppuccin KDE colour scheme, window decoration and SDDM login theme. |
 | `hyprland` | Wayland | Hyprland + waybar + mako + Rofi + hyprpaper/hypridle. Wayland-only; xrdp is disabled for this profile. |
+| `gnome` | X11 / Wayland | GNOME Shell with the WhiteSur GNOME Shell theme, dash-to-dock and blur-my-shell for the macOS-style top bar. Uses GDM. |
 
 ## Configure
 
 ```nix
 myDesktop = {
   enable = true;
-  profile = "rice";          # xfce | rice | plasma | hyprland
+  profile = "rice";          # xfce | rice | plasma | hyprland | gnome
   user = "nixos";
   flavour = "mocha";         # mocha | macchiato | frappe | latte
   accent = "blue";
@@ -78,6 +79,7 @@ myDesktop = {
     accent = "blue";         # default | blue | purple | pink | red | orange | yellow | green | grey
     icons = true;            # WhiteSur icons; false keeps Papirus-Dark
     cursors = true;          # WhiteSur cursors; false keeps the Catppuccin cursors
+    plank = true;            # WhiteSur Plank dock
   };
 };
 ```
@@ -86,6 +88,10 @@ WhiteSur comes from the `whitesur-gtk-theme`, `whitesur-icon-theme` and
 `whitesur-cursors` nixpkgs packages. The Catppuccin SDDM login theme and the
 Qt/Kvantum theme stay active, so only GTK applications, icons and cursors
 change. Set `gtkTheme = "catppuccin"` (the default) to switch back.
+
+`whiteSur.plank = true` installs Plank, autostarts it with the WhiteSur dock
+theme, and seeds a small set of pinned launchers. If Plank should be the only
+dock, hide the lower XFCE panel as well.
 
 ## Themes and dotfiles
 
@@ -121,9 +127,9 @@ change. Set `gtkTheme = "catppuccin"` (the default) to switch back.
 
 ## Remote access
 
-The `xfce`, `rice` and `plasma` profiles work over X11 VNC and xrdp. Hyprland
-is Wayland-only, so the module disables xrdp when it is selected; use `rice` or
-`plasma` if you need remote X11 access.
+The `xfce`, `rice`, `plasma` and `gnome` profiles work over X11 VNC and xrdp.
+Hyprland is Wayland-only, so the module disables xrdp when it is selected; use
+`rice`, `plasma` or `gnome` if you need remote X11 access.
 
 ## Dedicated host config
 
@@ -155,6 +161,21 @@ The dedicated config also enables SDDM auto-login so the Hyprland session (and
 `wayvnc`) starts without a physical login. Remove the
 `services.displayManager.autoLogin` block from `configuration-hyprland.nix` if
 you prefer to log in manually.
+
+## Dedicated GNOME config
+
+WhiteSur's actual macOS-style top bar is a GNOME Shell theme, not an XFCE
+panel. The repository includes a separate GNOME wrapper for that:
+
+```bash
+./switch-gnome.sh dry-build   # evaluate/build only
+./switch-gnome.sh switch      # replace XFCE with GNOME/GDM
+```
+
+`configuration-gnome.nix` forces `myDesktop.profile = "gnome"`, enables GDM
+and the `user-theme`, `dash-to-dock` and `blur-my-shell` extensions, and points
+the user-theme extension at the installed WhiteSur shell theme. Revert with
+`sudo nixos-rebuild switch`.
 
 ## Try it in OrbStack
 
