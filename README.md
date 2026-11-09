@@ -152,9 +152,9 @@ linked from the Nix store into `~/.config`; they are read-only by design.
 The rice starts picom's GLX backend (blur, rounded corners, shadows) when a
 DRM device is present, and falls back to XRender in the GPU-less OrbStack VM.
 
-The non-XFCE profiles use SDDM with the Catppuccin theme; XFCE keeps lightdm.
-`myDesktop.enableDisplayManager = false` is available for machines that start
-a session themselves (the OrbStack VM does this).
+Plasma and the rice use SDDM with the Catppuccin theme, XFCE keeps lightdm,
+and GNOME uses GDM. `myDesktop.enableDisplayManager = false` is available for
+machines that start a session themselves (the OrbStack VM does this).
 
 ### Rice keybindings
 

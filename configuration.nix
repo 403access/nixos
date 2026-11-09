@@ -40,7 +40,7 @@
     ];
 
   # Choose the desktop profile.  `xfce` preserves the original setup;
-  # `rice`, `plasma`, and `hyprland` are the themed alternatives.
+  # `rice`, `plasma`, `hyprland`, and `gnome` are the themed alternatives.
   myDesktop = {
     enable = true;
     profile = "xfce";
@@ -52,6 +52,7 @@
       accent = "blue";       # default | blue | purple | pink | red | orange | yellow | green | grey
       icons = true;          # WhiteSur icons; false keeps Papirus-Dark
       cursors = true;        # WhiteSur cursors; false keeps Catppuccin
+      plank = true;          # WhiteSur Plank dock
     };
   };
 
