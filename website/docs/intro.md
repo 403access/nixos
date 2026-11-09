@@ -11,6 +11,7 @@ import services from '@site/static/img/screenshots/services.png';
 import storage from '@site/static/img/screenshots/storage.png';
 import system from '@site/static/img/screenshots/system.png';
 import settings from '@site/static/img/screenshots/settings.png';
+import desktopRice from '@site/static/img/screenshots/desktop-rice.png';
 
 # NixOS Control
 
@@ -48,6 +49,22 @@ panel to the internet.
   with automatic HTTPS. No router ports are opened.
 - **Tailscale or WireGuard** — reach the machine through your tailnet, or use
   the WireGuard VPN that already runs on your FRITZ!Box.
+- **Desktop profiles** — keep XFCE, or switch to a Catppuccin i3 rice, KDE
+  Plasma 6, or Hyprland with a single `myDesktop.profile` option.
+
+## Desktop profiles
+
+The repository also ships a selectable desktop layer. The default remains the
+original XFCE; switch it with one option:
+
+```nix
+myDesktop.profile = "rice";   # xfce | rice | plasma | hyprland
+```
+
+<img src={desktopRice} style={{width: '100%', borderRadius: '12px'}} alt="The Catppuccin i3 rice profile" />
+
+See [Desktop profiles](./guides/desktop.md) for screenshots, theming, remote
+access and the rice keybindings.
 
 ## What you need
 
@@ -95,6 +112,7 @@ plain HTTP. See [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md).
 - [Build the iOS app](./getting-started/ios-app.md) — generate the Xcode project
   and pair your phone.
 - [Configuration](./guides/configuration.md) — every module option.
+- [Desktop profiles](./guides/desktop.md) — choose the host desktop.
 - [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md) — use an existing router
   VPN instead of Tailscale.
 - [API reference](./reference/api.md) — routes, payloads and authentication.

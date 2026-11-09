@@ -98,6 +98,23 @@ services.nixos-control.flake = "/etc/nixos#nixos";
 
 See [Flakes](./flakes.md) for details.
 
+## Desktop profiles
+
+The repository also includes a separate `myDesktop` module for the machine's
+desktop: keep XFCE, or switch to a Catppuccin i3 rice, KDE Plasma 6, or
+Hyprland. It is independent of the API options above:
+
+```nix
+myDesktop = {
+  enable = true;
+  profile = "rice";   # xfce | rice | plasma | hyprland
+  user = "your-user";
+};
+```
+
+See [Desktop profiles](./desktop.md) for the theme options, screenshots,
+keybindings and remote-access notes.
+
 ## Units
 
 | Unit | Purpose |

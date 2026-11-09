@@ -258,7 +258,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app and a tiny Rust API server for monitoring and managing a NixOS machine over Tailscale or WireGuard. Dashboards, systemd, ZFS and nixos-rebuild, self-hosted.">
+      description="An open-source iPhone app, a tiny Rust API server, and selectable Catppuccin desktop profiles for monitoring and managing a NixOS machine over Tailscale or WireGuard.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -359,6 +359,50 @@ export default function Home(): React.JSX.Element {
                     <span>{screen.caption}</span>
                   </figcaption>
                 </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} id="desktop">
+          <div className="container">
+            <div className={styles.sectionHead}>
+              <span className={styles.kicker}>Beyond the phone</span>
+              <h2>A desktop worth looking at.</h2>
+              <p>
+                The same repository now ships a selectable desktop profile.
+                Keep the original XFCE, or switch one option to a Catppuccin
+                i3 rice, KDE Plasma 6, or Hyprland — with matching fonts,
+                icons, SDDM login and wallpaper.
+              </p>
+            </div>
+            <figure className={styles.desktopShot}>
+              <img
+                src={useBaseUrl('/img/screenshots/desktop-rice.png')}
+                alt="The Catppuccin i3 rice profile showing fastfetch, btop, polybar and a custom wallpaper"
+                loading="lazy"
+              />
+              <figcaption>
+                <span>
+                  <strong>rice</strong> — i3, polybar, picom, Rofi, xterm and
+                  Catppuccin Mocha
+                </span>
+                <Link className={styles.textLink} to="/docs/guides/desktop">
+                  Explore desktop profiles →
+                </Link>
+              </figcaption>
+            </figure>
+            <div className={styles.profileGrid}>
+              {[
+                {name: 'xfce', description: 'Original, themed'},
+                {name: 'rice', description: 'i3 + polybar'},
+                {name: 'plasma', description: 'KDE Plasma 6'},
+                {name: 'hyprland', description: 'Wayland tiling'},
+              ].map((profile) => (
+                <div className={styles.profileCard} key={profile.name}>
+                  <strong>{profile.name}</strong>
+                  <span>{profile.description}</span>
+                </div>
               ))}
             </div>
           </div>

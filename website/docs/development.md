@@ -52,7 +52,8 @@ Switch the desktop without recreating the machine:
 ```
 
 Hyprland is Wayland-only and cannot be served over the VM's X11 VNC display;
-test it on real hardware.
+test it on real hardware. See [Desktop profiles](./guides/desktop.md) for the
+profiles, themes and keybindings.
 
 Other helpers: `ip`, `shell`, `root`, `token`, `ios [tab]`, `vnc`, `logs`,
 `stop`, `start` and `delete`. `./vm/apply.sh` performs just the sync and

@@ -13,8 +13,8 @@ NixOS machine.
 ## 1. Add the module
 
 Put this repository at `/etc/nixos` (or copy `configuration.nix`,
-`nixos-control.nix`, and the `server/` directory there). The existing config
-already contains:
+`nixos-control.nix`, `desktop/` and the `server/` directory there). The existing
+config already contains:
 
 ```nix
 imports = [
@@ -95,6 +95,25 @@ domain. You should see:
 changing the server or this module, run
 `sudo systemctl restart nixos-control` manually.
 :::
+
+## Optional: choose a desktop
+
+The repository also includes a selectable desktop layer. Keep the original
+XFCE, or switch to a Catppuccin i3 rice, KDE Plasma 6, or Hyprland:
+
+```nix
+imports = [ ./desktop ];
+
+myDesktop = {
+  enable = true;
+  profile = "rice";   # xfce | rice | plasma | hyprland
+  user = "your-user";
+};
+```
+
+Rebuild and pick a profile at the login screen (or let it start directly).
+See [Desktop profiles](../guides/desktop.md) for screenshots, theming and
+remote-access details.
 
 ## Next
 

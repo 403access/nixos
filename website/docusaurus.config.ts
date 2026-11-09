@@ -54,9 +54,9 @@ const config: Config = {
       {
         name: 'description',
         content:
-          'An open-source iPhone app and a tiny Go API server for monitoring and managing a NixOS machine over Tailscale or WireGuard.',
+          'An open-source iPhone app, a tiny Rust API server, and selectable Catppuccin desktop profiles for monitoring and managing a NixOS machine over Tailscale or WireGuard.',
       },
-      {name: 'keywords', content: 'NixOS, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Go, ZFS, systemd, self-hosted'},
+      {name: 'keywords', content: 'NixOS, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop'},
       {name: 'theme-color', content: '#080b14'},
       {property: 'og:type', content: 'website'},
     ],
@@ -76,6 +76,11 @@ const config: Config = {
           to: '/docs/',
           position: 'left',
           label: 'Documentation',
+        },
+        {
+          to: '/docs/guides/desktop',
+          position: 'left',
+          label: 'Desktop',
         },
         {
           href: `${repoUrl}`,
