@@ -18,7 +18,7 @@ This is a good fit when:
 - You accept that the API uses plain HTTP inside the encrypted VPN tunnel.
 
 :::note
-The Go server is unchanged. The app simply selects **WireGuard** in its setup
+The server is unchanged. The app simply selects **WireGuard** in its setup
 screen and connects to the machine's LAN address.
 :::
 

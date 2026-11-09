@@ -13,7 +13,11 @@ fi
 
 echo "Syncing configuration into /etc/nixos..."
 orb -m "$MACHINE" sudo mkdir -p /etc/nixos/vm
-orb -m "$MACHINE" sudo cp -r "$ROOT/server" "$ROOT/nixos-control.nix" /etc/nixos/
+orb -m "$MACHINE" sudo rm -rf /etc/nixos/server
+orb -m "$MACHINE" sudo mkdir -p /etc/nixos/server
+orb -m "$MACHINE" sudo cp "$ROOT/server/Cargo.toml" "$ROOT/server/Cargo.lock" /etc/nixos/server/
+orb -m "$MACHINE" sudo cp -r "$ROOT/server/src" "$ROOT/server/tests" /etc/nixos/server/
+orb -m "$MACHINE" sudo cp "$ROOT/nixos-control.nix" /etc/nixos/
 orb -m "$MACHINE" sudo cp "$ROOT/vm/configuration.nix" /etc/nixos/vm/configuration.nix
 
 orb -m "$MACHINE" sudo tee /etc/nixos/control-test.nix >/dev/null <<'NIX'

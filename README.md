@@ -30,7 +30,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
                                                          │ HTTP localhost
                                                          ▼
                                             ┌──────────────────────────┐
-                                            │ nixos-control (Go)       │
+                                            │ nixos-control (Rust)     │
                                             │ 127.0.0.1:8787           │
                                             └────────────┬─────────────┘
                                                          │
@@ -46,7 +46,8 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 ```text
 configuration.nix          Existing NixOS config (now imports the module)
 nixos-control.nix          NixOS module: packages and runs the server
-server/                    Dependency-free Go API server
+server/                    Rust API server (Cargo crate)
+archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
 website/                   Marketing site and documentation (Docusaurus)
 docs/screenshots/          App screenshots
@@ -75,7 +76,7 @@ npm run build    # production output in website/build
 
 ## Deploy the server
 
-The server is a stdlib-only Go program packaged with `buildGoModule`, so there is nothing to install manually on the NixOS machine.
+The server is a Rust program packaged with `rustPlatform.buildRustPackage`, so there is nothing to install manually on the NixOS machine.
 
 1. Put this repository at `/etc/nixos` (or copy `configuration.nix`, `nixos-control.nix`, and the `server/` directory there). The existing config already contains:
 
@@ -295,15 +296,15 @@ Update the token in the app afterwards.
 
 ```bash
 cd server
-go test ./...
-go run . \
+cargo test
+cargo run -- \
   --listen 127.0.0.1:8787 \
   --token-file /tmp/nixos-control-token \
   --allow-rebuild=false \
   --allow-power=false
 ```
 
-The server is intentionally dependency-free (`go.mod` only). It is built by NixOS with `buildGoModule`.
+The server is a Rust crate with a locked dependency set (`Cargo.lock`). It is built by NixOS with `buildRustPackage`. The original Go implementation is kept under `archive/server-go/` as a reference and still passes `go test ./...`.
 
 Running it on macOS is enough for API and app work, but `/proc`, `systemctl`, `journalctl`, and `zpool` are Linux-only, so the dashboard and system endpoints stay empty.
 

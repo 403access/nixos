@@ -57,8 +57,8 @@ panel to the internet.
 - An iPhone on iOS 17 or newer, plus Xcode 26 and
   [XcodeGen](https://github.com/yonaskolb/XcodeGen) to build the app.
 
-The server has no package dependencies beyond the Go standard library, and Nix
-builds it for you.
+The server is a Rust program with a locked dependency set, and Nix builds it
+for you.
 
 ## How it works
 
@@ -69,7 +69,7 @@ builds it for you.
                                                          │ HTTP localhost
                                                          ▼
                                             ┌──────────────────────────┐
-                                            │ nixos-control (Go)       │
+                                            │ nixos-control (Rust)     │
                                             │ 127.0.0.1:8787           │
                                             └────────────┬─────────────┘
                                                          │

@@ -102,7 +102,7 @@ See [Flakes](./flakes.md) for details.
 
 | Unit | Purpose |
 | --- | --- |
-| `nixos-control` | The Go API server |
+| `nixos-control` | The Rust API server |
 | `nixos-control-tailscale-serve` | `tailscale serve` proxy (optional) |
 
 Check them with:

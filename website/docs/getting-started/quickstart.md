@@ -6,8 +6,9 @@ description: Install and run the NixOS Control API server on your NixOS machine.
 
 # Server quickstart
 
-The server is a stdlib-only Go program packaged with `buildGoModule`, so there
-is nothing to install manually on the NixOS machine.
+The server is a Rust program packaged with
+`rustPlatform.buildRustPackage`, so there is nothing to install manually on the
+NixOS machine.
 
 ## 1. Add the module
 

@@ -1,0 +1,43 @@
+[package]
+name = "nixos-control"
+version = "0.1.0"
+edition = "2021"
+description = "Small authenticated API for monitoring and managing a NixOS machine"
+default-run = "nixos-control"
+
+[[bin]]
+name = "nixos-control"
+path = "src/main.rs"
+
+[lib]
+name = "nixos_control"
+path = "src/lib.rs"
+
+[dependencies]
+axum = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4", features = ["derive"] }
+env_logger = "0.11"
+gethostname = "0.5"
+glob = "0.3"
+log = "0.4"
+nix = { version = "0.29", features = ["net", "socket"] }
+num_cpus = "1"
+rand = "0.8"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+subtle = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "time", "sync", "io-util", "net"] }
+tower-http = { version = "0.6", features = ["catch-panic"] }
+wait-timeout = "0.2"
+
+[dev-dependencies]
+http-body-util = "0.1"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

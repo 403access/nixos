@@ -1,6 +1,6 @@
 # Local test VM (OrbStack)
 
-Run the real NixOS module, the real systemd unit, and the real Go server on a
+Run the real NixOS module, the real systemd unit, and the real Rust server on a
 throwaway Linux machine on the Mac — no remote builder, no UTM install, no
 `socat` port forwarding.
 

@@ -10,16 +10,17 @@ description: Run the server, app and website locally.
 
 ```bash
 cd server
-go test ./...
-go run . \
+cargo test
+cargo run -- \
   --listen 127.0.0.1:8787 \
   --token-file /tmp/nixos-control-token \
   --allow-rebuild=false \
   --allow-power=false
 ```
 
-The server is intentionally dependency-free (`go.mod` only). It is built by
-NixOS with `buildGoModule`.
+The server is a Rust crate with a locked dependency set (`Cargo.lock`). It is
+built by NixOS with `buildRustPackage`. The original Go implementation remains
+under `archive/server-go/` as a reference and still passes `go test ./...`.
 
 Running it on macOS is enough for API work, but `/proc`, `systemctl`,
 `journalctl` and `zpool` are Linux-only, so the dashboard and system endpoints
@@ -115,6 +116,6 @@ to `/` in the workflow and add a `static/CNAME` file with your domain.
 
 ## Repository conventions
 
-- Keep the server stdlib-only.
+- Keep the Rust server's dependency set small and locked in `server/Cargo.lock`.
 - Update `website/docs/` when behaviour changes; the docs deploy with the site.
 - Screenshots used by the site are copied to `website/static/img/screenshots/`.

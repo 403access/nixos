@@ -132,7 +132,7 @@ const features: {icon: IconName; title: string; body: string}[] = [
   {
     icon: 'code',
     title: 'Small enough to audit',
-    body: 'A dependency-free Go server, a SwiftUI app, and a single NixOS module. No cloud, no account, no telemetry. Read the whole thing over a coffee.',
+    body: 'A small Rust server, a SwiftUI app, and a single NixOS module. No cloud, no account, no telemetry. Read the whole thing over a coffee.',
   },
 ];
 
@@ -148,7 +148,7 @@ const steps = [
   {
     number: '01',
     title: 'Enable the module',
-    body: 'Import nixos-control.nix and turn on services.nixos-control. The Go server is built by Nix — nothing to install by hand.',
+    body: 'Import nixos-control.nix and turn on services.nixos-control. The Rust server is built by Nix — nothing to install by hand.',
     link: {label: 'Server quickstart', to: '/docs/getting-started/quickstart'},
   },
   {
@@ -224,7 +224,7 @@ function Flow() {
   const nodes: {icon: IconName; title: string; sub: string}[] = [
     {icon: 'phone', title: 'iPhone app', sub: 'SwiftUI · iOS 17+'},
     {icon: 'lock', title: 'Tailscale Serve', sub: 'HTTPS · :443'},
-    {icon: 'server', title: 'nixos-control', sub: 'Go · 127.0.0.1:8787'},
+    {icon: 'server', title: 'nixos-control', sub: 'Rust · 127.0.0.1:8787'},
     {icon: 'host', title: 'NixOS host', sub: 'systemd · ZFS · nix'},
   ];
 
@@ -258,7 +258,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app and a tiny Go API server for monitoring and managing a NixOS machine over Tailscale or WireGuard. Dashboards, systemd, ZFS and nixos-rebuild, self-hosted.">
+      description="An open-source iPhone app and a tiny Rust API server for monitoring and managing a NixOS machine over Tailscale or WireGuard. Dashboards, systemd, ZFS and nixos-rebuild, self-hosted.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -274,7 +274,7 @@ export default function Home(): React.JSX.Element {
                 <span className={styles.gradientText}>in your pocket.</span>
               </h1>
               <p className={styles.lede}>
-                NixOS Control is an iPhone app and a tiny Go API server for
+                NixOS Control is an iPhone app and a tiny Rust API server for
                 monitoring and managing your NixOS host. Dashboards, systemd
                 services, ZFS, generations and rebuilds — without opening a
                 terminal, without a cloud account.
@@ -293,7 +293,7 @@ export default function Home(): React.JSX.Element {
                 </Link>
               </div>
               <p className={styles.heroNote}>
-                Free and open source · Go stdlib only · No telemetry
+                Free and open source · Rust · No telemetry
               </p>
             </div>
             <HeroVisual />

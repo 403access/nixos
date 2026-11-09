@@ -4,16 +4,25 @@ let
   cfg = config.services.nixos-control;
   version = "0.1.0";
 
-  package = pkgs.buildGoModule {
+  package = pkgs.rustPlatform.buildRustPackage {
     pname = "nixos-control";
     inherit version;
-    src = ./server;
-    vendorHash = null;
-    ldflags = [
-      "-s"
-      "-w"
-      "-X main.version=${version}"
-    ];
+    src = lib.fileset.toSource {
+      root = ./server;
+      fileset = lib.fileset.unions [
+        ./server/Cargo.toml
+        ./server/Cargo.lock
+        ./server/src
+        ./server/tests
+      ];
+    };
+    cargoLock.lockFile = ./server/Cargo.lock;
+
+    # Embed the module version instead of the default "dev".
+    env = {
+      NIXOS_CONTROL_VERSION = version;
+    };
+
     meta = with lib; {
       description = "Small authenticated API for monitoring and managing a NixOS machine";
       mainProgram = "nixos-control";
