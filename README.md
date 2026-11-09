@@ -172,6 +172,31 @@ machines that start a session themselves (the OrbStack VM does this).
 | `Super+Shift+S` | screenshot |
 | `Super+Shift+C` / `Super+Shift+R` | reload / restart i3 |
 
+## Windows 11 slim image
+
+The repository also ships a NixOS-native toolkit for building a lean,
+unattended Windows 11 ISO. It extracts the official ISO, selects an edition,
+injects `autounattend.xml`, removes consumer apps and telemetry at first boot,
+recompresses the WIM and repacks a bootable ISO with xorriso:
+
+```bash
+cd windows
+nix-shell
+./build-win11.sh --iso ~/Downloads/Win11.iso --profile lean --locale de-DE
+```
+
+Profiles: `safe` (media only), `lean` (consumer AppX and telemetry removed;
+Store, Defender and Update stay) and `micro` (experimental; Store, Xbox,
+OneDrive, search and SysMain removed). The complete guide is available in
+English and German:
+
+- <https://403access.github.io/nixos/docs/guides/windows-11-slim-image>
+- <https://403access.github.io/nixos/de/docs/guides/windows-11-slim-image>
+
+See [`windows/README.md`](windows/README.md) for the short command reference and
+[`PLAN-windows-11-slim-image.md`](PLAN-windows-11-slim-image.md) for the design
+notes.
+
 ## Architecture
 
 ```text
@@ -201,14 +226,17 @@ desktop/                   Desktop profile selector, Catppuccin themes, wallpape
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
-website/                   Marketing site and documentation (Docusaurus)
+windows/                   NixOS-native Windows 11 ISO build toolkit
+website/                   Marketing site and documentation (Docusaurus, en/de)
 docs/screenshots/          App screenshots
 ```
 
 ## Website and documentation
 
 The marketing site lives at `/` and the documentation at `/docs`. Both are
-built from `website/` with [Docusaurus](https://docusaurus.io/).
+built from `website/` with [Docusaurus](https://docusaurus.io/). The new Windows
+image guide is also available at `/de/docs/...`; the locale switcher is in the
+navbar.
 
 Live site: <https://403access.github.io/nixos/>
 

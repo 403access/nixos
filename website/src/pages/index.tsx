@@ -258,7 +258,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app, a tiny Rust API server, and selectable Catppuccin desktop profiles for monitoring and managing a NixOS machine over Tailscale or WireGuard.">
+      description="An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a NixOS-native toolkit for building a lean Windows 11 ISO.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -404,6 +404,68 @@ export default function Home(): React.JSX.Element {
                   <span>{profile.description}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.section} id="windows">
+          <div className="container">
+            <div className={styles.windowsTeaser}>
+              <div className={styles.windowsCopy}>
+                <span className={styles.kicker}>New build guide</span>
+                <h2>Windows 11, minus the bloat.</h2>
+                <p>
+                  Build a lean, unattended Windows 11 ISO from NixOS. Extract,
+                  select, inject, debloat, compress and repack — with a Nix
+                  shell, wimlib and xorriso. No DISM and no Windows build host.
+                </p>
+                <ul className={styles.checkList}>
+                  <li>Three profiles: safe, lean and experimental micro</li>
+                  <li>Local account and hardware-check bypass in autounattend</li>
+                  <li>First-boot AppX removal through supported Windows cmdlets</li>
+                  <li>English and German documentation</li>
+                </ul>
+                <div className={styles.actions}>
+                  <Link
+                    className={clsx('button button--lg', styles.primaryButton)}
+                    to="/windows">
+                    Explore the builder
+                    <span aria-hidden="true"> →</span>
+                  </Link>
+                  <Link
+                    className={clsx('button button--lg', styles.secondaryButton)}
+                    to="/docs/guides/windows-11-slim-image">
+                    Read the guide
+                  </Link>
+                </div>
+              </div>
+              <div className={styles.windowsTerminal}>
+                <div className={styles.terminalBar}>
+                  <span />
+                  <span />
+                  <span />
+                  <em>windows/</em>
+                </div>
+                <pre className={styles.terminalBody}>
+                  <code>
+                    <span className={styles.muted}># NixOS → bootable ISO</span>
+                    {'\n'}
+                    <span className={styles.muted}>$</span> nix-shell
+                    {'\n'}
+                    <span className={styles.muted}>$</span> ./build-win11.sh \
+                    {'\n'}
+                    {'  '}--iso ~/Win11.iso \
+                    {'\n'}
+                    {'  '}--profile lean --locale de-DE
+                    {'\n\n'}
+                    <span className={styles.ok}>✓</span> WIN11_SLIM.iso
+                    {'\n'}
+                    <span className={styles.ok}>✓</span> SHA256 written
+                    {'\n'}
+                    <span className={styles.ok}>✓</span> local password generated
+                  </code>
+                </pre>
+              </div>
             </div>
           </div>
         </section>

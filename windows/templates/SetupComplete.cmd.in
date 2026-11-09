@@ -1,0 +1,4 @@
+@echo off
+setlocal
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SystemRoot%\Setup\Scripts\SetupComplete.ps1" -ProfileName @@PROFILE@@
+endlocal

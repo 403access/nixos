@@ -12,6 +12,7 @@ import storage from '@site/static/img/screenshots/storage.png';
 import system from '@site/static/img/screenshots/system.png';
 import settings from '@site/static/img/screenshots/settings.png';
 import desktopRice from '@site/static/img/screenshots/desktop-rice.png';
+import Link from '@docusaurus/Link';
 
 # NixOS Control
 
@@ -113,6 +114,8 @@ plain HTTP. See [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md).
   and pair your phone.
 - [Configuration](./guides/configuration.md) — every module option.
 - [Desktop profiles](./guides/desktop.md) — choose the host desktop.
+- <Link to="/docs/guides/windows-11-slim-image">Ultra-slim Windows 11</Link> —
+  build a lean, unattended Windows ISO from NixOS.
 - [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md) — use an existing router
   VPN instead of Tailscale.
 - [API reference](./reference/api.md) — routes, payloads and authentication.

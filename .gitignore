@@ -26,3 +26,11 @@ website/node_modules/
 website/.docusaurus/
 website/build/
 website/.cache-loader/
+
+# Windows image build workspace and output
+windows/work/
+windows/out/
+
+# Python bytecode from the unattend renderer
+__pycache__/
+*.pyc

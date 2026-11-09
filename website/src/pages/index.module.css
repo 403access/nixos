@@ -513,6 +513,49 @@
   font-size: 0.76rem;
 }
 
+/* ---------- Windows image teaser ---------- */
+
+.windowsTeaser {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 4rem;
+  padding: 2.4rem;
+  border: 1px solid rgba(91, 140, 255, 0.22);
+  border-radius: 20px;
+  background: radial-gradient(
+      circle at 90% 0%,
+      rgba(91, 140, 255, 0.16) 0%,
+      transparent 55%
+    ),
+    #0a101d;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.35);
+}
+
+.windowsCopy h2 {
+  margin: 0 0 0.9rem;
+  color: #f4f7ff;
+  font-size: clamp(1.85rem, 3.6vw, 2.65rem);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+}
+
+.windowsCopy > p {
+  margin: 0;
+  color: #93a4c3;
+  font-size: 1.03rem;
+  line-height: 1.7;
+}
+
+.windowsTerminal {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  background: #060a12;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
 /* ---------- Architecture split ---------- */
 
 .split {
@@ -924,7 +967,8 @@
   }
 
   .split,
-  .quickstart {
+  .quickstart,
+  .windowsTeaser {
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }
@@ -1014,6 +1058,10 @@
 
   .cta {
     padding: 4.5rem 0;
+  }
+
+  .windowsTeaser {
+    padding: 1.5rem;
   }
 }
 

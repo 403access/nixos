@@ -28,7 +28,19 @@ const config: Config = {
 
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'de'],
+    localeConfigs: {
+      en: {
+        label: 'English',
+        direction: 'ltr',
+        htmlLang: 'en',
+      },
+      de: {
+        label: 'Deutsch',
+        direction: 'ltr',
+        htmlLang: 'de',
+      },
+    },
   },
 
   presets: [
@@ -54,9 +66,9 @@ const config: Config = {
       {
         name: 'description',
         content:
-          'An open-source iPhone app, a tiny Rust API server, and selectable Catppuccin desktop profiles for monitoring and managing a NixOS machine over Tailscale or WireGuard.',
+          'An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a NixOS-native toolkit for building a lean Windows 11 ISO.',
       },
-      {name: 'keywords', content: 'NixOS, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop'},
+      {name: 'keywords', content: 'NixOS, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop, Windows 11, slim Windows, wimlib, unattend, ISO, debloat'},
       {name: 'theme-color', content: '#080b14'},
       {property: 'og:type', content: 'website'},
     ],
@@ -83,9 +95,18 @@ const config: Config = {
           label: 'Desktop',
         },
         {
+          to: '/windows',
+          position: 'left',
+          label: 'Windows 11',
+        },
+        {
           href: `${repoUrl}`,
           position: 'left',
           label: 'GitHub',
+        },
+        {
+          type: 'localeDropdown',
+          position: 'right',
         },
         {
           to: '/docs/getting-started/quickstart',
@@ -104,6 +125,7 @@ const config: Config = {
             {label: 'Introduction', to: '/docs/'},
             {label: 'Server quickstart', to: '/docs/getting-started/quickstart'},
             {label: 'iOS app', to: '/docs/getting-started/ios-app'},
+            {label: 'Windows 11', to: '/docs/guides/windows-11-slim-image'},
             {label: 'API reference', to: '/docs/reference/api'},
           ],
         },
