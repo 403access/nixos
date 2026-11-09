@@ -174,16 +174,18 @@ machines that start a session themselves (the OrbStack VM does this).
 
 ## Windows 11 slim image
 
-The repository also ships a NixOS-native toolkit for building a lean,
-unattended Windows 11 ISO. It extracts the official ISO, selects an edition,
-injects `autounattend.xml`, removes consumer apps and telemetry at first boot,
-recompresses the WIM and repacks a bootable ISO with xorriso:
+The repository also ships a toolkit for building a lean, unattended Windows 11
+ISO. It extracts the official ISO, selects an edition, injects
+`autounattend.xml`, removes consumer apps and telemetry at first boot,
+recompresses the WIM and repacks a bootable ISO with xorriso. The build runs in
+Docker, so the host does not need wimlib, 7-Zip or xorriso:
 
 ```bash
 cd windows
-nix-shell
-./build-win11.sh --iso ~/Downloads/Win11.iso --profile lean --locale de-DE
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean --locale de-DE
 ```
+
+On NixOS, `nix-shell` plus `./build-win11.sh` provides the same build natively.
 
 Profiles: `safe` (media only), `lean` (consumer AppX and telemetry removed;
 Store, Defender and Update stay) and `micro` (experimental; Store, Xbox,
@@ -226,7 +228,7 @@ desktop/                   Desktop profile selector, Catppuccin themes, wallpape
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
-windows/                   NixOS-native Windows 11 ISO build toolkit
+windows/                   Windows 11 ISO build toolkit (Docker or Nix shell)
 website/                   Marketing site and documentation (Docusaurus, en/de)
 docs/screenshots/          App screenshots
 ```

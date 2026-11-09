@@ -66,9 +66,9 @@ const config: Config = {
       {
         name: 'description',
         content:
-          'An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a NixOS-native toolkit for building a lean Windows 11 ISO.',
+          'An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a Docker-first toolkit for building a lean Windows 11 ISO.',
       },
-      {name: 'keywords', content: 'NixOS, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop, Windows 11, slim Windows, wimlib, unattend, ISO, debloat'},
+      {name: 'keywords', content: 'NixOS, Docker, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop, Windows 11, slim Windows, wimlib, unattend, ISO, debloat'},
       {name: 'theme-color', content: '#080b14'},
       {property: 'og:type', content: 'website'},
     ],

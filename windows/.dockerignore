@@ -1,0 +1,8 @@
+# The build context is only used for the Dockerfile and entrypoint script.
+# Never send multi-gigabyte image trees to the daemon.
+work/
+out/
+*.iso
+*.wim
+*.esd
+*.swm

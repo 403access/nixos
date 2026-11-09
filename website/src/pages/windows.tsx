@@ -44,12 +44,12 @@ const copy: Record<'en' | 'de', Copy> = {
   en: {
     title: 'Ultra-slim Windows 11 image',
     description:
-      'Build a lean, unattended Windows 11 ISO from NixOS with wimlib, xorriso and a first-boot debloat script.',
-    eyebrow: 'NixOS-native · Windows 11 · Open source',
+      'Build a lean, unattended Windows 11 ISO in Docker with wimlib, xorriso and a first-boot debloat script.',
+    eyebrow: 'Docker · Windows 11 · Open source',
     headline: 'Windows 11,',
     headlineAccent: 'minus the bloat.',
     lede:
-      'A reproducible build toolkit for a lean Windows 11 ISO. Extract, select, inject, debloat, compress, repack — from a Nix shell, without DISM and without a Windows build host.',
+      'A reproducible build toolkit for a lean Windows 11 ISO. Extract, select, inject, debloat, compress, repack — from a Docker container or a Nix shell, without DISM and without a Windows build host.',
     primary: 'Read the guide',
     secondary: 'Toolkit on GitHub',
     note: '3 profiles · generated local password · test in a VM',
@@ -130,7 +130,7 @@ const copy: Record<'en' | 'de', Copy> = {
     ctaButton: 'Open the guide',
     terminalComment: '# extract, inject, debloat, repack',
     terminalCommand:
-      './build-win11.sh --iso ~/Downloads/Win11.iso \\\n  --profile lean --locale de-DE',
+      './build-win11-docker.sh --iso ~/Downloads/Win11.iso \\\n  --profile lean --locale de-DE',
     terminalOutput:
       'WIN11_SLIM.iso  4.1 GiB\nSHA256  a3f1…9c2e\nlocal password  ••••••••',
     docsPath: '/docs/guides/windows-11-slim-image',
@@ -138,12 +138,12 @@ const copy: Record<'en' | 'de', Copy> = {
   de: {
     title: 'Ultra-schlankes Windows-11-Image',
     description:
-      'Baue unter NixOS ein schlankes, unbeaufsichtigtes Windows-11-ISO mit wimlib, xorriso und einem Debloat-Skript für den ersten Start.',
-    eyebrow: 'NixOS-nativ · Windows 11 · Open Source',
+      'Baue in Docker ein schlankes, unbeaufsichtigtes Windows-11-ISO mit wimlib, xorriso und einem Debloat-Skript für den ersten Start.',
+    eyebrow: 'Docker · Windows 11 · Open Source',
     headline: 'Windows 11,',
     headlineAccent: 'ohne Ballast.',
     lede:
-      'Ein reproduzierbares Toolkit für ein schlankes Windows-11-ISO. Entpacken, Edition wählen, Unattend injizieren, debloaten, komprimieren, neu packen — aus einer Nix-Shell, ohne DISM und ohne Windows-Build-Rechner.',
+      'Ein reproduzierbares Toolkit für ein schlankes Windows-11-ISO. Entpacken, Edition wählen, Unattend injizieren, debloaten, komprimieren, neu packen — aus einem Docker-Container oder einer Nix-Shell, ohne DISM und ohne Windows-Build-Rechner.',
     primary: 'Anleitung lesen',
     secondary: 'Toolkit auf GitHub',
     note: '3 Profile · generiertes lokales Passwort · zuerst in der VM testen',
@@ -224,7 +224,7 @@ const copy: Record<'en' | 'de', Copy> = {
     ctaButton: 'Zur Anleitung',
     terminalComment: '# entpacken, injizieren, debloaten, neu packen',
     terminalCommand:
-      './build-win11.sh --iso ~/Downloads/Win11.iso \\\n  --profile lean --locale de-DE',
+      './build-win11-docker.sh --iso ~/Downloads/Win11.iso \\\n  --profile lean --locale de-DE',
     terminalOutput:
       'WIN11_SLIM.iso  4,1 GiB\nSHA256  a3f1…9c2e\nlokales Passwort  ••••••••',
     docsPath: '/docs/guides/windows-11-slim-image',

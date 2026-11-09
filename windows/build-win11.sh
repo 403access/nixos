@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
 # Build a lean, unattended Windows 11 ISO from a legally obtained source ISO.
-# The script runs on NixOS (and other Linux/macOS systems with the same tools)
-# and uses wimlib for WIM manipulation, so it does not need DISM or Windows.
+# Run it through build-win11-docker.sh to use the containerized toolchain, or
+# natively on NixOS/Linux with the dependencies from shell.nix. It uses wimlib
+# for WIM manipulation, so it does not need DISM or Windows.
 
 set -Eeuo pipefail
 
@@ -356,10 +357,12 @@ xorriso -as mkisofs \
     "$EXTRACT"
 
 log "Writing SHA-256 checksum"
+# Write the bare file name so the checksum stays valid when the build ran in a
+# container and the output path differs from the host path.
 if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$OUT" > "$OUT.sha256"
+    (cd "$(dirname "$OUT")" && sha256sum "$(basename "$OUT")") > "$OUT.sha256"
 else
-    shasum -a 256 "$OUT" > "$OUT.sha256"
+    (cd "$(dirname "$OUT")" && shasum -a 256 "$(basename "$OUT")") > "$OUT.sha256"
 fi
 
 SIZE="$(du -h "$OUT" | awk '{print $1}')"

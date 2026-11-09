@@ -14,6 +14,8 @@ can and cannot do natively, and the marketing site must link to the new guide.
 
 - [x] A repo-level plan (this file).
 - [x] A Nix shell with `wimlib`, `p7zip`, `xorriso`, `python3` and supporting tools.
+- [x] A Docker builder (`windows/Dockerfile`) and `windows/build-win11-docker.sh`
+      so the toolchain runs in a container instead of on the host.
 - [x] `windows/build-win11.sh`: extract ISO, select an edition, inject
       `autounattend.xml`, add first-boot provisioning, recapture the WIM,
       optionally solid-compress it, and rebuild a bootable ISO.
@@ -26,7 +28,8 @@ can and cannot do natively, and the marketing site must link to the new guide.
 - [x] Docusaurus `de` locale, locale switcher, sidebar entry, and navbar item.
 - [x] Marketing page `/windows` (bilingual by locale) plus a homepage teaser.
 - [x] Root README section linking the guide.
-- [x] Verification: shell syntax, Python syntax, XML validation, Docusaurus build.
+- [x] Verification: shell syntax, Python syntax, XML validation, Docker image
+      build, end-to-end synthetic ISO build, and Docusaurus build.
 
 ## Non-goals
 
@@ -40,7 +43,8 @@ can and cannot do natively, and the marketing site must link to the new guide.
 
 The guide separates three layers that are often mixed together:
 
-1. **Build media**: extract, modify, recompress and repack the ISO on NixOS.
+1. **Build media**: extract, modify, recompress and repack the ISO in Docker or
+   natively on NixOS.
 2. **Unattended setup**: skip the Microsoft account and optionally the hardware
    checks, with a secure local account.
 3. **First-boot debloat**: remove provisioned AppX packages and apply policy
@@ -65,6 +69,10 @@ Toolkit, and explains the trade-offs.
    - Add `windows/shell.nix`, `build-win11.sh`, `render-unattend.py`,
      `templates/autounattend.xml.in`, `templates/SetupComplete.cmd.in`, and
      `scripts/SetupComplete.ps1`.
+   - Add `windows/Dockerfile`, `docker-entrypoint.sh` and
+     `build-win11-docker.sh`: containerize the toolchain on Debian bookworm,
+     bind-mount the repository and source ISO, and run the same build script as
+     root.
    - Keep all destructive file deletion inside the extracted image or in the
      first-boot profile, never against a live system.
 2. **Documentation**
@@ -78,6 +86,8 @@ Toolkit, and explains the trade-offs.
    - Update footer/navbar metadata.
 4. **Verification**
    - `bash -n windows/build-win11.sh`
+   - `bash -n windows/build-win11-docker.sh windows/docker-entrypoint.sh`
+   - `docker build` the builder image and check the tool versions.
    - `python3 -m py_compile windows/render-unattend.py`
    - Render a sample `autounattend.xml` and validate it with `xmllint`.
    - `cd website && npm run build`
@@ -88,12 +98,16 @@ Toolkit, and explains the trade-offs.
 | Check | Result |
 | --- | --- |
 | `bash -n windows/build-win11.sh` | passed |
+| `bash -n windows/build-win11-docker.sh` and `docker-entrypoint.sh` | passed |
+| `docker build` of `windows/Dockerfile` | passed |
+| Builder image contents | `wimlib-imagex` 1.13.5, `7z`, `xorriso` 1.5.4, `python3`, `hivex`, `chntpw` present |
 | `python3 -m py_compile windows/render-unattend.py` | passed |
 | Render `autounattend.xml` and `xmllint --noout` | passed |
 | PowerShell parser on `SetupComplete.ps1` | passed |
 | `wimlib-imagex` capture/export/apply/optimize/verify smoke test | passed |
 | `xorriso` ISO repack smoke test | passed; BIOS + UEFI El Torito entries reported |
 | End-to-end `build-win11.sh` against a synthetic ISO | passed; bootable ISO produced with BIOS/UEFI entries, `autounattend.xml`, and `$OEM$` scripts |
+| End-to-end `build-win11-docker.sh` against a synthetic ISO | passed; output and workdir mounts exercised inside and outside the repository, BIOS/UEFI entries reported, relative SHA-256 verified |
 | `cd website && npm run build` | passed for `en` and `de` |
 | English guide route | `/nixos/docs/guides/windows-11-slim-image` generated |
 | German guide route | `/nixos/de/docs/guides/windows-11-slim-image` generated |
@@ -117,7 +131,8 @@ build.
 
 ## Acceptance criteria
 
-- A reader can run one documented command on NixOS and produce a bootable ISO.
+- A reader can run one documented command in Docker (or natively on NixOS) and
+  produce a bootable ISO.
 - The guide states clearly what the toolkit does not remove and why.
 - The English and German guides contain the same steps.
 - `npm run build` succeeds and emits both `/docs/guides/windows-11-slim-image`

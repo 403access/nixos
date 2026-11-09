@@ -258,7 +258,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a NixOS-native toolkit for building a lean Windows 11 ISO.">
+      description="An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a Docker-first toolkit for building a lean Windows 11 ISO.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -415,9 +415,10 @@ export default function Home(): React.JSX.Element {
                 <span className={styles.kicker}>New build guide</span>
                 <h2>Windows 11, minus the bloat.</h2>
                 <p>
-                  Build a lean, unattended Windows 11 ISO from NixOS. Extract,
-                  select, inject, debloat, compress and repack — with a Nix
-                  shell, wimlib and xorriso. No DISM and no Windows build host.
+                  Build a lean, unattended Windows 11 ISO in Docker. Extract,
+                  select, inject, debloat, compress and repack — with wimlib and
+                  xorriso. No toolchain on the host, no DISM and no Windows
+                  build host.
                 </p>
                 <ul className={styles.checkList}>
                   <li>Three profiles: safe, lean and experimental micro</li>
@@ -448,11 +449,9 @@ export default function Home(): React.JSX.Element {
                 </div>
                 <pre className={styles.terminalBody}>
                   <code>
-                    <span className={styles.muted}># NixOS → bootable ISO</span>
+                    <span className={styles.muted}># Docker → bootable ISO</span>
                     {'\n'}
-                    <span className={styles.muted}>$</span> nix-shell
-                    {'\n'}
-                    <span className={styles.muted}>$</span> ./build-win11.sh \
+                    <span className={styles.muted}>$</span> ./build-win11-docker.sh \
                     {'\n'}
                     {'  '}--iso ~/Win11.iso \
                     {'\n'}

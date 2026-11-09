@@ -115,7 +115,7 @@ plain HTTP. See [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md).
 - [Configuration](./guides/configuration.md) — every module option.
 - [Desktop profiles](./guides/desktop.md) — choose the host desktop.
 - <Link to="/docs/guides/windows-11-slim-image">Ultra-slim Windows 11</Link> —
-  build a lean, unattended Windows ISO from NixOS.
+  build a lean, unattended Windows ISO in Docker or natively on NixOS.
 - [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md) — use an existing router
   VPN instead of Tailscale.
 - [API reference](./reference/api.md) — routes, payloads and authentication.

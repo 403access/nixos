@@ -2,18 +2,20 @@
 title: Ultra-schlankes Windows-11-Image bauen
 sidebar_label: Ultra-schlankes Windows 11
 sidebar_position: 7
-description: Baue unter NixOS ein schlankes, unbeaufsichtigtes Windows-11-ISO mit wimlib, xorriso und einem Debloat-Skript für den ersten Start.
+description: Baue in Docker oder unter NixOS ein schlankes, unbeaufsichtigtes Windows-11-ISO mit wimlib, xorriso und einem Debloat-Skript für den ersten Start.
 ---
 
 import Link from '@docusaurus/Link';
 
 # Ultra-schlankes Windows-11-Image bauen
 
-Du kannst unter NixOS ein eigenes Windows-11-ISO bauen – ohne DISM und ohne
+Du kannst ein eigenes Windows-11-ISO bauen – ohne DISM und ohne
 Windows-Build-Rechner. Das Toolkit in [`windows/`](https://github.com/403access/nixos/tree/main/windows)
 entpackt das ISO, wendet eine Edition an, injiziert eine unbeaufsichtigte
 Installation, entfernt beim ersten Start Consumer-Apps und Telemetrie,
-komprimiert die WIM neu und packt ein bootfähiges ISO.
+komprimiert die WIM neu und packt ein bootfähiges ISO. Es läuft in einem
+Docker-Container auf jedem Docker-Host, auch unter macOS, oder nativ in einer
+Nix-Shell unter NixOS/Linux.
 
 :::danger
 Das ist ein nicht unterstützter Weg, Windows zu installieren. Ein stark
@@ -37,11 +39,11 @@ zuverlässiger, als einfach Ordner aus einer gemounteten WIM zu löschen:
 3. **Debloat beim ersten Start** — provisionierte AppX-Pakete entfernen und
    Policy-Werte setzen, nachdem Windows Setup gelaufen ist.
 
-NixOS eignet sich hervorragend für Ebene 1 und kann Ebene 2 und 3 vorbereiten.
-NixOS kann DISM nicht offline ausführen. Echte Komponenten-Bereinigung
-(Defender, WinSxS, optionale Features, Sprachpakete) braucht deshalb weiterhin
-eine Windows-VM mit DISM, NTLite oder MSMG Toolkit. Dieser fortgeschrittene Weg
-wird weiter unten beschrieben.
+Der Docker-Builder und NixOS eignen sich hervorragend für Ebene 1 und können
+Ebene 2 und 3 vorbereiten. Beide können DISM nicht offline ausführen. Echte
+Komponenten-Bereinigung (Defender, WinSxS, optionale Features, Sprachpakete)
+braucht deshalb weiterhin eine Windows-VM mit DISM, NTLite oder MSMG Toolkit.
+Dieser fortgeschrittene Weg wird weiter unten beschrieben.
 
 ## Was du bekommst
 
@@ -66,8 +68,11 @@ oder Offline-Entfernen mit DISM/NTLite infrage, wie unten beschrieben.
 - Ein legal erworbenes Windows-11-x64-ISO (zum Beispiel von der
   Microsoft-Downloadseite). Das Toolkit lädt Windows nicht herunter und
   aktiviert es nicht.
-- NixOS oder ein anderes Linux mit `wimlib`, `p7zip`, `xorriso` und `python3`.
-  Das mitgelieferte `windows/shell.nix` bringt alles mit.
+- Docker (Docker Desktop, OrbStack, Colima oder Docker Engine). Der Build läuft
+  in einem Debian-Bookworm-Container; `wimlib`, `7zip`, `xorriso` und `python3`
+  werden dort installiert, nicht auf deinem Host.
+- Alternativ NixOS oder ein anderes Linux mit `wimlib`, `p7zip`, `xorriso` und
+  `python3`. Das mitgelieferte `windows/shell.nix` bringt alles mit.
 - Etwa 20 GB freien Speicher. Solid-Kompression braucht temporär mehr.
 - Eine virtuelle Maschine zum Testen. Unter NixOS ist QEMU/KVM mit
   `virt-manager` eine gute Wahl; Windows Setup braucht keine VirtIO-Treiber,
@@ -75,13 +80,15 @@ oder Offline-Entfernen mit DISM/NTLite infrage, wie unten beschrieben.
 
 ## Schnellstart
 
-Im Repository-Stamm:
+Im Repository-Stamm, mit laufendem Docker:
 
 ```bash
 cd windows
-nix-shell
-./build-win11.sh --iso ~/Downloads/Win11_24H2_German_x64.iso --profile lean --locale de-DE
+./build-win11-docker.sh --iso ~/Downloads/Win11_24H2_German_x64.iso --profile lean --locale de-DE
 ```
+
+Der Wrapper baut das Container-Image beim ersten Aufruf und bindet das ISO
+schreibgeschützt ein. Vom Toolchain wird nichts auf dem Host installiert.
 
 Das Skript gibt das erzeugte lokale Passwort aus. Speichere es, bevor du das
 Terminal schließt, oder übergib dein eigenes Passwort mit `--password`.
@@ -89,13 +96,13 @@ Terminal schließt, oder übergib dein eigenes Passwort mit `--password`.
 Ein konservatives Image:
 
 ```bash
-./build-win11.sh --iso ~/Downloads/Win11.iso --profile safe
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile safe
 ```
 
 Ein experimentelles Micro-Image:
 
 ```bash
-./build-win11.sh \
+./build-win11-docker.sh \
   --iso ~/Downloads/Win11.iso \
   --profile micro \
   --experimental \
@@ -105,6 +112,14 @@ Ein experimentelles Micro-Image:
 ```
 
 Das Ergebnis landet in `windows/out/`, mit einer `.sha256`-Datei daneben.
+
+Unter NixOS kannst du Docker überspringen und das native Toolchain nutzen:
+
+```bash
+cd windows
+nix-shell
+./build-win11.sh --iso ~/Downloads/Win11.iso --profile lean
+```
 
 ## So funktioniert der Build
 
@@ -128,8 +143,8 @@ Windows-ISO
 ```
 
 Das Skript verwendet absichtlich `wimlib-imagex apply` und `capture` statt eines
-Read-Write-Mounts. Das funktioniert unter NixOS und macOS, vermeidet FUSE und
-macht Fehler leichter nachvollziehbar.
+Read-Write-Mounts. Das funktioniert im Docker-Builder unter Linux, macOS und
+NixOS, vermeidet FUSE und macht Fehler leichter nachvollziehbar.
 
 :::note
 wimlib ist kein unterstütztes Windows-Servicing-Werkzeug. Es erhält Dateiinhalte
@@ -154,9 +169,9 @@ Paketdateien müssen synchron bleiben. Entferne Pakete über
 ## Schritt 1: ISO besorgen und prüfen
 
 Lade Windows 11 von Microsoft oder einer vertrauenswürdigen Quelle. Das Media
-Creation Tool von Microsoft läuft nur unter Windows; nutze unter NixOS den
-direkten ISO-Download oder einen vertrauenswürdigen Mirror. Prüfe den Hash,
-bevor du etwas veränderst:
+Creation Tool von Microsoft läuft nur unter Windows; nutze den direkten
+ISO-Download oder einen vertrauenswürdigen Mirror. Prüfe den Hash, bevor du
+etwas veränderst:
 
 ```bash
 sha256sum ~/Downloads/Win11.iso
@@ -168,15 +183,32 @@ enthält, konvertiert das Skript sie mit wimlib nach `install.wim`. Gesplittete
 `install*.swm`-Images werden nicht automatisch unterstützt; führe sie vorher mit
 `wimlib-imagex join` zusammen.
 
-## Schritt 2: Build-Shell starten
+## Schritt 2: Build-Umgebung starten
+
+Der empfohlene Weg ist Docker:
+
+```bash
+cd windows
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean
+```
+
+Der Wrapper nutzt `windows/Dockerfile`, um einen Debian-Container mit
+`wimlib-imagex`, `7z`, `xorriso`, `python3`, `hivex` und `chntpw` zu bauen. Er
+baut das Image beim ersten Aufruf; nach einer Dockerfile-Änderung nutzt du
+`--rebuild`. Das Repository wird unter `/repo` eingebunden, das ISO unter `/iso`
+(schreibgeschützt), und Ausgabe-/Arbeitspfade außerhalb des Repositories werden
+bei Bedarf einzeln gemountet.
+
+Unter NixOS oder auf Systemen, die die Tools bereits haben, nutzt du den nativen
+Weg:
 
 ```bash
 cd windows
 nix-shell
 ```
 
-Die Shell stellt `wimlib-imagex`, `7z`, `xorriso`, `python3`, `hivex` und
-`chntpw` bereit. Wenn du lieber eine einmalige Shell möchtest:
+Diese Shell stellt dasselbe Toolchain bereit. Wenn du lieber eine einmalige
+Shell möchtest:
 
 ```bash
 nix-shell -p wimlib p7zip libisoburn python3
@@ -461,7 +493,7 @@ Einmal-Installation.
 
 | Ansatz | Läuft auf | Stärke | Nachteil |
 | --- | --- | --- | --- |
-| Dieses Toolkit | NixOS/Linux | Reproduzierbares ISO, Unattend, First-Boot-Debloat | Kein natives DISM-Component-Servicing |
+| Dieses Toolkit | Docker, NixOS, Linux, macOS | Reproduzierbares ISO, Unattend, First-Boot-Debloat | Kein natives DISM-Component-Servicing |
 | NTLite | Windows | Präzises GUI-Komponenten-Entfernen | Proprietär, schnell zu viel entfernt |
 | MSMG Toolkit | Windows | Kostenlos, batch-orientiert | Alte UI, viele manuelle Schritte |
 | tiny11builder | Windows | Schnelles Skript-Trimmen | Nicht unterstützt, buildabhängig |
@@ -471,6 +503,8 @@ Einmal-Installation.
 
 | Symptom | Wahrscheinliche Ursache | Lösung |
 | --- | --- | --- |
+| `cannot reach the Docker daemon` | Docker/OrbStack/Colima läuft nicht | Docker-Runtime starten und erneut versuchen |
+| Build scheitert nach einer Dockerfile-Änderung | Veraltetes Builder-Image | Mit `--rebuild` erneut ausführen |
 | Setup fragt nach Product Key | Kein Key und keine Edition ausgewählt | `--index` nutzen oder `--product-key` übergeben |
 | Setup bleibt bei der Datenträgerauswahl stehen | `ImageInstall` hat kein `InstallTo` | Platte interaktiv wählen oder `InstallTo` in die eigene Antwortdatei aufnehmen |
 | Setup fragt nach Microsoft-Konto | Unattend nicht gefunden/ignoriert | `autounattend.xml` ins ISO-Stammverzeichnis legen; nicht umbenennen |
@@ -507,6 +541,7 @@ Einmal-Installation.
 | `--workdir PATH` | Arbeitsverzeichnis. Standard `windows/work`. |
 | `--keep-work` | Entpackten Baum zur Inspektion behalten. |
 | `--force` | Vorhandenes Ausgabe-ISO überschreiben. |
+| `--rebuild` | Nur Docker-Wrapper: Builder-Image vor dem Lauf neu bauen. |
 
 ## Rechtliches und Betrieb
 
