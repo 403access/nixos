@@ -89,6 +89,9 @@ lib.mkIf (cfg.enable && cfg.profile == "hyprland") {
 
   services.displayManager.defaultSession = "hyprland";
 
+  # Hyprland needs the DRM device; render nodes are also used by EGL.
+  users.users.${cfg.user}.extraGroups = [ "video" "render" ];
+
   # xrdp speaks X11; a Hyprland session cannot be exported over it.  The
   # XFCE or rice profile remains available if remote X11 access is needed.
   services.xrdp.enable = lib.mkForce false;
@@ -121,6 +124,9 @@ lib.mkIf (cfg.enable && cfg.profile == "hyprland") {
   ];
 
   environment.sessionVariables = {
+    # The host may be headless or not on the active VT.  This lets Hyprland
+    # start and create a HEADLESS output for wayvnc instead of waiting for KMS.
+    AQ_NO_KMS_REQUIREMENT = "1";
     NIXOS_OZONE_WL = "1";
     QT_QPA_PLATFORM = "wayland;xcb";
     QT_QPA_PLATFORMTHEME = "qt6ct";

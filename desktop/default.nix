@@ -289,6 +289,8 @@ in
       {
         enable = true;
         theme = sddmThemeName;
+        # NixOS 25.05 defaults to the Qt5 SDDM; the Catppuccin theme is Qt6.
+        package = pkgs.kdePackages.sddm;
         settings = {
           Theme = {
             Current = sddmThemeName;
@@ -302,7 +304,7 @@ in
             EnableHiDPI = true;
           };
         };
-        extraPackages = with pkgs.kdePackages; [ qtsvg qt5compat ];
+        extraPackages = with pkgs.kdePackages; [ qtsvg ];
       };
   };
 }

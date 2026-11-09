@@ -61,6 +61,9 @@ sudo nixos-rebuild "$ACTION" -I "nixos-config=$CONFIG"
 if [[ "$ACTION" == "switch" || "$ACTION" == "test" ]]; then
   echo
   echo "Done. Log out and choose Hyprland at SDDM if it did not start automatically."
+  echo "SDDM is configured to auto-login so the VNC endpoint starts without a"
+  echo "physical login; remove services.displayManager.autoLogin in"
+  echo "configuration-hyprland.nix if you prefer a manual login."
   echo
   echo "The Hyprland session serves VNC on 127.0.0.1:5900 (loopback only)."
   echo "From another machine, tunnel it and open vnc://127.0.0.1:5900:"

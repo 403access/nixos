@@ -11,10 +11,18 @@
 #
 # The wrapper intentionally imports the normal configuration.nix, so the
 # machine, users, services, ZFS, Tailscale and the API server stay identical.
-{ lib, ... }:
+{ config, lib, ... }:
 
 {
   imports = [ ./configuration.nix ];
 
   myDesktop.profile = lib.mkForce "hyprland";
+
+  # wayvnc runs inside the Hyprland session.  Auto-login makes the VNC
+  # endpoint available without a physical login at SDDM; remove this block if
+  # you prefer to log in manually.
+  services.displayManager.autoLogin = {
+    enable = true;
+    user = config.myDesktop.user;
+  };
 }

@@ -86,6 +86,11 @@ If the host has no monitor, a headless `HEADLESS-VNC` output is created
 automatically. VNC is bound to loopback; use the SSH tunnel or Tailscale rather
 than exposing port 5900.
 
+The dedicated config also enables SDDM auto-login so the Hyprland session (and
+`wayvnc`) starts without a physical login. Remove the
+`services.displayManager.autoLogin` block from `configuration-hyprland.nix` if
+you prefer to log in manually.
+
 > OrbStack has no DRM device and cannot run a real Hyprland session; Hyprland's
 > headless/nested backend fails without `/dev/dri`. Use the `rice` or `plasma`
 > profile in the VM and Hyprland on the host.
