@@ -32,15 +32,27 @@ The module needs a real NixOS userspace. With [OrbStack](https://orbstack.dev):
 
 ```bash
 ./vm/vm.sh up          # create the machine if needed, sync, nixos-rebuild switch
-./vm/vm.sh status      # units, token prefix, API health, URLs
+./vm/vm.sh status      # desktop profile, units, token prefix, API health, URLs
 ```
 
 The machine is called `control-test`; `ORB_MACHINE=my-vm` overrides it. You get:
 
 - the API at `http://control-test.orb.local:8787`,
-- an XFCE desktop over VNC at `vnc://control-test.orb.local:5901` (password
-  `nixos`), opened with `./vm/vm.sh vnc`,
+- the selected desktop profile over VNC at
+  `vnc://control-test.orb.local:5901` (password `nixos`), opened with
+  `./vm/vm.sh vnc`; the VM defaults to the Catppuccin i3 `rice` profile,
 - the real systemd unit, token generation, journal and `/proc`.
+
+Switch the desktop without recreating the machine:
+
+```bash
+./vm/vm.sh desktop rice      # Catppuccin i3 (default)
+./vm/vm.sh desktop plasma    # KDE Plasma 6
+./vm/vm.sh desktop xfce      # original XFCE
+```
+
+Hyprland is Wayland-only and cannot be served over the VM's X11 VNC display;
+test it on real hardware.
 
 Other helpers: `ip`, `shell`, `root`, `token`, `ios [tab]`, `vnc`, `logs`,
 `stop`, `start` and `delete`. `./vm/apply.sh` performs just the sync and

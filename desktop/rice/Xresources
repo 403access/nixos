@@ -1,0 +1,41 @@
+Xft.dpi: 96
+Xft.antialias: true
+Xft.hinting: true
+Xft.hintstyle: hintslight
+Xft.rgba: rgb
+Xcursor.theme: catppuccin-mocha-dark-cursors
+Xcursor.size: 24
+
+! xterm – Catppuccin Mocha
+XTerm*faceName: JetBrainsMono Nerd Font
+XTerm*faceSize: 11
+XTerm*termName: xterm-256color
+XTerm*utf8: 2
+XTerm*background: #1e1e2e
+XTerm*foreground: #cdd6f4
+XTerm*cursorColor: #f5e0dc
+XTerm*internalBorder: 14
+XTerm*scrollBar: false
+XTerm*rightScrollBar: false
+XTerm*saveLines: 10000
+XTerm*loginShell: true
+XTerm*metaSendsEscape: true
+XTerm*highlightSelection: true
+XTerm*highlightColor: #89b4fa
+XTerm*color0: #45475a
+XTerm*color1: #f38ba8
+XTerm*color2: #a6e3a1
+XTerm*color3: #f9e2af
+XTerm*color4: #89b4fa
+XTerm*color5: #f5c2e7
+XTerm*color6: #94e2d5
+XTerm*color7: #bac2de
+XTerm*color8: #585b70
+XTerm*color9: #f38ba8
+XTerm*color10: #a6e3a1
+XTerm*color11: #f9e2af
+XTerm*color12: #89b4fa
+XTerm*color13: #f5c2e7
+XTerm*color14: #94e2d5
+XTerm*color15: #a6adc8
+

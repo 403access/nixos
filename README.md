@@ -21,6 +21,72 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
 - **Tailscale or WireGuard** — the iPhone reaches the machine through the tailnet, or through the WireGuard VPN that already runs on your FRITZ!Box.
 
+## Desktop profiles
+
+The host configuration now selects a desktop profile instead of hard-coding
+XFCE. The original setup remains the default; switch by changing one value.
+
+<p align="center">
+  <img src="docs/screenshots/desktop-rice.png" width="49%" alt="Catppuccin i3 rice">
+  <img src="docs/screenshots/desktop-rofi.png" width="49%" alt="Rofi launcher">
+</p>
+<p align="center"><em>The <code>rice</code> profile in the OrbStack VM: i3, polybar, picom, Rofi, xterm and Catppuccin Mocha.</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/desktop-plasma.png" width="60%" alt="KDE Plasma 6 with the Catppuccin theme">
+</p>
+<p align="center"><em>The <code>plasma</code> profile: KDE Plasma 6 with the Catppuccin KDE theme and the same wallpaper.</em></p>
+
+| Profile | What you get |
+| --- | --- |
+| `xfce` | The original XFCE desktop (default), now with the Catppuccin GTK theme, icons, cursor and fonts. |
+| `rice` | A Catppuccin Mocha i3 rice: polybar, picom, Rofi, dunst, xterm, Thunar and Firefox. Works over VNC and xrdp. |
+| `plasma` | KDE Plasma 6 with the Catppuccin KDE colour scheme, window decoration and SDDM login theme. Works over the VM's X11 VNC display too. |
+| `hyprland` | Hyprland + waybar + mako + Rofi + hyprpaper/hypridle. Wayland only; xrdp is disabled for this profile. |
+
+```nix
+myDesktop = {
+  enable = true;
+  profile = "rice";          # xfce | rice | plasma | hyprland
+  user = "nixos";
+  flavour = "mocha";         # mocha | macchiato | frappe | latte
+  accent = "blue";
+};
+```
+
+Then rebuild:
+
+```bash
+sudo nixos-rebuild switch
+```
+
+The theme files are declarative: edit `desktop/rice/...`,
+`desktop/hyprland/...` or `desktop/wallpaper.svg` and rebuild. Dotfiles are
+linked from the Nix store into `~/.config`; they are read-only by design.
+
+The rice starts picom's GLX backend (blur, rounded corners, shadows) when a
+DRM device is present, and falls back to XRender in the GPU-less OrbStack VM.
+
+The non-XFCE profiles use SDDM with the Catppuccin theme; XFCE keeps lightdm.
+`myDesktop.enableDisplayManager = false` is available for machines that start
+a session themselves (the OrbStack VM does this).
+
+### Rice keybindings
+
+| Keys | Action |
+| --- | --- |
+| `Super+Return` / `Super+Shift+Return` | xterm / kitty |
+| `Super+D` | Rofi application launcher |
+| `Super+Tab` | Rofi window switcher |
+| `Super+B` / `Super+E` | Firefox / Thunar |
+| `Super+Q` | close window |
+| `Super+1…0` / `Super+Shift+1…0` | switch / move workspace |
+| `Super+R` | resize mode |
+| `Super+Escape` | lock |
+| `Super+Shift+X` | power menu |
+| `Super+Shift+S` | screenshot |
+| `Super+Shift+C` / `Super+Shift+R` | reload / restart i3 |
+
 ## Architecture
 
 ```text
@@ -46,6 +112,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 ```text
 configuration.nix          Existing NixOS config (now imports the module)
 nixos-control.nix          NixOS module: packages and runs the server
+desktop/                   Desktop profile selector, Catppuccin themes, wallpaper
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
@@ -313,19 +380,30 @@ Running it on macOS is enough for API and app work, but `/proc`, `systemctl`, `j
 The module needs a real NixOS userspace. With [OrbStack](https://orbstack.dev):
 
 ```bash
-./vm/apply.sh
+./vm/vm.sh up
 ```
 
-This creates a `control-test` NixOS machine (if needed), copies the module and server into it, and runs `nixos-rebuild switch`. You get:
+This creates a `control-test` NixOS machine (if needed), copies the module, server and desktop profiles into it, and runs `nixos-rebuild switch`. You get:
 
 - the API at `http://control-test.orb.local:8787`
-- an XFCE desktop over VNC at `vnc://control-test.orb.local:5901` (password `nixos`)
+- the selected desktop profile over VNC at `vnc://control-test.orb.local:5901` (password `nixos`); the VM defaults to the `rice` profile
 - the real systemd unit, token generation, `/proc`, `systemctl`, and `journalctl`
+
+Switch desktop profiles in the VM without recreating it:
+
+```bash
+./vm/vm.sh desktop rice      # default: Catppuccin i3
+./vm/vm.sh desktop plasma    # KDE Plasma 6
+./vm/vm.sh desktop xfce      # original XFCE
+```
+
+Hyprland is Wayland-only and cannot be shown on the VM's X11 VNC display;
+test it on real hardware.
 
 Day-to-day helpers:
 
 ```bash
-./vm/vm.sh status          # units, token prefix, API health, URLs
+./vm/vm.sh status          # machine, desktop profile, units, API health, URLs
 ./vm/vm.sh ios services    # build/install/launch the app against the VM
 ./vm/vm.sh vnc             # open the desktop
 ./vm/vm.sh stop            # pause; `start` resumes, `delete` destroys

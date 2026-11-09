@@ -2,6 +2,7 @@
 # Lifecycle helper for the OrbStack NixOS test machine (see ./README.md).
 #
 #   ./vm/vm.sh up        create/start the machine and apply the configuration
+#   ./vm/vm.sh desktop   switch the VM desktop profile (xfce/rice/plasma)
 #   ./vm/vm.sh status    machine, services, token, API health, URLs
 #   ./vm/vm.sh shell     shell inside the machine (root for `root`)
 #   ./vm/vm.sh token     print the API token
@@ -77,6 +78,18 @@ up() {
   "$ROOT/vm/apply.sh"
 }
 
+desktop() {
+  local profile="${1:-}"
+  if [[ -z "$profile" ]]; then
+    echo "Usage: ./vm/vm.sh desktop <xfce|rice|plasma>" >&2
+    echo "Hyprland is Wayland-only and cannot be shown over this VM's X11 VNC display." >&2
+    exit 1
+  fi
+  create
+  running || orb start "$MACHINE"
+  DESKTOP_PROFILE="$profile" "$ROOT/vm/apply.sh"
+}
+
 start() {
   require_machine
   if running; then
@@ -111,14 +124,16 @@ status() {
     return 0
   fi
 
-  local ip tok host code
+  local ip tok host code profile
   ip=$(machine_ip)
   tok=$(token)
   host=$(api_host)
+  profile=$(orb -m "$MACHINE" sed -nE 's/.*myDesktop\.profile = "(.*)".*/\1/p' \
+    /etc/nixos/vm/desktop.nix 2>/dev/null | head -1)
 
   echo "Machine:  $MACHINE (running, $ip)"
+  echo "Desktop:  ${profile:-unknown} profile — vnc://$host:$VNC_PORT"
   echo "API:      http://$host:$API_PORT"
-  echo "Desktop:  vnc://$host:$VNC_PORT"
   echo "Token:    ${tok:0:8}… (./vm/vm.sh token for the full value)"
   if [[ "$host" != "$NAME" ]]; then
     echo "Note:     $NAME did not answer; using the machine IP instead."
@@ -207,6 +222,7 @@ usage() {
 Usage: ./vm/vm.sh <command>
 
   up        create/start the machine and apply the configuration
+  desktop   switch the desktop profile (xfce|rice|plasma)
   status    machine, services, token, API health, URLs
   ip        print the machine's IP address
   shell     shell inside the machine (`root` for a root shell)
@@ -225,6 +241,7 @@ EOF
 
 case "${1:-}" in
   up|apply) up ;;
+  desktop) desktop "${2:-}" ;;
   create) create ;;
   start) start ;;
   stop) stop ;;

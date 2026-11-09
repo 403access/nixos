@@ -16,7 +16,8 @@ Requires [OrbStack](https://orbstack.dev) with the `orb` CLI. Everything uses
 | Command | What it does |
 | --- | --- |
 | `./vm/vm.sh up` | create and start the machine, then `nixos-rebuild switch` |
-| `./vm/vm.sh status` | machine state, unit states, token prefix, API health, URLs |
+| `./vm/vm.sh desktop <profile>` | switch to `rice` (default), `plasma`, or `xfce` and rebuild |
+| `./vm/vm.sh status` | machine state, desktop profile, unit states, token prefix, API health, URLs |
 | `./vm/vm.sh ip` | print the machine's address |
 | `./vm/vm.sh shell` / `root` | interactive shell (as `olivermolnar` / `root`) |
 | `./vm/vm.sh token` | print the API token |
@@ -37,11 +38,27 @@ Raw `orb` commands work too (`orb stop control-test`, `orb delete control-test`)
 
 - `http://control-test.orb.local:8787` — the API, reachable from macOS and from
   the iOS Simulator without any port forwarding.
-- `vnc://control-test.orb.local:5901` — an XFCE desktop (password `nixos`).
+- `vnc://control-test.orb.local:5901` — the selected desktop profile (the
+  Catppuccin i3 `rice` by default; password `nixos`).
 - `control-test.orb.local` — SSH is disabled; use `orb -m control-test` to get a
   shell, or `orb -m control-test sudo …` for root commands.
 - Token: `./vm/vm.sh token`
   (or `nixos-control-token` inside the machine).
+
+## Desktop profiles
+
+The VM defaults to the `rice` profile: i3, polybar, picom, Rofi, dunst, xterm
+and the Catppuccin Mocha theme. Switch without recreating the machine:
+
+```bash
+./vm/vm.sh desktop rice      # Catppuccin i3 (default)
+./vm/vm.sh desktop plasma    # KDE Plasma 6
+./vm/vm.sh desktop xfce      # original XFCE
+```
+
+The X11 VNC display cannot show Hyprland, which is Wayland-only. The root
+[README](../README.md#desktop-profiles) has screenshots, keybindings and the
+full option reference.
 
 ## Visual access
 
@@ -63,7 +80,9 @@ open vnc://control-test.orb.local:5901
 
 The password is `nixos` (change `vncPassword` in `configuration.nix` if the
 machine is reachable from untrusted networks). Any standard VNC client works;
-the desktop is XFCE with a terminal, Thunar, a text editor, and a task manager.
+the desktop is the selected profile. The default `rice` profile opens with
+`Super+Return` (xterm), `Super+D` (Rofi), `Super+B` (Firefox) and
+`Super+Shift+X` (power menu).
 
 > If Screen Sharing reports "Unable to communicate", check that the VNC port is
 > reachable (`nc -vz <host> 5901`). OrbStack's `<machine>.orb.local` name can be
@@ -111,14 +130,17 @@ The overrides only apply to `DEBUG` builds (the default for `xcodebuild`).
 
 ## How the script works
 
-`apply.sh` copies `server/`, `nixos-control.nix`, and `vm/configuration.nix` into
-the machine's `/etc/nixos` and generates `/etc/nixos/control-test.nix`:
+`apply.sh` copies `server/`, `nixos-control.nix`, `desktop/`, and
+`vm/configuration.nix` into the machine's `/etc/nixos`, writes the selected
+profile to `/etc/nixos/vm/desktop.nix`, and generates
+`/etc/nixos/control-test.nix`:
 
 ```nix
 {
   imports = [
     ./configuration.nix        # OrbStack's own config: networking, users, lxc boot
     ./vm/configuration.nix     # this repo's test module
+    ./vm/desktop.nix           # myDesktop.profile = "rice" | "plasma" | "xfce"
   ];
 }
 ```
@@ -136,6 +158,13 @@ keeps the machine reachable while the repo's module is layered on top.
   shows filesystems but no pools or datasets. Test ZFS on the real host.
 - **No Tailscale.** `tailscaleServe` is disabled; the Serve path needs a real
   tailnet and a login.
+- **The VNC display is X11.** `rice`, `plasma`, and `xfce` work over it;
+  Hyprland is Wayland-only and is intentionally rejected by an assertion in
+  `vm/configuration.nix`. Test Hyprland on real hardware.
+- **The VM has no GPU.** Mesa uses `llvmpipe`, GLX is unavailable, and Kitty
+  cannot open a window. The rice uses xterm (and `Super+Shift+Return` still
+  tries Kitty). Plasma runs with software rendering, but is heavier and less
+  representative of hardware.
 - **Rebuild endpoint targets `/etc/nixos`.** `POST /api/system/rebuild` runs
   `nixos-rebuild` in `/etc/nixos`, which is OrbStack's base configuration — a
   `switch` from the app would remove `nixos-control`. Use `dry-build` or

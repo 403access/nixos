@@ -1,0 +1,74 @@
+* {
+    bg: #1e1e2eee;
+    bg-alt: #313244cc;
+    fg: #cdd6f4;
+    accent: #89b4fa;
+    urgent: #f38ba8;
+    margin: 0;
+    padding: 0;
+    spacing: 0;
+    border: 0;
+    border-radius: 0;
+    text-color: @fg;
+    background-color: @bg;
+}
+
+window {
+    width: 640px;
+    border: 2px;
+    border-color: @accent;
+    border-radius: 16px;
+    background-color: @bg;
+    padding: 16px;
+}
+
+mainbox {
+    spacing: 12px;
+}
+
+inputbar {
+    background-color: @bg-alt;
+    border-radius: 10px;
+    padding: 10px 14px;
+    spacing: 8px;
+    text-color: @fg;
+}
+
+prompt {
+    text-color: @accent;
+}
+
+entry {
+    text-color: @fg;
+    placeholder: "Search applications…";
+    placeholder-color: #6c7086;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    spacing: 6px;
+    scrollbar: false;
+    background-color: transparent;
+    border: 0;
+}
+
+element {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background-color: transparent;
+    spacing: 12px;
+}
+
+element selected {
+    background-color: @accent;
+    text-color: #11111b;
+}
+
+element-icon {
+    size: 22px;
+}
+
+element-text {
+    vertical-align: 0.5;
+}

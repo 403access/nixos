@@ -1,0 +1,17 @@
+@theme "catppuccin"
+
+configuration {
+  modi: "drun,run,window";
+  font: "Inter 11";
+  show-icons: true;
+  icon-theme: "Papirus-Dark";
+  display-drun: "  Applications";
+  display-run: "  Run";
+  display-window: "  Windows";
+  drun-display-format: "{name}";
+  sorting-method: "fzf";
+  terminal: "xterm";
+  kb-primary-paste: "Control+V,Shift+Insert";
+  kb-secondary-paste: "Control+v,Insert";
+  click-to-exit: false;
+}

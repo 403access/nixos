@@ -36,7 +36,16 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./nixos-control.nix
+      ./desktop
     ];
+
+  # Choose the desktop profile.  `xfce` preserves the original setup;
+  # `rice`, `plasma`, and `hyprland` are the themed alternatives.
+  myDesktop = {
+    enable = true;
+    profile = "xfce";
+    user = "nixos";
+  };
 
   nixpkgs.config.allowUnfree = true;
 
@@ -97,13 +106,10 @@
 #  environment.sessionVariables.NIXOS_OZONE_WL = "1";
 #  hardware.nvidia.modesetting.enable = true;
 
-  # Enable the X11 windowing system.
-    services.xserver.enable = true;
-    services.xserver.displayManager.lightdm.enable = true;
-    services.xserver.desktopManager.xfce.enable = true;
-
-services.xrdp.enable = true;
-services.xrdp.defaultWindowManager = "startxfce4"; # Oder z.B. "gnome-session"
+  # Enable the X11 windowing system.  The selected desktop profile in
+  # ./desktop owns the display manager, desktop environment and xrdp
+  # window-manager command.
+  services.xrdp.enable = true;
 
   systemd.targets.sleep.enable = lib.mkForce false;
   systemd.targets.suspend.enable = lib.mkForce false;
@@ -202,10 +208,7 @@ services.samba = {
 
   
 
-  # Configure keymap in X11
-  services.xserver.xkb.layout = "de";
-  services.xserver.xkb.variant = "";
-  # services.xserver.xkb.options = "eurosign:e,caps:escape";
+  # Keyboard layout is set by the desktop module.
 
   # Enable CUPS to print documents.
   # services.printing.enable = true;
@@ -254,8 +257,6 @@ services.samba = {
       sassc libsass
       glib glib.dev
       libxml2
-      xfce.xfce4-whiskermenu-plugin
-      xfce.xfce4-power-manager
 
       # virtual machine
       swtpm virtio-win qemu quickemu
@@ -293,8 +294,7 @@ services.samba = {
 #        })
 #      )
 
-     # Hyprland - Notifications
-     dunst
+     # Hyprland - Notifications are installed by the rice/hyprland profiles.
 #     libnotify
      
      # Hyprland - Wallpaper
