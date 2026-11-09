@@ -45,6 +45,14 @@
     enable = true;
     profile = "xfce";
     user = "nixos";
+    # GTK theme family: "catppuccin" (default) or "whitesur".
+    gtkTheme = "whitesur";
+    whiteSur = {
+      variant = "dark";      # light | dark
+      accent = "blue";       # default | blue | purple | pink | red | orange | yellow | green | grey
+      icons = true;          # WhiteSur icons; false keeps Papirus-Dark
+      cursors = true;        # WhiteSur cursors; false keeps Catppuccin
+    };
   };
 
   nixpkgs.config.allowUnfree = true;

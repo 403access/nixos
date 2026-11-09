@@ -79,7 +79,7 @@ lib.mkIf (cfg.enable && cfg.profile == "plasma") {
     toolBarFont=Inter,11,-1,5,50,0,0,0,0,0
     smallestReadableFont=Inter,9,-1,5,50,0,0,0,0,0
     [Icons]
-    Theme=Papirus-Dark
+    Theme=${cfg.iconThemeName}
     [KDE]
     SingleClick=false
   '';

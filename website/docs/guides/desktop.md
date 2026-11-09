@@ -46,6 +46,7 @@ myDesktop = {
   user = "nixos";
   flavour = "mocha";         # mocha | macchiato | frappe | latte
   accent = "blue";
+  gtkTheme = "catppuccin";   # catppuccin | whitesur
 };
 ```
 
@@ -59,10 +60,39 @@ The default is `xfce`, so an existing installation keeps its desktop until you
 change the profile. `myDesktop.enableDisplayManager = false` is available for
 machines that start their session themselves; the OrbStack test VM uses it.
 
+## WhiteSur GTK theme
+
+The GTK, icon and cursor theme is independent of the desktop profile. Switch
+`myDesktop.gtkTheme` to `whitesur` to use the macOS-like
+[WhiteSur theme](https://github.com/vinceliuice/WhiteSur-gtk-theme):
+
+```nix
+myDesktop = {
+  enable = true;
+  profile = "rice";
+  user = "nixos";
+  gtkTheme = "whitesur";
+
+  whiteSur = {
+    variant = "dark";        # light | dark
+    accent = "blue";         # default | blue | purple | pink | red | orange | yellow | green | grey
+    icons = true;            # WhiteSur icons; false keeps Papirus-Dark
+    cursors = true;          # WhiteSur cursors; false keeps the Catppuccin cursors
+  };
+};
+```
+
+WhiteSur comes from the `whitesur-gtk-theme`, `whitesur-icon-theme` and
+`whitesur-cursors` nixpkgs packages. The Catppuccin SDDM login theme and the
+Qt/Kvantum theme stay active, so only GTK applications, icons and cursors
+change. Set `gtkTheme = "catppuccin"` (the default) to switch back.
+
 ## Themes and dotfiles
 
 - Catppuccin GTK and Kvantum themes, Papirus icons, Catppuccin cursors, Inter
-  and JetBrainsMono Nerd Font are installed for every themed profile.
+  and JetBrainsMono Nerd Font are installed for every themed profile. Set
+  `myDesktop.gtkTheme = "whitesur"` to use the WhiteSur GTK theme, icons and
+  cursors instead; the Qt/Kvantum and SDDM themes remain Catppuccin.
 - The X11 rice lives in `desktop/rice/` — i3, polybar, picom, Rofi, dunst,
   xterm colours and the X resources file. The Hyprland setup lives in
   `desktop/hyprland/` — Hyprland, waybar, mako, hyprpaper and hypridle.

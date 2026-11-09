@@ -51,6 +51,7 @@ myDesktop = {
   user = "nixos";
   flavour = "mocha";         # mocha | macchiato | frappe | latte
   accent = "blue";
+  gtkTheme = "catppuccin";   # catppuccin | whitesur
 };
 ```
 
@@ -59,6 +60,35 @@ Then rebuild:
 ```bash
 sudo nixos-rebuild switch
 ```
+
+### WhiteSur GTK theme
+
+The GTK, icon and cursor theme is independent of the desktop profile. Set
+`myDesktop.gtkTheme = "whitesur"` to use the macOS-like
+[WhiteSur GTK theme](https://github.com/vinceliuice/WhiteSur-gtk-theme)
+instead of Catppuccin:
+
+```nix
+myDesktop = {
+  enable = true;
+  profile = "rice";
+  user = "nixos";
+  gtkTheme = "whitesur";
+
+  whiteSur = {
+    variant = "dark";        # light | dark
+    accent = "blue";         # default | blue | purple | pink | red | orange | yellow | green | grey
+    icons = true;            # WhiteSur icon theme (Papirus-Dark if false)
+    cursors = true;          # WhiteSur cursors (Catppuccin cursors if false)
+  };
+};
+```
+
+WhiteSur is installed from the `whitesur-gtk-theme`, `whitesur-icon-theme`
+and `whitesur-cursors` nixpkgs packages. The Catppuccin SDDM and Qt/Kvantum
+themes remain in place, so the login screen and Qt applications keep their
+Catppuccin styling. Rebuild to switch; setting `gtkTheme = "catppuccin"` (the
+default) restores the previous look.
 
 ### Dedicated Hyprland config
 

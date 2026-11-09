@@ -8,6 +8,10 @@
 #   plasma    – KDE Plasma 6 with the Catppuccin KDE theme
 #   hyprland  – Hyprland + waybar + mako (Wayland, real hardware)
 #
+# The GTK theme family is independent of the desktop profile: keep the
+# Catppuccin look, or switch `myDesktop.gtkTheme` to `whitesur` for the
+# macOS-like WhiteSur theme (https://github.com/vinceliuice/WhiteSur-gtk-theme).
+#
 # Everything is declarative: the theme files live in `desktop/rice` and
 # `desktop/hyprland`, and are linked into the user's home from the Nix store.
 { config, lib, pkgs, ... }:
@@ -15,11 +19,13 @@
 let
   cfg = config.myDesktop;
 
+  useWhiteSur = cfg.gtkTheme == "whitesur";
+
   flavourDir = cfg.flavour; # mocha, macchiato, frappe, latte
 
-  cursorOutput = "${flavourDir}Dark";
-  cursorName = "catppuccin-${flavourDir}-dark-cursors";
-  gtkThemeName = "catppuccin-${cfg.flavour}-${cfg.accent}-standard";
+  catppuccinCursorOutput = "${flavourDir}Dark";
+  catppuccinCursorName = "catppuccin-${flavourDir}-dark-cursors";
+  catppuccinGtkThemeName = "catppuccin-${cfg.flavour}-${cfg.accent}-standard";
 
   catppuccinGtk = pkgs.catppuccin-gtk.override {
     variant = cfg.flavour;
@@ -27,12 +33,61 @@ let
     size = "standard";
   };
 
-  catppuccinCursors = pkgs.catppuccin-cursors.${cursorOutput};
+  catppuccinCursors = pkgs.catppuccin-cursors.${catppuccinCursorOutput};
 
   papirus = pkgs.catppuccin-papirus-folders.override {
     flavor = cfg.flavour;
     accent = cfg.accent;
   };
+
+  # WhiteSur names its themes after the variant and accent, e.g.
+  # `WhiteSur-Dark-blue`.  Icon themes use the same suffix in lower case and
+  # do not have a `blue` accent, so blue maps to their `default` icons.
+  whiteSurIconAccent =
+    if cfg.whiteSur.accent == "blue" then "default" else cfg.whiteSur.accent;
+
+  whiteSurGtk = pkgs.whitesur-gtk-theme.override {
+    colorVariants = [ cfg.whiteSur.variant ];
+    themeVariants = [ cfg.whiteSur.accent ];
+  };
+
+  whiteSurGtkThemeName =
+    "WhiteSur"
+    + (if cfg.whiteSur.variant == "dark" then "-Dark" else "-Light")
+    + lib.optionalString (cfg.whiteSur.accent != "default") "-${cfg.whiteSur.accent}";
+
+  whiteSurIcons = pkgs.whitesur-icon-theme.override {
+    themeVariants = [ whiteSurIconAccent ];
+  };
+
+  whiteSurIconThemeName =
+    "WhiteSur"
+    + lib.optionalString (whiteSurIconAccent != "default") "-${whiteSurIconAccent}"
+    + (if cfg.whiteSur.variant == "dark" then "-dark" else "-light");
+
+  # Resolved names and packages shared with the individual profiles.
+  gtkThemeName = if useWhiteSur then whiteSurGtkThemeName else catppuccinGtkThemeName;
+  iconThemeName =
+    if useWhiteSur && cfg.whiteSur.icons then whiteSurIconThemeName
+    else "Papirus-Dark";
+  cursorName =
+    if useWhiteSur && cfg.whiteSur.cursors then "WhiteSur-cursors"
+    else catppuccinCursorName;
+
+  # Catppuccin is always treated as a dark theme (as before); WhiteSur follows
+  # the selected variant so GTK does not swap the light theme for its dark
+  # variant behind our back.
+  preferDarkTheme = !(useWhiteSur && cfg.whiteSur.variant == "light");
+
+  themePackages =
+    if useWhiteSur then
+      [ whiteSurGtk ]
+      ++ lib.optional cfg.whiteSur.icons whiteSurIcons
+      ++ lib.optional cfg.whiteSur.cursors pkgs.whitesur-cursors
+      ++ lib.optional (!cfg.whiteSur.icons) papirus
+      ++ lib.optional (!cfg.whiteSur.cursors) catppuccinCursors
+    else
+      [ catppuccinGtk catppuccinCursors papirus ];
 
   wallpaper = pkgs.runCommand "nixos-rice-wallpaper.png" {
     nativeBuildInputs = [ pkgs.librsvg ];
@@ -108,6 +163,58 @@ in
       description = "Catppuccin accent colour.";
     };
 
+    gtkTheme = lib.mkOption {
+      type = lib.types.enum [ "catppuccin" "whitesur" ];
+      default = "catppuccin";
+      description = ''
+        GTK, icon and cursor theme family.  `catppuccin` follows `flavour`
+        and `accent`; `whitesur` installs the macOS-like
+        [WhiteSur](https://github.com/vinceliuice/WhiteSur-gtk-theme)
+        theme, configured by `whiteSur.*`.
+      '';
+    };
+
+    whiteSur = lib.mkOption {
+      default = { };
+      description = "WhiteSur theme settings for `myDesktop.gtkTheme = \"whitesur\"`.";
+      type = lib.types.submodule {
+        options = {
+          variant = lib.mkOption {
+            type = lib.types.enum [ "light" "dark" ];
+            default = "dark";
+            description = "WhiteSur light or dark variant.";
+          };
+
+          accent = lib.mkOption {
+            type = lib.types.enum [
+              "default" "blue" "purple" "pink" "red" "orange" "yellow"
+              "green" "grey"
+            ];
+            default = "blue";
+            description = "WhiteSur accent colour.";
+          };
+
+          icons = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = ''
+              Install and use the matching WhiteSur icon theme.  Disable to
+              keep the Catppuccin Papirus icons.
+            '';
+          };
+
+          cursors = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = ''
+              Install and use the WhiteSur cursor theme.  Disable to keep
+              the Catppuccin cursors.
+            '';
+          };
+        };
+      };
+    };
+
     wallpaper = lib.mkOption {
       type = lib.types.path;
       default = wallpaper;
@@ -142,6 +249,28 @@ in
       default = true;
       description = "Whether the selected session can run on an X11 VNC display.";
     };
+
+    # Resolved theme names, consumed by the individual desktop profiles.
+    gtkThemeName = lib.mkOption {
+      type = lib.types.str;
+      readOnly = true;
+      default = gtkThemeName;
+      description = "Resolved GTK theme name (internal).";
+    };
+
+    iconThemeName = lib.mkOption {
+      type = lib.types.str;
+      readOnly = true;
+      default = iconThemeName;
+      description = "Resolved icon theme name (internal).";
+    };
+
+    cursorThemeName = lib.mkOption {
+      type = lib.types.str;
+      readOnly = true;
+      default = cursorName;
+      description = "Resolved cursor theme name (internal).";
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -168,11 +297,8 @@ in
       emoji = [ "Noto Color Emoji" ];
     };
 
-    environment.systemPackages = with pkgs; [
+    environment.systemPackages = themePackages ++ (with pkgs; [
       # Theme assets
-      catppuccinGtk
-      catppuccinCursors
-      papirus
       (catppuccin-kvantum.override {
         variant = cfg.flavour;
         accent = cfg.accent;
@@ -203,7 +329,7 @@ in
       (writeShellScriptBin "desktop-polkit-agent" ''
         exec ${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1
       '')
-    ] ++ lib.optionals
+    ]) ++ lib.optionals
       (cfg.enableDisplayManager && cfg.profile != "xfce")
       [ catppuccinSddm ];
 
@@ -215,7 +341,7 @@ in
 
     environment.etc."gtk-2.0/gtkrc".text = ''
       gtk-theme-name = "${gtkThemeName}"
-      gtk-icon-theme-name = "Papirus-Dark"
+      gtk-icon-theme-name = "${iconThemeName}"
       gtk-font-name = "Inter 10"
       gtk-cursor-theme-name = "${cursorName}"
       gtk-cursor-theme-size = 24
@@ -224,22 +350,22 @@ in
     environment.etc."gtk-3.0/settings.ini".text = ''
       [Settings]
       gtk-theme-name=${gtkThemeName}
-      gtk-icon-theme-name=Papirus-Dark
+      gtk-icon-theme-name=${iconThemeName}
       gtk-font-name=Inter 10
       gtk-cursor-theme-name=${cursorName}
       gtk-cursor-theme-size=24
-      gtk-application-prefer-dark-theme=true
+      gtk-application-prefer-dark-theme=${lib.boolToString preferDarkTheme}
       gtk-enable-animations=true
     '';
 
     environment.etc."gtk-4.0/settings.ini".text = ''
       [Settings]
       gtk-theme-name=${gtkThemeName}
-      gtk-icon-theme-name=Papirus-Dark
+      gtk-icon-theme-name=${iconThemeName}
       gtk-font-name=Inter 10
       gtk-cursor-theme-name=${cursorName}
       gtk-cursor-theme-size=24
-      gtk-application-prefer-dark-theme=true
+      gtk-application-prefer-dark-theme=${lib.boolToString preferDarkTheme}
       gtk-enable-animations=true
     '';
 
@@ -252,7 +378,7 @@ in
     environment.etc."xdg/qt6ct/qt6ct.conf".text = ''
       [Appearance]
       style=kvantum
-      icon_theme=Papirus-Dark
+      icon_theme=${iconThemeName}
       standard_dialogs=default
     '';
 
