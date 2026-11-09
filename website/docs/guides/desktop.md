@@ -95,6 +95,20 @@ The `xfce`, `rice` and `plasma` profiles work over X11 VNC and xrdp. Hyprland
 is Wayland-only, so the module disables xrdp when it is selected; use `rice` or
 `plasma` if you need remote X11 access.
 
+## Dedicated host config
+
+For the real host, the repository includes a dedicated wrapper and switch
+script, so you can try Hyprland without editing `configuration.nix`:
+
+```bash
+./switch-hyprland.sh dry-build   # evaluate/build only
+./switch-hyprland.sh switch      # make Hyprland the active session
+```
+
+`configuration-hyprland.nix` imports the normal configuration and only forces
+`myDesktop.profile = "hyprland"`. The profile is Wayland-only and disables xrdp.
+Revert with `sudo nixos-rebuild switch`.
+
 ## Try it in OrbStack
 
 The local test VM defaults to the rice and can switch profiles without being
@@ -107,5 +121,9 @@ recreated:
 ./vm/vm.sh desktop plasma
 ./vm/vm.sh desktop xfce
 ```
+
+OrbStack exposes no DRM device, so the VM cannot run a real Hyprland session;
+Hyprland's headless/nested backend fails without `/dev/dri`. Use `rice` or
+`plasma` in the VM and the dedicated host config above for Hyprland.
 
 See [Development](../development.md#local-nixos-vm) for the VM details.

@@ -60,6 +60,24 @@ Then rebuild:
 sudo nixos-rebuild switch
 ```
 
+### Dedicated Hyprland config
+
+On real hardware, the repository includes a dedicated wrapper and switch
+script, so you do not have to edit `configuration.nix` to try Hyprland:
+
+```bash
+./switch-hyprland.sh dry-build   # evaluate/build only
+./switch-hyprland.sh switch      # make Hyprland the active session
+```
+
+`configuration-hyprland.nix` imports the normal configuration and only forces
+`myDesktop.profile = "hyprland"`. The profile is Wayland-only and disables xrdp.
+Revert with `sudo nixos-rebuild switch`.
+
+> OrbStack has no DRM device and cannot run a real Hyprland session; Hyprland's
+> headless/nested backend fails without `/dev/dri`. Use the `rice` or `plasma`
+> profile in the VM and Hyprland on the host.
+
 The theme files are declarative: edit `desktop/rice/...`,
 `desktop/hyprland/...` or `desktop/wallpaper.svg` and rebuild. Dotfiles are
 linked from the Nix store into `~/.config`; they are read-only by design.

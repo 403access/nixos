@@ -160,7 +160,9 @@ keeps the machine reachable while the repo's module is layered on top.
   tailnet and a login.
 - **The VNC display is X11.** `rice`, `plasma`, and `xfce` work over it;
   Hyprland is Wayland-only and is intentionally rejected by an assertion in
-  `vm/configuration.nix`. Test Hyprland on real hardware.
+  `vm/configuration.nix`. OrbStack exposes no DRM device, so a headless
+  Hyprland session cannot start either; use `./switch-hyprland.sh` on the real
+  host (see the root README) and test Hyprland on hardware.
 - **The VM has no GPU.** Mesa uses `llvmpipe`, GLX is unavailable, and Kitty
   cannot open a window. The rice uses xterm (and `Super+Shift+Return` still
   tries Kitty). Plasma runs with software rendering, but is heavier and less
