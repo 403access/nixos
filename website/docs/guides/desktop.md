@@ -109,6 +109,18 @@ script, so you can try Hyprland without editing `configuration.nix`:
 `myDesktop.profile = "hyprland"`. The profile is Wayland-only and disables xrdp.
 Revert with `sudo nixos-rebuild switch`.
 
+The Hyprland session starts `wayvnc` on `127.0.0.1:5900`, so you can reach it
+from another machine without opening a public port:
+
+```bash
+ssh -L 5900:127.0.0.1:5900 <user>@<host>
+open vnc://127.0.0.1:5900
+```
+
+If the host has no monitor, a headless `HEADLESS-VNC` output is created
+automatically. VNC is bound to loopback; use the SSH tunnel or Tailscale rather
+than exposing port 5900.
+
 ## Try it in OrbStack
 
 The local test VM defaults to the rice and can switch profiles without being

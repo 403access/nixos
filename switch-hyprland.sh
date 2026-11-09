@@ -61,5 +61,12 @@ sudo nixos-rebuild "$ACTION" -I "nixos-config=$CONFIG"
 if [[ "$ACTION" == "switch" || "$ACTION" == "test" ]]; then
   echo
   echo "Done. Log out and choose Hyprland at SDDM if it did not start automatically."
+  echo
+  echo "The Hyprland session serves VNC on 127.0.0.1:5900 (loopback only)."
+  echo "From another machine, tunnel it and open vnc://127.0.0.1:5900:"
+  echo
+  echo "  ssh -L 5900:127.0.0.1:5900 <user>@<host>"
+  echo
+  echo "If the host has no monitor, a headless output is created automatically."
   echo "Revert with: sudo nixos-rebuild switch"
 fi

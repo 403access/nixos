@@ -38,6 +38,38 @@ let
     esac
   '';
 
+  # Serve the Hyprland session over VNC on loopback.  Use it through an SSH
+  # tunnel (or Tailscale) from another machine:
+  #
+  #   ssh -L 5900:127.0.0.1:5900 nixos@<host>
+  #   open vnc://127.0.0.1:5900
+  #
+  # If the host has no monitor, a headless output is created automatically.
+  hyprVnc = pkgs.writeShellScriptBin "desktop-hypr-vnc" ''
+    set -euo pipefail
+
+    for _ in $(seq 1 50); do
+      hyprctl monitors >/dev/null 2>&1 && break
+      sleep 0.2
+    done
+
+    output=$(${pkgs.jq}/bin/jq -r '.[0].name // empty' \
+      < <(hyprctl monitors -j 2>/dev/null) 2>/dev/null || true)
+
+    if [ -z "$output" ]; then
+      hyprctl output create headless HEADLESS-VNC >/dev/null 2>&1 || true
+      sleep 1
+      output=$(${pkgs.jq}/bin/jq -r '.[0].name // empty' \
+        < <(hyprctl monitors -j 2>/dev/null) 2>/dev/null || true)
+    fi
+
+    if [ -n "$output" ]; then
+      exec ${pkgs.wayvnc}/bin/wayvnc -o "$output" 127.0.0.1 5900
+    else
+      exec ${pkgs.wayvnc}/bin/wayvnc 127.0.0.1 5900
+    fi
+  '';
+
 in
 lib.mkIf (cfg.enable && cfg.profile == "hyprland") {
   services.xserver.enable = true;
@@ -82,7 +114,10 @@ lib.mkIf (cfg.enable && cfg.profile == "hyprland") {
     playerctl
     brightnessctl
     pamixer
+    wayvnc
+    jq
     powermenu
+    hyprVnc
   ];
 
   environment.sessionVariables = {
