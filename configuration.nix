@@ -36,6 +36,7 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./nixos-control.nix
+      ./jotta-cli.nix
       ./desktop
     ];
 
