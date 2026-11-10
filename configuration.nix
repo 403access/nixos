@@ -35,6 +35,10 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      # Installation layout chosen by install/install.sh:
+      # nixos (default), vm (Windows 11 VM), or dual (Windows dual boot).
+      ./installation-mode.nix
+      ./install
       ./nixos-control.nix
       ./jotta-cli.nix
       ./desktop

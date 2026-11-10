@@ -199,6 +199,48 @@ See [`windows/README.md`](windows/README.md) for the short command reference and
 [`PLAN-windows-11-slim-image.md`](PLAN-windows-11-slim-image.md) for the design
 notes.
 
+## Installation layouts
+
+`install/install.sh` prepares a machine for one of three layouts:
+
+| Mode | What you get |
+| --- | --- |
+| `nixos` | NixOS only. |
+| `vm` | NixOS only, with Windows 11 running in libvirt/QEMU. |
+| `dual` | NixOS and Windows 11 on the same disk, selected from systemd-boot. |
+
+The script runs from the NixOS installer ISO, defaults to a dry run, and only
+writes with `--apply`:
+
+```bash
+git clone https://github.com/403access/nixos
+cd nixos
+
+# Dry run: show the layout, change nothing
+sudo ./install/install.sh --mode nixos --disk /dev/nvme0n1
+
+# NixOS only
+sudo ./install/install.sh --mode nixos --disk /dev/nvme0n1 --apply
+
+# NixOS + Windows 11 VM
+sudo ./install/install.sh --mode vm --disk /dev/nvme0n1 \
+  --windows-iso ~/Downloads/Win11.iso --apply
+
+# Dual boot (Windows already installed)
+sudo ./install/install.sh --mode dual --disk /dev/nvme0n1 \
+  --dual-order windows-first --apply
+
+# Dual boot (NixOS first, install Windows into the prepared partition later)
+sudo ./install/install.sh --mode dual --disk /dev/nvme0n1 \
+  --dual-order nixos-first --apply
+```
+
+The installer writes `myInstall.mode` to `installation-mode.nix`; the `install`
+NixOS module then enables libvirt, a virtual TPM and `windows-vm-create` for VM
+mode, or the Windows boot entry and local-time RTC handling for dual boot. The
+full walkthrough, partition tables, BitLocker/Fast Startup notes and recovery
+steps are in [`install/README.md`](install/README.md).
+
 ## Architecture
 
 ```text
@@ -223,6 +265,8 @@ notes.
 
 ```text
 configuration.nix          Existing NixOS config (now imports the module)
+installation-mode.nix      Layout chosen by install/install.sh (nixos|vm|dual)
+install/                   Interactive installer and layout module
 nixos-control.nix          NixOS module: packages and runs the server
 desktop/                   Desktop profile selector, Catppuccin themes, wallpaper
 server/                    Rust API server (Cargo crate)
