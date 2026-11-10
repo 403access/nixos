@@ -38,6 +38,28 @@ let
     export MYINSTALL_VM_DISK_SIZE="${cfg.vm.diskSize}"
     ${builtins.readFile ./windows-vm-create.sh}
   '';
+
+  windowsBuild = pkgs.writeShellScriptBin "windows-build" ''
+    export PATH="${
+      lib.makeBinPath [
+        pkgs.wimlib
+        pkgs.p7zip
+        pkgs.libisoburn
+        pkgs.ntfs3g
+        pkgs.chntpw
+        pkgs.hivex
+        pkgs.python3
+        pkgs.coreutils
+        pkgs.findutils
+        pkgs.gawk
+        pkgs.gnused
+        pkgs.gnugrep
+        pkgs.which
+      ]
+    }:$PATH"
+    export WINDOWS_REPO="''${WINDOWS_REPO:-${cfg.windows.repo}}"
+    ${builtins.readFile ./windows-build.sh}
+  '';
 in
 {
   options.myInstall = {
@@ -140,6 +162,43 @@ in
         '';
       };
     };
+
+    windows = {
+      toolchain = lib.mkOption {
+        type = lib.types.enum [
+          "none"
+          "native"
+          "docker"
+          "both"
+        ];
+        default = "native";
+        description = ''
+          How to provide the Windows 11 slim-image build toolchain.
+
+          - `native`: install wimlib, 7-Zip, xorriso, ntfs-3g, chntpw, hivex,
+            python3 and the `windows-build` wrapper on this machine.
+          - `docker`: enable Docker and add `windows.user` to the docker
+            group.
+          - `both`: install the native packages and enable Docker.
+          - `none`: do not install either path.
+        '';
+      };
+
+      user = lib.mkOption {
+        type = lib.types.str;
+        default = "nixos";
+        description = "User added to the docker group for the Docker toolchain.";
+      };
+
+      repo = lib.mkOption {
+        type = lib.types.str;
+        default = "/etc/nixos/windows";
+        description = ''
+          Location of the `windows/` toolkit used by `windows-build`.  The
+          installer copies it to `/etc/nixos/windows`.
+        '';
+      };
+    };
   };
 
   config = lib.mkMerge [
@@ -207,6 +266,31 @@ in
         enable = true;
         sortKey = "z_edk2";
       };
+    })
+
+    (lib.mkIf (cfg.windows.toolchain == "native" || cfg.windows.toolchain == "both") {
+      environment.systemPackages = with pkgs; [
+        windowsBuild
+        wimlib
+        p7zip
+        libisoburn
+        ntfs3g
+        chntpw
+        hivex
+        python3
+        coreutils
+        findutils
+        gawk
+        gnused
+        gnugrep
+        which
+      ];
+    })
+
+    (lib.mkIf (cfg.windows.toolchain == "docker" || cfg.windows.toolchain == "both") {
+      virtualisation.docker.enable = true;
+      users.groups.docker.members = [ cfg.windows.user ];
+      environment.systemPackages = [ pkgs.docker ];
     })
   ];
 }

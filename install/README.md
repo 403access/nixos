@@ -131,6 +131,48 @@ sudo nixos-rebuild boot
 
 systemd-boot regenerates its menu and detects Windows.
 
+## Windows ISO build toolchain
+
+The installer also chooses how the Windows 11 slim-image toolkit is provided.
+This is independent of the three layouts:
+
+```bash
+sudo ./install/install.sh --mode nixos --disk /dev/nvme0n1 \
+  --windows-toolchain native --apply
+```
+
+| Value | What it installs |
+| --- | --- |
+| `native` | `wimlib`, 7-Zip, `xorriso`, `ntfs-3g`, `chntpw`, `hivex`, `python3` and the `windows-build` wrapper on the host. |
+| `docker` | Enables the Docker service and adds your user to the `docker` group. |
+| `both` | Native packages plus Docker. |
+| `none` | Neither; use `nix-shell` in `windows/` or the Docker wrapper manually. |
+
+If `--windows-toolchain` is omitted, the installer prompts with `native`
+selected by default. The installer copies `windows/` to `/etc/nixos/windows`
+(excluding `work/` and `out/`), so the native build works after reboot.
+
+Native build:
+
+```bash
+windows-build --iso ~/Downloads/Win11.iso --profile lean
+```
+
+`windows-build` keeps the output in `~/.local/share/windows-image/out` and the
+temporary work directory in `~/.cache/windows-image/work`, so it does not need
+write access to `/etc/nixos`. It accepts every `build-win11.sh` option.
+
+Docker build:
+
+```bash
+cd /etc/nixos/windows
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean
+```
+
+The repository default is `myInstall.windows.toolchain = "native"`, so a plain
+`nixos-rebuild switch` on an existing host installs the native toolchain too.
+Set it to `"none"` if you only build Windows images in Docker or in `nix-shell`.
+
 ## Boot chain
 
 The default is **one shared ESP plus systemd-boot**:
@@ -196,15 +238,16 @@ Use GRUB only if you need BIOS boot or a boot setup the script does not cover.
 | `--windows-size` | `200G` | Windows partition size for a fresh dual layout |
 | `--dual-order` | auto | `windows-first` or `nixos-first` |
 | `--windows-iso` | unset | ISO copied to `/var/lib/libvirt/images/Win11.iso` |
+| `--windows-toolchain` | prompt (`native`) | `native`, `docker`, `both` or `none` |
 
 ## What the script changes
 
 On the target system it:
 
-- writes `myInstall.mode` and the relevant options to
-  `/etc/nixos/installation-mode.nix`;
+- writes `myInstall.mode`, the Windows toolchain choice and the relevant
+  options to `/etc/nixos/installation-mode.nix`;
 - copies `configuration.nix`, `installation-mode.nix`, `nixos-control.nix`,
-  `jotta-cli.nix`, `desktop/`, `server/` and `install/`;
+  `jotta-cli.nix`, `desktop/`, `server/`, `install/` and `windows/`;
 - regenerates `hardware-configuration.nix` with `nixos-generate-config`;
 - creates the `tank` ZFS pool and adds `/mnt/tank` if the generated hardware
   config does not already include it;

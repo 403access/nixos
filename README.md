@@ -235,6 +235,13 @@ sudo ./install/install.sh --mode dual --disk /dev/nvme0n1 \
   --dual-order nixos-first --apply
 ```
 
+The installer also asks how to provide the Windows ISO build toolchain. Choose
+native packages on the host (the default), Docker, both, or neither with
+`--windows-toolchain native|docker|both|none`. Native installs `wimlib`, 7-Zip,
+`xorriso`, `ntfs-3g`, `chntpw`, `hivex`, `python3` and a `windows-build`
+wrapper; Docker enables the Docker service and adds your user to the `docker`
+group.
+
 The installer writes `myInstall.mode` to `installation-mode.nix`; the `install`
 NixOS module then enables libvirt, a virtual TPM and `windows-vm-create` for VM
 mode, or the Windows boot entry and local-time RTC handling for dual boot. The

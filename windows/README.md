@@ -2,7 +2,7 @@
 
 Build a lean, unattended Windows 11 ISO without DISM or a Windows build host.
 
-## Docker (recommended)
+## Docker (containerized)
 
 The build runs in a Debian bookworm container, so nothing is installed on the host.
 You only need Docker (Docker Desktop, OrbStack, Colima, or Docker Engine) and a
@@ -35,16 +35,37 @@ The full guide, including the German version, lives on the website:
 - [English guide](https://403access.github.io/nixos/docs/guides/windows-11-slim-image)
 - [Deutsche Anleitung](https://403access.github.io/nixos/de/docs/guides/windows-11-slim-image)
 
-## Native Nix shell
+## Native (host packages or nix-shell)
 
-On NixOS, or on any system with Nix, the original toolchain still works without
-Docker:
+On NixOS, or on any system with Nix, the original toolchain works without
+Docker. Either install the dependencies system-wide through the installer
+(`--windows-toolchain native`, or `myInstall.windows.toolchain = "native"`) and
+use the wrapper:
+
+```bash
+windows-build --iso ~/Downloads/Win11.iso --profile lean
+```
+
+or keep everything ephemeral with `nix-shell`:
 
 ```bash
 cd windows
 nix-shell
 ./build-win11.sh --iso ~/Downloads/Win11.iso --profile lean
 ```
+
+The `windows-build` wrapper writes to `~/.local/share/windows-image/out` and
+`~/.cache/windows-image/work`, so it works when `/etc/nixos` is not writable.
+You can also run `build-win11.sh` directly with explicit writable paths:
+
+```bash
+/etc/nixos/windows/build-win11.sh --iso ~/Downloads/Win11.iso --profile lean \
+  --out ~/windows-image/out/Win11-lean.iso \
+  --workdir ~/windows-image/work
+```
+
+To use Docker instead, enable it with `--windows-toolchain docker` (or `both`)
+and run the existing wrapper from `/etc/nixos/windows`.
 
 ## Profiles
 
@@ -61,8 +82,10 @@ for disposable lab VMs only.
 ## Requirements
 
 - A legally obtained Windows 11 x64 ISO.
-- Docker, or `wimlib`, `p7zip`, `xorriso` and `python3` for a native build
-  (`windows/shell.nix` provides them).
+- Docker, or the native packages (`wimlib`, `p7zip`, `xorriso`, `python3`) for a
+  native build. The NixOS installer can install them with
+  `--windows-toolchain native`; `windows/shell.nix` provides the same tools for
+  `nix-shell`.
 - About 20 GB free disk space (more with `--solid`).
 
 ## What this does not do

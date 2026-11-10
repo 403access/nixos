@@ -28,6 +28,7 @@ ROOT_SIZE="100G"
 WINDOWS_SIZE="200G"
 DUAL_ORDER=""
 WINDOWS_ISO=""
+WINDOWS_TOOLCHAIN=""
 VM_ISO_TARGET="/var/lib/libvirt/images/Win11.iso"
 
 HAS_WINDOWS=0
@@ -71,6 +72,11 @@ Options:
                           otherwise nixos-first.
   --windows-iso PATH      Copy this ISO to /var/lib/libvirt/images/Win11.iso
                           for the VM mode.
+  --windows-toolchain MODE
+                          native | docker | both | none
+                          Default: prompt (native if you press Enter).
+                          Native installs wimlib, 7-Zip, xorriso, ntfs-3g,
+                          chntpw, hivex and python3 on this machine.
   -h, --help              Show this help
 
 Examples:
@@ -146,6 +152,10 @@ parse_args() {
         ;;
       --windows-iso)
         WINDOWS_ISO="${2:?--windows-iso needs a value}"
+        shift 2
+        ;;
+      --windows-toolchain)
+        WINDOWS_TOOLCHAIN="${2:?--windows-toolchain needs a value}"
         shift 2
         ;;
       -h | --help)
@@ -253,6 +263,33 @@ select_mode() {
     2) MODE="vm" ;;
     3) MODE="dual" ;;
     *) die "invalid mode: $choice" ;;
+  esac
+}
+
+select_windows_toolchain() {
+  [ -n "$WINDOWS_TOOLCHAIN" ] && return
+
+  printf '\n'
+  printf 'Windows 11 ISO build toolchain:\n'
+  printf '  1) Native packages on this machine (recommended)\n'
+  printf '  2) Docker\n'
+  printf '  3) Both\n'
+  printf '  4) None\n'
+  read -r -p 'Toolchain [1]: ' choice
+
+  case "${choice:-1}" in
+    1) WINDOWS_TOOLCHAIN="native" ;;
+    2) WINDOWS_TOOLCHAIN="docker" ;;
+    3) WINDOWS_TOOLCHAIN="both" ;;
+    4) WINDOWS_TOOLCHAIN="none" ;;
+    *) die "invalid toolchain: $choice" ;;
+  esac
+}
+
+validate_windows_toolchain() {
+  case "$WINDOWS_TOOLCHAIN" in
+    native | docker | both | none) ;;
+    *) die "invalid --windows-toolchain: $WINDOWS_TOOLCHAIN (use native, docker, both or none)" ;;
   esac
 }
 
@@ -509,6 +546,7 @@ copy_configuration() {
     desktop
     server
     install
+    windows
   )
 
   local existing=()
@@ -521,6 +559,8 @@ copy_configuration() {
 
   tar -C "$REPO_DIR" \
     --exclude='server/target' \
+    --exclude='windows/work' \
+    --exclude='windows/out' \
     -cf - "${existing[@]}" \
     | tar -C /mnt/etc/nixos -xf -
 
@@ -549,6 +589,9 @@ write_mode_file() {
     if [ -n "$HOSTNAME" ]; then
       printf '  networking.hostName = "%s";\n' "$HOSTNAME"
     fi
+
+    printf '  myInstall.windows.toolchain = "%s";\n' "$WINDOWS_TOOLCHAIN"
+    printf '  myInstall.windows.user = "%s";\n' "$USER_NAME"
 
     if [ "$MODE" = "vm" ]; then
       printf '  myInstall.vm.user = "%s";\n' "$USER_NAME"
@@ -695,6 +738,8 @@ main() {
   validate_mode
   select_disk
   validate_disk
+  select_windows_toolchain
+  validate_windows_toolchain
 
   detect_windows
 
@@ -728,6 +773,8 @@ main() {
     validate_sizes
     plan_fresh_layout 0
   fi
+
+  log "Windows ISO build toolchain: $WINDOWS_TOOLCHAIN"
 
   if [ "$APPLY" -eq 0 ]; then
     cat <<EOF
