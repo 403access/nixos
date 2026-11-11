@@ -31,6 +31,10 @@ website/.cache-loader/
 windows/work/
 windows/out/
 
+# Third-party Windows theme downloads (not redistributed)
+windows/themes/downloads/*
+!windows/themes/downloads/.gitkeep
+
 # Python bytecode from the unattend renderer
 __pycache__/
 *.pyc

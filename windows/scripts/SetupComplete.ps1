@@ -10,6 +10,8 @@ param(
     [ValidateSet('safe', 'lean', 'micro')]
     [string]$ProfileName = 'lean',
 
+    [string]$ThemeConfig = "$env:ProgramData\WindowsSlim\themes.json",
+
     [string]$LogPath = "$env:SystemRoot\Temp\win11-slim.log"
 )
 
@@ -102,6 +104,64 @@ function Set-RegValue {
         New-Item -Path $Path -Force | Out-Null
     }
     New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
+}
+
+function Protect-ThemeDirectory {
+    param([string]$ConfigPath)
+
+    $themeDir = Split-Path -Parent $ConfigPath
+    if (-not (Test-Path -LiteralPath $themeDir)) {
+        return
+    }
+
+    # The folder is read by the first-logon script, so users need read/execute
+    # but must not be able to replace the script or the theme manifest.
+    try {
+        & icacls.exe $themeDir /inheritance:r `
+            /grant:r '*S-1-5-18:(OI)(CI)F' `
+            '*S-1-5-32-544:(OI)(CI)F' `
+            '*S-1-5-32-545:(OI)(CI)RX' `
+            /T /C 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "    icacls exited with $LASTEXITCODE for $themeDir"
+        } else {
+            Write-Host "    restricted theme data ACL: $themeDir"
+        }
+    } catch {
+        Write-Warning "    could not restrict theme data ACL: $($_.Exception.Message)"
+    }
+}
+
+function Register-ThemeFirstLogon {
+    param([string]$ConfigPath)
+
+    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+        return
+    }
+
+    Protect-ThemeDirectory -ConfigPath $ConfigPath
+
+    $applyScript = Join-Path $env:ProgramData 'WindowsSlim\ApplyTheme.ps1'
+    if (-not (Test-Path -LiteralPath $applyScript)) {
+        Write-Warning "Theme config exists but ApplyTheme.ps1 is missing: $applyScript"
+        return
+    }
+
+    $command = "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$applyScript`""
+    $runOnce = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'
+    if (-not (Test-Path -Path $runOnce)) {
+        New-Item -Path $runOnce -Force | Out-Null
+    }
+
+    New-ItemProperty `
+        -Path $runOnce `
+        -Name 'WindowsSlimTheme' `
+        -Value $command `
+        -PropertyType String `
+        -Force | Out-Null
+
+    Write-Host "    theme will be applied at the first logon"
+    Write-Host "    command: $command"
 }
 
 $leanPatterns = @(
@@ -232,6 +292,13 @@ if ($ProfileName -eq 'micro') {
     powercfg.exe /hibernate off 2>$null
 
     Write-Step 'Micro profile complete: Store, Xbox, search and OneDrive removal requested'
+}
+
+Write-Step 'Configuring Windows themes'
+if (Test-Path -LiteralPath $ThemeConfig) {
+    Register-ThemeFirstLogon -ConfigPath $ThemeConfig
+} else {
+    Write-Host '    no theme configuration found'
 }
 
 Write-Step "Finished profile: $ProfileName"

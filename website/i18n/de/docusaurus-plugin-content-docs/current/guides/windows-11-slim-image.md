@@ -72,7 +72,8 @@ oder Offline-Entfernen mit DISM/NTLite infrage, wie unten beschrieben.
   in einem Debian-Bookworm-Container; `wimlib`, `7zip`, `xorriso` und `python3`
   werden dort installiert, nicht auf deinem Host.
 - Alternativ NixOS oder ein anderes Linux mit `wimlib`, `p7zip`, `xorriso` und
-  `python3`. Das mitgelieferte `windows/shell.nix` bringt alles mit.
+  `python3` (für Theme-Patcher zusätzlich `hivex`). Das mitgelieferte
+  `windows/shell.nix` bringt alles mit.
 - Etwa 20 GB freien Speicher. Solid-Kompression braucht temporär mehr.
 - Eine virtuelle Maschine zum Testen. Unter NixOS ist QEMU/KVM mit
   `virt-manager` eine gute Wahl; Windows Setup braucht keine VirtIO-Treiber,
@@ -121,6 +122,70 @@ nix-shell
 ./build-win11.sh --iso ~/Downloads/Win11.iso --profile lean
 ```
 
+## Optional: Windows-Themes installieren
+
+Der Builder kann ein oder mehrere Windows-Themes von Drittanbietern einbinden
+und alle Varianten unter **Einstellungen → Personalisierung → Designs**
+registrieren. Das erste Theme wird beim ersten Anmelden automatisch aktiviert.
+Theme-Pakete werden nicht mitgeliefert: Lade sie beim jeweiligen Künstler
+herunter.
+
+Der Katalog beginnt mit niivus
+[Catppuccin für Windows 11](https://www.deviantart.com/niivu/art/Catppuccin-for-Windows-11-1076249390):
+
+1. Öffne die Deviation-Seite und folge dem Künstler, damit der
+   Download-Button erscheint.
+2. Lade das Archiv herunter.
+3. Baue mit dem Katalog-Eintrag:
+
+   ```bash
+   cd windows
+   ./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean \
+     --theme catppuccin-niivu --theme-dir ~/Downloads \
+     --theme-default "Catppuccin Mocha"
+   ```
+
+Das Archiv kann auch in `windows/themes/downloads/` liegen (wird standardmäßig
+durchsucht) oder direkt mit `--theme-archive ~/Downloads/catppuccin.zip`
+übergeben werden. Wiederhole `--theme` oder `--theme-archive`, um mehrere Pakete
+zu installieren:
+
+```bash
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean \
+  --theme catppuccin-niivu \
+  --theme-archive ~/Downloads/anderes-theme.zip \
+  --theme-default Mocha
+```
+
+`--theme-default` akzeptiert einen Teil des Anzeigenamens oder Dateinamens der
+`.theme`-Datei. Ohne diese Option gilt der Katalog-Standard (`*Mocha*` bei
+Catppuccin), sonst das erste Theme alphabetisch. Alle installierten Themes
+bleiben nach der ersten Anmeldung in den Einstellungen sichtbar; das Standard-
+Theme gilt für den ersten Benutzer, der sich anmeldet.
+
+Der Build lädt SecureUxTheme v4.0.0 von GitHub, prüft eine feste SHA-256-Summe
+und legt die DLLs sowie den
+`Image File Execution Options\winlogon.exe`-Hook offline im Image ab. Das MSI
+wird während des Setups nicht ausgeführt und es ist kein zusätzlicher Neustart
+nötig. Für einen Offline-Build kannst du `--theme-patcher-msi PATH` verwenden;
+mit `--no-theme-patcher` wird der Patcher übersprungen (Hintergrundbild und
+Farben funktionieren weiterhin, aber Windows ignoriert unsignierte
+`.msstyles`-Visual Styles).
+
+:::warning
+`.msstyles`, DLLs und Cursor aus fremden Theme-Paketen sind nicht vertrauenswürdige
+Binärdaten. Verwende nur Themes von Künstlern, denen du vertraust, teste das
+Image in einer VM und behalte ein Rettungsimage. Eigene Windows-Themes werden
+von Microsoft nicht unterstützt und können Anmeldeschleifen oder fehlgeschlagene
+Updates verursachen. SecureUxTheme v4.0.0 ist bis Windows 11 24H2 getestet;
+neuere Builds brauchen eventuell einen neueren Patcher. 7TSP-Icon-Packs,
+Rainmeter-Skins, Docks und Startmenü-Ersetzungen werden **nicht** automatisch
+installiert.
+:::
+
+Das Format des Katalogs und das Hinzufügen weiterer Themes stehen in
+[`windows/themes/README.md`](https://github.com/403access/nixos/blob/main/windows/themes/README.md).
+
 ## So funktioniert der Build
 
 ```text
@@ -134,6 +199,7 @@ Windows-ISO
     │                                              │        ├─ Caches / optional WinRE löschen
     │                                              │        ├─ autounattend.xml injizieren
     │                                              │        ├─ sources/$OEM$/$$/Setup/Scripts injizieren
+    │                                              │        ├─ optionale Themes + SecureUxTheme-Hook
     │                                              │        ├─ wimlib capture
     │                                              │        └─ optionale Solid-Kompression
     │                                              │
@@ -514,6 +580,11 @@ Einmal-Installation.
 | Windows Update schlägt fehl | Servicing-Stack oder Component Store entfernt | Original-Image wiederherstellen; WinSxS nicht löschen |
 | AppX-Entfernung meldet Fehler | Paketname in diesem Windows-Build geändert | Muster in `SetupComplete.ps1` anpassen; Fehler sind nicht fatal |
 | `wimlib-imagex`-Berechtigungsfehler | ACLs bei Apply ohne Root | Als Root bauen oder akzeptieren, dass ACLs nicht erhalten bleiben |
+| `no archive found for 'catppuccin-niivu'` | Theme-Paket nicht heruntergeladen oder Dateiname passt nicht | Bei niivu herunterladen, dann `--theme-dir` oder `--theme-archive` angeben |
+| `more than one archive matches` | Mehrere Downloads passen zum Katalog-Muster | Die gewünschte Datei mit `--theme-archive` übergeben |
+| `no theme file matches --theme-default` | Falsche Variante oder falscher Anzeigename | Einmal ohne `--theme-default` bauen oder einen Namen aus den `.theme`-Dateien übernehmen |
+| Theme installiert, Fensterstil bleibt aber unverändert | SecureUxTheme übersprungen oder Patcher nicht eingebunden | Standard-Patcher verwenden oder SecureUxTheme manuell installieren und neu starten |
+| Anmeldeschleife nach einem eigenen Theme | Defekte oder inkompatible `.msstyles` | Mit anderem Konto oder im abgesicherten Modus starten, Standard-Theme wählen oder SecureUxTheme-IFEO-Werte und DLLs entfernen |
 | USB bootet nicht | Auf Partition geschrieben oder FAT32-Grenze | ISO auf die ganze Platte schreiben; Ventoy nutzen oder WIM splitten |
 
 ## Skript-Referenz
@@ -534,7 +605,13 @@ Einmal-Installation.
 | `--computer-name NAME` | Optionaler Computername. |
 | `--unattend PATH` | Eigene `autounattend.xml` verwenden. |
 | `--no-unattend` | `autounattend.xml` komplett überspringen. |
-| `--no-postinstall` | Debloat-Skript für den ersten Start überspringen. |
+| `--no-postinstall` | Debloat- und Theme-Skript für den ersten Start überspringen. |
+| `--theme ID` | Theme aus `windows/themes/catalog.json` installieren. Wiederholbar. |
+| `--theme-archive PATH` | Lokales `.zip`/`.7z`/`.rar` oder entpacktes Theme-Verzeichnis installieren. Wiederholbar. |
+| `--theme-dir PATH` | Verzeichnis für Katalog-Theme-Archive durchsuchen. Standard `windows/themes/downloads`. |
+| `--theme-default NAME` | Anzeigename oder Dateiname der `.theme`-Datei für die erste Anmeldung. |
+| `--theme-patcher-msi PATH` | Lokales SecureUxTheme-MSI statt Download verwenden. |
+| `--no-theme-patcher` | SecureUxTheme nicht einbinden; unsignierte `.msstyles` werden ignoriert. |
 | `--remove-winre` | WinRE aus dem Image entfernen. |
 | `--solid` | WIM mit Solid-Kompression verkleinern. Kleiner, langsamer. |
 | `--experimental` | Für `micro` erforderlich. |

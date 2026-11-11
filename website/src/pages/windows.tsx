@@ -49,7 +49,7 @@ const copy: Record<'en' | 'de', Copy> = {
     headline: 'Windows 11,',
     headlineAccent: 'minus the bloat.',
     lede:
-      'A reproducible build toolkit for a lean Windows 11 ISO. Extract, select, inject, debloat, compress, repack — from a Docker container or a Nix shell, without DISM and without a Windows build host.',
+      'A reproducible build toolkit for a lean Windows 11 ISO. Extract, select, inject, debloat, compress, repack — from a Docker container or a Nix shell, without DISM and without a Windows build host. Optional Windows themes (starting with Catppuccin) can be staged and activated at first logon.',
     primary: 'Read the guide',
     secondary: 'Toolkit on GitHub',
     note: '3 profiles · generated local password · test in a VM',
@@ -79,7 +79,7 @@ const copy: Record<'en' | 'de', Copy> = {
         number: '03',
         title: 'First-boot debloat',
         body:
-          'Remove provisioned AppX packages through Windows cmdlets, disable telemetry services and tasks, and apply policy values for a quieter desktop.',
+          'Remove provisioned AppX packages through Windows cmdlets, disable telemetry services and tasks, and apply policy values for a quieter desktop. Optional themes and SecureUxTheme can be staged in the same pass.',
       },
     ],
     profilesTitle: 'Pick how far you want to go.',
@@ -143,7 +143,7 @@ const copy: Record<'en' | 'de', Copy> = {
     headline: 'Windows 11,',
     headlineAccent: 'ohne Ballast.',
     lede:
-      'Ein reproduzierbares Toolkit für ein schlankes Windows-11-ISO. Entpacken, Edition wählen, Unattend injizieren, debloaten, komprimieren, neu packen — aus einem Docker-Container oder einer Nix-Shell, ohne DISM und ohne Windows-Build-Rechner.',
+      'Ein reproduzierbares Toolkit für ein schlankes Windows-11-ISO. Entpacken, Edition wählen, Unattend injizieren, debloaten, komprimieren, neu packen — aus einem Docker-Container oder einer Nix-Shell, ohne DISM und ohne Windows-Build-Rechner. Optionale Windows-Themes (beginnend mit Catppuccin) werden eingebunden und beim ersten Anmelden aktiviert.',
     primary: 'Anleitung lesen',
     secondary: 'Toolkit auf GitHub',
     note: '3 Profile · generiertes lokales Passwort · zuerst in der VM testen',
@@ -173,7 +173,7 @@ const copy: Record<'en' | 'de', Copy> = {
         number: '03',
         title: 'Debloat beim ersten Start',
         body:
-          'Provisionierte AppX-Pakete über Windows-Cmdlets entfernen, Telemetrie-Dienste und -Tasks deaktivieren und Policy-Werte für einen ruhigeren Desktop setzen.',
+          'Provisionierte AppX-Pakete über Windows-Cmdlets entfernen, Telemetrie-Dienste und -Tasks deaktivieren und Policy-Werte für einen ruhigeren Desktop setzen. Optionale Themes und SecureUxTheme werden im selben Durchlauf eingebunden.',
       },
     ],
     profilesTitle: 'Wähle, wie weit du gehen willst.',

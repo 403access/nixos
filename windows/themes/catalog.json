@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "catppuccin-niivu",
+      "name": "Catppuccin for Windows 11 (niivu)",
+      "author": "niivu",
+      "page": "https://www.deviantart.com/niivu/art/Catppuccin-for-Windows-11-1076249390",
+      "license": "Free for personal use. Do not redistribute; download from the artist.",
+      "archives": [
+        "*catppuccin*windows*11*",
+        "*catppuccin*win*11*",
+        "*catppuccin*.zip",
+        "*catppuccin*.rar",
+        "*catppuccin*.7z"
+      ],
+      "exclude": [
+        "*windows*10*",
+        "*win10*",
+        "*catppuccin*10*"
+      ],
+      "default": "*Mocha*",
+      "downloadHint": "The DeviantArt download is watchers-only. Watch niivu, reveal the download button on the deviation page, and save the archive into windows/themes/downloads/ or pass --theme-dir/--theme-archive.",
+      "notes": "Registers the Latte, Frappe, Macchiato and Mocha theme files. Icon packs (7TSP), Rainmeter skins and other extras are not applied automatically."
+    }
+  ]
+}

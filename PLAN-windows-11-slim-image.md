@@ -63,6 +63,30 @@ Toolkit, and explains the trade-offs.
 | `lean` | `safe` + consumer AppX removal and telemetry policies; Store, Defender and Update stay | Recommended |
 | `micro` | `lean` + Store, Xbox, OneDrive, search/SysMain, optional WinRE removal | Experimental, requires `--experimental` |
 
+## Theme support (follow-up)
+
+Windows themes can be selected independently of the debloat profile:
+
+- `windows/themes/catalog.json` starts with niivu's Catppuccin for Windows 11.
+  Theme packs remain user-supplied because the artist's download is
+  watchers-only and the artwork is not redistributable.
+- `--theme ID` resolves an archive from `--theme-dir` or
+  `windows/themes/downloads/`; `--theme-archive PATH` accepts arbitrary
+  `.zip`/`.7z`/`.rar` packs or extracted directories. Both are repeatable.
+- `--theme-default NAME` selects the `.theme` applied at first logon. Every
+  variant in every pack is copied to `Windows\Resources\Themes` and remains
+  selectable in Settings.
+- `prepare-themes.py` flattens wrapper directories, copies the pack, parses
+  display names and writes `themes.json` for the first-boot script.
+- SecureUxTheme v4.0.0 is downloaded, SHA-256 verified and staged offline
+  (DLLs plus the `Image File Execution Options\winlogon.exe` hook) so no MSI or
+  extra reboot is needed. `--theme-patcher-msi` supports offline builds and
+  `--no-theme-patcher` skips the patcher.
+- `SetupComplete.ps1` registers a `RunOnce` entry; `ApplyTheme.ps1` applies the
+  chosen theme in the first user's HKCU context.
+- Icon packs (7TSP), Rainmeter skins, docks and Start menu replacements are
+  explicitly out of scope.
+
 ## Implementation phases
 
 1. **Toolkit**
@@ -112,6 +136,15 @@ Toolkit, and explains the trade-offs.
 | English guide route | `/nixos/docs/guides/windows-11-slim-image` generated |
 | German guide route | `/nixos/de/docs/guides/windows-11-slim-image` generated |
 | Marketing pages | `/nixos/windows` and `/nixos/de/windows` generated |
+| `python3 -m py_compile windows/prepare-themes.py` | passed |
+| `pwsh` parser on `SetupComplete.ps1` and `ApplyTheme.ps1` | passed |
+| Theme staging smoke test on a real niivu-style pack | 4 `.theme` files copied, wrapper folder flattened, `themes.json` rendered |
+| Catalog resolution smoke test | picked the Windows 11 archive and ignored a Windows 10 decoy |
+| SecureUxTheme staging smoke test | Hook/Proxy DLLs copied; IFEO `VerifierDlls` and `GlobalFlag=0x100` verified with `hivexget` |
+| Theme layout smoke test | wrapper, nested, and flat pack layouts all produced the paths named by their `.theme` files |
+| Docker theme path translation smoke test | archives, directories, and the patcher MSI outside the repository were mounted read-only |
+| SecureUxTheme auto-download smoke test | v4.0.0 downloaded and verified against the pinned SHA-256 |
+| End-to-end synthetic ISO with themes | theme files, `themes.json`, `ApplyTheme.ps1`, patcher DLLs and IFEO values present in the output image/ISO |
 
 The end-to-end flow was exercised against a synthetic ISO. A real Windows 11
 build was not run because it requires a multi-gigabyte, properly licensed source

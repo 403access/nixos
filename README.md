@@ -189,7 +189,21 @@ On NixOS, `nix-shell` plus `./build-win11.sh` provides the same build natively.
 
 Profiles: `safe` (media only), `lean` (consumer AppX and telemetry removed;
 Store, Defender and Update stay) and `micro` (experimental; Store, Xbox,
-OneDrive, search and SysMain removed). The complete guide is available in
+OneDrive, search and SysMain removed).
+
+The image can also register one or more Windows themes and apply the first one
+at logon. Theme packs stay user-supplied; the catalog starts with niivu's
+[Catppuccin for Windows 11](https://www.deviantart.com/niivu/art/Catppuccin-for-Windows-11-1076249390):
+
+```bash
+cd windows
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean \
+  --theme catppuccin-niivu --theme-dir ~/Downloads \
+  --theme-default "Catppuccin Mocha"
+```
+
+See [`windows/themes/README.md`](windows/themes/README.md) for download steps,
+multiple themes and the catalog format. The complete guide is available in
 English and German:
 
 - <https://403access.github.io/nixos/docs/guides/windows-11-slim-image>

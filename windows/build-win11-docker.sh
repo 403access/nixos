@@ -4,7 +4,8 @@
 # does not need wimlib, 7-Zip, xorriso or any other build dependency.
 #
 # All arguments are forwarded to build-win11.sh. Only paths that need bind
-# mounts are translated: --iso, --out, --workdir and --unattend.
+# mounts are translated: --iso, --out, --workdir, --unattend, --theme-dir,
+# --theme-archive and --theme-patcher-msi.
 
 set -Eeuo pipefail
 
@@ -19,6 +20,11 @@ WORK_HOST=""
 UNATTEND_HOST=""
 BUILD_ARGS=()
 MOUNTS=()
+THEME_DIR_HOSTS=()
+THEME_ARCHIVE_HOSTS=()
+THEME_PATCHER_HOST=""
+INPUT_COUNT=0
+CONTAINER_INPUT=""
 
 usage() {
     cat <<'USAGE'
@@ -42,7 +48,8 @@ Run ./build-win11.sh --help for the full build option reference.
 
 The source ISO is mounted read-only. Output goes to windows/out/ and work data
 to windows/work/ on the host, exactly as with a native build. Paths passed via
---out, --workdir or --unattend outside the repository are mounted individually.
+--out, --workdir, --unattend, --theme-dir, --theme-archive or
+--theme-patcher-msi outside the repository are mounted individually.
 
 Environment:
   WIN11_BUILDER_IMAGE   Builder image tag (default: win11-slim-builder:bookworm)
@@ -110,6 +117,37 @@ is_inside_repo() {
     esac
 }
 
+# Theme inputs may live outside the repository (for example in ~/Downloads).
+# Mount each one at its own path so basenames cannot collide.
+# These functions set CONTAINER_INPUT rather than printing it: command
+# substitution would run them in a subshell and lose the mount array changes.
+container_input_dir() {
+    local host="$1"
+    host="$(cd -- "$host" && pwd -P)" || die "cannot resolve directory: $1"
+    if is_inside_repo "$host"; then
+        CONTAINER_INPUT="$(container_path "$host" /unused)"
+        return
+    fi
+    INPUT_COUNT=$((INPUT_COUNT + 1))
+    local mount="/theme-inputs/$INPUT_COUNT"
+    MOUNTS+=(-v "$host:$mount:ro")
+    CONTAINER_INPUT="$mount"
+}
+
+container_input_file() {
+    local host="$1"
+    host="$(cd -- "$(dirname -- "$host")" && pwd -P)/$(basename -- "$host")" \
+        || die "cannot resolve file: $1"
+    if is_inside_repo "$host"; then
+        CONTAINER_INPUT="$(container_path "$host" /unused)"
+        return
+    fi
+    INPUT_COUNT=$((INPUT_COUNT + 1))
+    local mount="/theme-inputs/$INPUT_COUNT"
+    MOUNTS+=(-v "$(dirname -- "$host"):$mount:ro")
+    CONTAINER_INPUT="$mount/$(basename -- "$host")"
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --rebuild)
@@ -138,6 +176,21 @@ while [[ $# -gt 0 ]]; do
         --unattend)
             [[ $# -ge 2 ]] || die "$1 requires a value"
             UNATTEND_HOST="$2"
+            shift 2
+            ;;
+        --theme-dir)
+            [[ $# -ge 2 ]] || die "$1 requires a value"
+            THEME_DIR_HOSTS+=("$2")
+            shift 2
+            ;;
+        --theme-archive)
+            [[ $# -ge 2 ]] || die "$1 requires a value"
+            THEME_ARCHIVE_HOSTS+=("$2")
+            shift 2
+            ;;
+        --theme-patcher-msi)
+            [[ $# -ge 2 ]] || die "$1 requires a value"
+            THEME_PATCHER_HOST="$2"
             shift 2
             ;;
         --)
@@ -197,6 +250,29 @@ if [[ -n "$UNATTEND_HOST" ]]; then
     if ! is_inside_repo "$UNATTEND_HOST"; then
         MOUNTS+=(-v "$(dirname -- "$UNATTEND_HOST"):/unattend:ro")
     fi
+fi
+
+for host in ${THEME_DIR_HOSTS[@]+"${THEME_DIR_HOSTS[@]}"}; do
+    [[ -d "$host" ]] || die "theme directory not found: $host"
+    container_input_dir "$host"
+    CONTAINER_ARGS+=(--theme-dir "$CONTAINER_INPUT")
+done
+
+for host in ${THEME_ARCHIVE_HOSTS[@]+"${THEME_ARCHIVE_HOSTS[@]}"}; do
+    if [[ -d "$host" ]]; then
+        container_input_dir "$host"
+    elif [[ -f "$host" ]]; then
+        container_input_file "$host"
+    else
+        die "theme archive not found: $host"
+    fi
+    CONTAINER_ARGS+=(--theme-archive "$CONTAINER_INPUT")
+done
+
+if [[ -n "$THEME_PATCHER_HOST" ]]; then
+    [[ -f "$THEME_PATCHER_HOST" ]] || die "theme patcher MSI not found: $THEME_PATCHER_HOST"
+    container_input_file "$THEME_PATCHER_HOST"
+    CONTAINER_ARGS+=(--theme-patcher-msi "$CONTAINER_INPUT")
 fi
 
 TTY_FLAGS=()

@@ -28,12 +28,24 @@ COMPUTER_NAME=""
 UNATTEND=""
 NO_UNATTEND=0
 POSTINSTALL=1
+NO_POSTINSTALL=0
 REMOVE_WINRE=0
 SOLID=0
 EXPERIMENTAL=0
 KEEP_WORK=0
 FORCE=0
 SEVEN_Z=""
+THEMES=()
+THEME_ARCHIVES=()
+THEME_DIRS=()
+THEME_DEFAULT=""
+THEME_PATCHER=1
+THEME_PATCHER_MSI=""
+THEMES_ENABLED=0
+THEME_SUMMARY=""
+SECUREUXTHEME_VERSION="v4.0.0"
+SECUREUXTHEME_URL="https://github.com/namazso/SecureUxTheme/releases/download/${SECUREUXTHEME_VERSION}/SecureUxTheme_x64.msi"
+SECUREUXTHEME_SHA256="af6ab67e0a283a0138b827b6731d5bb1f4ffc59e6d905f1c41567eb3305a9537"
 
 usage() {
     cat <<'USAGE'
@@ -61,7 +73,18 @@ Options:
       --computer-name NAME   Optional computer name.
       --unattend PATH        Use an existing autounattend.xml instead of the generated one.
       --no-unattend          Do not add autounattend.xml (not recommended).
-      --no-postinstall       Do not add the first-boot debloat script.
+      --no-postinstall       Do not add the first-boot provisioning script.
+      --theme ID             Install a theme from windows/themes/catalog.json.
+                             Repeatable; accepts a comma-separated list.
+      --theme-archive PATH   Install a local theme .zip/.7z/.rar or extracted
+                             theme directory. Repeatable.
+      --theme-dir PATH       Directory searched for catalog theme archives.
+                             Default: windows/themes/downloads. Repeatable.
+      --theme-default NAME   Theme file or display name to apply at first logon.
+      --theme-patcher-msi PATH
+                             Use a local SecureUxTheme MSI instead of downloading.
+      --no-theme-patcher     Do not stage SecureUxTheme (unsigned .msstyles will
+                             be ignored; wallpaper and colours may still apply).
       --remove-winre         Remove Windows Recovery Environment from the image.
       --solid                Convert install.wim to solid compression (smaller, slower).
       --experimental         Required for the micro profile.
@@ -80,6 +103,9 @@ Examples:
   ./build-win11.sh --iso ~/Downloads/Win11_24H2.iso --profile lean
   ./build-win11.sh --iso ~/Downloads/Win11_24H2.iso --profile micro \
       --experimental --solid --remove-winre --locale de-DE
+  ./build-win11.sh --iso ~/Downloads/Win11_24H2.iso --profile lean \
+      --theme catppuccin-niivu --theme-dir ~/Downloads \
+      --theme-default "Catppuccin Mocha"
 USAGE
 }
 
@@ -100,6 +126,42 @@ need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
 
+sha256_of() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    else
+        shasum -a 256 "$1" | awk '{print $1}'
+    fi
+}
+
+download_file() {
+    python3 - "$1" "$2" <<'PY'
+import sys
+import urllib.request
+
+url, destination = sys.argv[1], sys.argv[2]
+with urllib.request.urlopen(url, timeout=180) as response, open(destination, "wb") as out:
+    while True:
+        chunk = response.read(1024 * 1024)
+        if not chunk:
+            break
+        out.write(chunk)
+PY
+}
+
+add_theme_ids() {
+    local value="$1"
+    local item
+    local -a items
+    local IFS=','
+    read -r -a items <<< "$value"
+    for item in "${items[@]}"; do
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+        [[ -n "$item" ]] && THEMES+=("$item")
+    done
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -i|--iso) ISO="${2:-}"; shift 2 ;;
@@ -118,7 +180,13 @@ while [[ $# -gt 0 ]]; do
         --computer-name) COMPUTER_NAME="${2:-}"; shift 2 ;;
         --unattend) UNATTEND="${2:-}"; shift 2 ;;
         --no-unattend) NO_UNATTEND=1; shift ;;
-        --no-postinstall) POSTINSTALL=0; shift ;;
+        --no-postinstall) POSTINSTALL=0; NO_POSTINSTALL=1; shift ;;
+        --theme) add_theme_ids "${2:-}"; shift 2 ;;
+        --theme-archive) THEME_ARCHIVES+=("${2:-}"); shift 2 ;;
+        --theme-dir) THEME_DIRS+=("${2:-}"); shift 2 ;;
+        --theme-default) THEME_DEFAULT="${2:-}"; shift 2 ;;
+        --theme-patcher-msi) THEME_PATCHER_MSI="${2:-}"; shift 2 ;;
+        --no-theme-patcher) THEME_PATCHER=0; shift ;;
         --remove-winre) REMOVE_WINRE=1; shift ;;
         --solid) SOLID=1; shift ;;
         --experimental) EXPERIMENTAL=1; shift ;;
@@ -138,7 +206,28 @@ esac
 if [[ "$PROFILE" == "micro" && "$EXPERIMENTAL" -eq 0 ]]; then
     die "the micro profile is experimental; re-run with --experimental after reading the warnings"
 fi
-if [[ "$PROFILE" == "safe" && "$POSTINSTALL" -eq 1 ]]; then
+if [[ "${#THEMES[@]}" -gt 0 || "${#THEME_ARCHIVES[@]}" -gt 0 ]]; then
+    THEMES_ENABLED=1
+fi
+
+if [[ "$THEMES_ENABLED" -eq 1 && "$NO_POSTINSTALL" -eq 1 ]]; then
+    die "themes need the first-boot provisioning script; remove --no-postinstall"
+fi
+
+if [[ -n "$THEME_DEFAULT" && "$THEMES_ENABLED" -eq 0 ]]; then
+    die "--theme-default requires --theme or --theme-archive"
+fi
+if [[ -n "$THEME_PATCHER_MSI" && "$THEMES_ENABLED" -eq 0 ]]; then
+    die "--theme-patcher-msi requires --theme or --theme-archive"
+fi
+if [[ "$THEME_PATCHER" -eq 0 && -n "$THEME_PATCHER_MSI" ]]; then
+    die "--no-theme-patcher and --theme-patcher-msi are mutually exclusive"
+fi
+
+# The safe profile normally skips first-boot provisioning. Themes still need
+# the RunOnce entry that applies the selected theme, so keep the script when
+# themes were requested; the safe profile itself remains a no-op debloat.
+if [[ "$PROFILE" == "safe" && "$POSTINSTALL" -eq 1 && "$THEMES_ENABLED" -eq 0 ]]; then
     POSTINSTALL=0
 fi
 
@@ -154,6 +243,10 @@ need_cmd wimlib-imagex
 need_cmd xorriso
 need_cmd python3
 need_cmd find
+if [[ "$THEMES_ENABLED" -eq 1 && "$THEME_PATCHER" -eq 1 ]]; then
+    need_cmd hivexsh
+    need_cmd hivexget
+fi
 
 if [[ -z "$PASSWORD" ]]; then
     if [[ "$PASSWORD_SET" -eq 1 && "$ALLOW_EMPTY_PASSWORD" -eq 0 ]]; then
@@ -268,13 +361,79 @@ if [[ "$REMOVE_WINRE" -eq 1 ]]; then
     rm -rf "$ROOT/Windows/System32/Recovery"
 fi
 
-if [[ "$POSTINSTALL" -eq 1 && "$PROFILE" != "safe" ]]; then
-    log "Adding first-boot debloat scripts (profile: $PROFILE)"
-    SCRIPTS="$EXTRACT/sources/\$OEM\$/\$\$/Setup/Scripts"
+SCRIPTS="$EXTRACT/sources/\$OEM\$/\$\$/Setup/Scripts"
+
+if [[ "$POSTINSTALL" -eq 1 ]]; then
+    log "Adding first-boot provisioning scripts (profile: $PROFILE)"
     mkdir -p "$SCRIPTS"
     cp "$SCRIPT_DIR/scripts/SetupComplete.ps1" "$SCRIPTS/SetupComplete.ps1"
     sed "s/@@PROFILE@@/$PROFILE/g" \
         "$SCRIPT_DIR/templates/SetupComplete.cmd.in" > "$SCRIPTS/SetupComplete.cmd"
+fi
+
+if [[ "$THEMES_ENABLED" -eq 1 ]]; then
+    log "Preparing Windows themes"
+    # ProgramData survives Setup's cleanup of C:\Windows\Setup\Scripts.
+    THEME_DATA="$EXTRACT/sources/\$OEM\$/\$1/ProgramData/WindowsSlim"
+    mkdir -p "$THEME_DATA"
+    cp "$SCRIPT_DIR/scripts/ApplyTheme.ps1" "$THEME_DATA/ApplyTheme.ps1"
+
+    PATCHER_MSI=""
+    PATCHER_VERSION="$SECUREUXTHEME_VERSION"
+    if [[ "$THEME_PATCHER" -eq 1 ]]; then
+        if [[ -n "$THEME_PATCHER_MSI" ]]; then
+            [[ -f "$THEME_PATCHER_MSI" ]] || die "theme patcher MSI not found: $THEME_PATCHER_MSI"
+            PATCHER_MSI="$(cd -- "$(dirname -- "$THEME_PATCHER_MSI")" && pwd)/$(basename -- "$THEME_PATCHER_MSI")"
+            PATCHER_VERSION="local MSI"
+            log "Using local SecureUxTheme MSI: $PATCHER_MSI (sha256 $(sha256_of "$PATCHER_MSI"))"
+        else
+            PATCHER_MSI="$WORK/SecureUxTheme_x64.msi"
+            if [[ ! -f "$PATCHER_MSI" ]]; then
+                log "Downloading SecureUxTheme $SECUREUXTHEME_VERSION"
+                if ! download_file "$SECUREUXTHEME_URL" "$PATCHER_MSI"; then
+                    rm -f "$PATCHER_MSI"
+                    die "could not download SecureUxTheme; pass --theme-patcher-msi PATH or --no-theme-patcher"
+                fi
+            fi
+            ACTUAL_SHA="$(sha256_of "$PATCHER_MSI")"
+            if [[ "$ACTUAL_SHA" != "$SECUREUXTHEME_SHA256" ]]; then
+                rm -f "$PATCHER_MSI"
+                die "SecureUxTheme checksum mismatch (expected $SECUREUXTHEME_SHA256, got $ACTUAL_SHA)"
+            fi
+            log "Verified SecureUxTheme MSI (sha256 $ACTUAL_SHA)"
+        fi
+    fi
+
+    THEME_ARGS=(
+        --catalog "$SCRIPT_DIR/themes/catalog.json"
+        --image-root "$ROOT"
+        --staging "$WORK/themes"
+        --config "$THEME_DATA/themes.json"
+        --seven-z "$SEVEN_Z"
+    )
+    for theme_id in "${THEMES[@]}"; do
+        THEME_ARGS+=(--theme "$theme_id")
+    done
+    for theme_archive in "${THEME_ARCHIVES[@]}"; do
+        THEME_ARGS+=(--archive "$theme_archive")
+    done
+    for theme_dir in "${THEME_DIRS[@]}"; do
+        THEME_ARGS+=(--theme-dir "$theme_dir")
+    done
+    if [[ -n "$THEME_DEFAULT" ]]; then
+        THEME_ARGS+=(--default "$THEME_DEFAULT")
+    fi
+    if [[ -n "$PATCHER_MSI" ]]; then
+        THEME_ARGS+=(
+            --patcher-msi "$PATCHER_MSI"
+            --patcher-version "$PATCHER_VERSION"
+        )
+    fi
+
+    THEME_OUTPUT="$(python3 "$SCRIPT_DIR/prepare-themes.py" "${THEME_ARGS[@]}")"
+    printf '%s\n' "$THEME_OUTPUT"
+    THEME_SUMMARY="$(printf '%s\n' "$THEME_OUTPUT" | sed -n 's/^THEME_SUMMARY=//p' | tail -n 1)"
+    [[ -n "$THEME_SUMMARY" ]] || THEME_SUMMARY="installed"
 fi
 
 if [[ "$NO_UNATTEND" -eq 0 ]]; then
@@ -291,7 +450,7 @@ if [[ "$NO_UNATTEND" -eq 0 ]]; then
             --input-locale "$INPUT_LOCALE"
             --timezone "$TIMEZONE"
             --user "$USER_NAME"
-            --password "$PASSWORD"
+            --password="$PASSWORD"
             --index 1
             --product-key "$PRODUCT_KEY"
             --computer-name "$COMPUTER_NAME"
@@ -374,6 +533,9 @@ Profile:  $PROFILE
 Edition:  $EDITION
 Checksum: $OUT.sha256
 EOF
+if [[ "$THEMES_ENABLED" -eq 1 ]]; then
+    printf 'Themes:   %s\n' "$THEME_SUMMARY"
+fi
 
 if [[ "$GENERATED_PASSWORD" -eq 1 ]]; then
     printf 'Local password (store it now): %s\n' "$PASSWORD"
@@ -383,5 +545,8 @@ fi
 
 if [[ "$PROFILE" == "micro" ]]; then
     warn "micro is unsupported and removes Store/search/OneDrive; keep a recovery image and test in a VM"
+fi
+if [[ "$THEMES_ENABLED" -eq 1 ]]; then
+    warn "themes and SecureUxTheme are third-party; test the image in a VM before using it on hardware"
 fi
 warn "Windows is licensed software. Do not redistribute the modified ISO."

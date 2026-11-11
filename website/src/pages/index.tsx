@@ -424,6 +424,7 @@ export default function Home(): React.JSX.Element {
                   <li>Three profiles: safe, lean and experimental micro</li>
                   <li>Local account and hardware-check bypass in autounattend</li>
                   <li>First-boot AppX removal through supported Windows cmdlets</li>
+                  <li>Optional Windows themes, starting with Catppuccin</li>
                   <li>English and German documentation</li>
                 </ul>
                 <div className={styles.actions}>

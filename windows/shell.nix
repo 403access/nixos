@@ -12,6 +12,8 @@ pkgs.mkShell {
     chntpw
     hivex
     python3
+    # HTTPS downloads (SecureUxTheme) need a trust store in the shell.
+    cacert
     coreutils
     findutils
     gawk

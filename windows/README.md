@@ -79,13 +79,54 @@ The script prints a generated local password. Store it before closing the
 terminal, or pass `--password`. Empty passwords and `--autologon` are intended
 for disposable lab VMs only.
 
+## Themes
+
+The builder can install one or more third-party Windows themes and register all
+of their variants under **Settings → Personalization → Themes**. The first
+theme is applied automatically at first logon. Theme packs are not bundled;
+download them from the artist.
+
+```bash
+# Watch niivu on DeviantArt to reveal the Catppuccin download, then:
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean \
+  --theme catppuccin-niivu --theme-dir ~/Downloads \
+  --theme-default "Catppuccin Mocha"
+```
+
+The archive may instead live in `windows/themes/downloads/`, or be passed with
+`--theme-archive PATH` (`.zip`, `.7z`, `.rar` or an extracted directory).
+Repeat `--theme` or `--theme-archive` to install several packs:
+
+```bash
+./build-win11-docker.sh --iso ~/Downloads/Win11.iso --profile lean \
+  --theme catppuccin-niivu \
+  --theme-archive ~/Downloads/my-other-theme.zip \
+  --theme-default Mocha
+```
+
+The Catppuccin entry is
+[`themes/catalog.json`](themes/catalog.json). See
+[`themes/README.md`](themes/README.md) for the format, the manual-download
+steps, and how to add another artist.
+
+Theme support downloads SecureUxTheme v4.0.0 from GitHub, verifies a pinned
+SHA-256, and stages its DLLs and IFEO hook in the offline image. Nothing runs
+during Windows Setup; a `RunOnce` entry applies the selected `.theme` at first
+logon. Use `--theme-patcher-msi PATH` for an offline build, or
+`--no-theme-patcher` to skip the patcher (unsigned `.msstyles` will then be
+ignored, though wallpaper and colours may apply).
+
+Third-party themes are unsupported by Microsoft and can break logon or updates.
+Test in a VM. Icon packs (7TSP), Rainmeter skins and other desktop extras are
+not installed automatically.
+
 ## Requirements
 
 - A legally obtained Windows 11 x64 ISO.
-- Docker, or the native packages (`wimlib`, `p7zip`, `xorriso`, `python3`) for a
-  native build. The NixOS installer can install them with
-  `--windows-toolchain native`; `windows/shell.nix` provides the same tools for
-  `nix-shell`.
+- Docker, or the native packages (`wimlib`, `p7zip`, `xorriso`, `python3`, and
+  `hivex` for themes) for a native build. The NixOS installer can install them
+  with `--windows-toolchain native`; `windows/shell.nix` provides the same tools
+  for `nix-shell`.
 - About 20 GB free disk space (more with `--solid`).
 
 ## What this does not do
@@ -96,6 +137,10 @@ for disposable lab VMs only.
   through `Remove-AppxProvisionedPackage` at first boot.
 - It does not download Windows. You must provide the ISO.
 - It does not activate Windows.
+- It does not download or redistribute third-party theme packs. Download them
+  from the artist; the build only stages and activates them.
+- It does not apply 7TSP icon packs, Rainmeter skins, docks or Start menu
+  replacements that some theme packs include.
 
 See the website guide for validation, QEMU testing, offline component removal
 with DISM/NTLite/MSMG Toolkit, and troubleshooting.
