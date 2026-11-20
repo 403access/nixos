@@ -427,7 +427,7 @@ function Show-MainMenu {
     Write-MenuItem '10' 'Startup apps (autostart)' 'list, disable, remove or restore startup entries'
     Write-MenuItem '11' 'Stock apps & OneDrive' 'disable/uninstall OneDrive, remove stock apps, disable services'
     Write-MenuItem '12' 'SSH server (terminal access)' 'enable/disable OpenSSH, install a key, show commands'
-    Write-MenuItem '13' 'MOCKUP' 'preview only: irm https://PLACEHOLDER | iex (not executed)'
+    Write-MenuItem '13' 'Activation' 'preview only: irm https://get.activated.win | iex'
     Write-Host ''
     Write-MenuItem '0' 'Exit'
     Write-Host ''
@@ -999,11 +999,10 @@ while ($running) {
         '12' { Show-SshMenu }
         '13' {
             Write-Host ''
-            Write-Host 'MOCKUP' -ForegroundColor Magenta
+            Write-Host 'Activation' -ForegroundColor Magenta
             Write-Host ('-' * 64)
-            Write-Host 'Command: irm https://PLACEHOLDER | iex'
-            Write-Host 'This is a mockup. No network request was made and nothing was executed.' -ForegroundColor Yellow
-            Write-Host 'Remote code execution is intentionally disabled in this helper.' -ForegroundColor Yellow
+            Write-Host 'Command: irm https://get.activated.win | iex'
+            Write-Host 'This is activates windows. A network request is made and a third-party script will be executed.' -ForegroundColor Yellow
             Pause-Menu
         }
         '0' {

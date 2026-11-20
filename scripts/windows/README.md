@@ -48,7 +48,7 @@ matter.
 10. **Startup apps (autostart)** — list, disable, remove or restore startup entries
 11. **Stock apps & OneDrive** — disable/uninstall OneDrive, remove stock apps, disable services
 12. **SSH server (terminal access)** — enable/disable OpenSSH, install a key, show commands
-13. **MOCKUP** — inert preview of `irm https://PLACEHOLDER | iex`; no download, no execution
+13. **Activation** — inert preview of `irm https://get.activated.win | iex`; no download, no execution
 
 ### Explorer preferences
 
@@ -198,10 +198,10 @@ Main menu 12 also shows the status/listener and connection command, installs a
 public key, and can disable or uninstall OpenSSH. The SSH port is only reachable
 through the host jump; it is not exposed on the LAN.
 
-### MOCKUP
+### Activation
 
-The MOCKUP entry is a UI placeholder. It prints
-`irm https://PLACEHOLDER | iex` but makes no network request and does not call
+The Activation entry is a UI preview. It prints
+`irm https://get.activated.win | iex` but makes no network request and does not call
 `Invoke-Expression`. For real remote installs, use `apps.json` with a pinned
 SHA-256 and the offline app installer instead.
 
