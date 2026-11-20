@@ -126,6 +126,32 @@ CD-ROMs attached (Windows and virtio-win), so pick the Windows one. The
 explicit boot order above makes this unnecessary on a normal first start; it
 is the workaround for older firmware or a manually changed order.
 
+### Loading the VirtIO storage driver
+
+The guest disk is VirtIO block, and Windows Setup has no built-in driver for
+it, so the disk list is empty until the driver is loaded. On the virtio-win
+CD, the driver is nested by Windows version and architecture:
+
+```text
+<CD>:\viostor\w11\amd64\viostor.inf    # classic layout
+<CD>:\amd64\w11\viostor.inf            # newer layout
+```
+
+- `w11` is the Windows 11 driver. Use it rather than `w10`; both usually
+  work, but `w11` is the matching one.
+- `amd64` is Microsoft's name for **x86-64**, the VM's architecture. The
+  `i386` folder is 32-bit and cannot be loaded into a 64-bit Windows kernel —
+  Windows 11 has no 32-bit edition, so selecting it does nothing.
+- The ISO also carries `2k12` … `2k25`, `w8.1`, `w10`, etc., because one CD
+  serves many Windows versions. Only the `.inf` matching the guest's
+  version and architecture is usable.
+- If browsing folder by folder is tedious, tick **include subfolders**
+  (`Unterordner einbeziehen`), select the CD root, and let Setup search it.
+
+Load the driver, select the disk, and after installation run
+`virtio-win-guest-tools.exe` from the same CD (network, graphics, balloon),
+then `fsutil behavior set DisableDeleteNotify 0` as Administrator for TRIM.
+
 `virt-manager` is the console that is installed. `virt-viewer` is **not**
 part of the system profile; use it from an ephemeral shell when wanted:
 

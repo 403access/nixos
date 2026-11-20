@@ -354,9 +354,14 @@ if [ "$use_virtio" = "on" ]; then
   cat <<EOF
 VirtIO is enabled.  In Windows Setup:
   1. Choose "Load driver" > "Browse" > the virtio-win CD.
-  2. Load the VirtIO SCSI or viostor driver, then select the disk.
-  3. After installation, run virtio-win-guest-tools.exe from the CD.
-     That installs the network, balloon-free, and graphics drivers.
+  2. Open viostor\w11\amd64 (or amd64\w11 on newer media) and select
+     viostor.inf.  w11 matches Windows 11; amd64 is x86-64, the guest
+     architecture.  i386 is 32-bit and cannot load into a 64-bit kernel.
+     If the folders are hard to find, tick "include subfolders" and pick the
+     CD root.
+  3. Select the disk, install, then run virtio-win-guest-tools.exe from the
+     CD (network, graphics, balloon) and enable TRIM:
+       fsutil behavior set DisableDeleteNotify 0
 
 EOF
 else
