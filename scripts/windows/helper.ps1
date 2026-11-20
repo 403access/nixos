@@ -870,7 +870,7 @@ $networkItems = @(
     New-TuiNode -Label 'Disable RDP' -Description 'Blocks RDP and removes the explicit firewall rule.' -Confirm 'Disable Remote Desktop?' -Action {
         Invoke-Helper -Script 'disable-rdp.ps1' -Label 'Disable RDP'
     }
-    New-TuiNode -Label 'Enable SSH server' -Description 'Installs OpenSSH Server, starts sshd and opens TCP 22.' -Confirm 'Install and enable OpenSSH Server?' -Action {
+    New-TuiNode -Label 'Enable SSH server' -Description 'Uses the bundled Win32-OpenSSH package; fast and avoids Windows Modules Installer.' -Confirm 'Install and enable OpenSSH Server?' -Action {
         Invoke-Helper -Script 'enable-ssh.ps1' -Label 'Enable SSH server'
     }
     New-TuiNode -Label 'Disable SSH server' -Description 'Stops sshd and disables the SSH firewall rule.' -Confirm 'Disable SSH?' -Action {

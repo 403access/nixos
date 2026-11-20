@@ -16,7 +16,9 @@ param(
     [switch]$Status,
     [switch]$DisablePasswordAuthentication,
     [string]$PublicKeyPath,
-    [string]$User = $env:USERNAME
+    [string]$User = $env:USERNAME,
+    [ValidateSet('Auto', 'Win32', 'Capability')]
+    [string]$Method = 'Auto'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -24,6 +26,8 @@ $capability = 'OpenSSH.Server~~~~0.0.1.0'
 $programData = if ($env:ProgramData) { $env:ProgramData } else { [IO.Path]::GetTempPath() }
 $sshdConfig = Join-Path $programData 'ssh\sshd_config'
 $firewallRule = 'OpenSSH-Server-In-TCP'
+$win32OpenSshUrl = 'https://github.com/PowerShell/Win32-OpenSSH/releases/download/10.4.0.0p1-Preview/OpenSSH-Win64.zip'
+$win32OpenSshSha256 = 'b67ff8becd203502190ec42ac7787c24c2cd3325ed7700485fe7a1c83d2a7957'
 
 function Test-Admin {
     try {
@@ -182,6 +186,11 @@ function Show-SshStatus {
         $userKeys = Test-Path -LiteralPath (Join-Path $env:USERPROFILE '.ssh\authorized_keys')
     }
     Write-Host ("user keys      : {0}" -f $userKeys)
+    $binaryPath = $null
+    if (Get-Command Get-CimInstance -ErrorAction SilentlyContinue) {
+        $binaryPath = (Get-CimInstance Win32_Service -Filter "Name='sshd'" -ErrorAction SilentlyContinue).PathName
+    }
+    Write-Host ("sshd binary    : {0}" -f $binaryPath)
 }
 
 function Show-ConnectionInfo {
@@ -194,6 +203,101 @@ function Show-ConnectionInfo {
     Write-Host '  sudo virsh domifaddr win11-stock --source lease'
 }
 
+function Install-Win32OpenSsh {
+    $cacheDir = Join-Path $programData 'WindowsSlim\cache'
+    $zip = Join-Path $cacheDir 'OpenSSH-Win64.zip'
+    $localZip = Join-Path $PSScriptRoot 'apps\OpenSSH-Win64.zip'
+    $installDir = Join-Path $env:ProgramFiles 'OpenSSH'
+    $temp = $null
+
+    try {
+        if (-not (Test-Path -LiteralPath $cacheDir)) {
+            New-Item -Path $cacheDir -ItemType Directory -Force | Out-Null
+        }
+
+        if (Test-Path -LiteralPath $localZip) {
+            Write-Host 'Using bundled Win32-OpenSSH package ...'
+            Copy-Item -LiteralPath $localZip -Destination $zip -Force
+        } elseif (-not (Test-Path -LiteralPath $zip)) {
+            Write-Host 'Downloading Win32-OpenSSH 10.4.0.0p1 (about 6 MB) ...'
+            Invoke-WebRequest -Uri $win32OpenSshUrl -OutFile $zip -UseBasicParsing -ErrorAction Stop
+        }
+
+        $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        if ($hash -ne $win32OpenSshSha256) {
+            Write-Warning ("Win32-OpenSSH checksum mismatch: expected {0}, got {1}" -f $win32OpenSshSha256, $hash)
+            return $false
+        }
+
+        $temp = Join-Path $env:TEMP ('OpenSSH-Win64-' + [guid]::NewGuid().ToString('N'))
+        Expand-Archive -LiteralPath $zip -DestinationPath $temp -Force -ErrorAction Stop
+        $source = Join-Path $temp 'OpenSSH-Win64'
+        if (-not (Test-Path -LiteralPath (Join-Path $source 'install-sshd.ps1'))) {
+            Write-Warning 'The Win32-OpenSSH archive does not contain install-sshd.ps1.'
+            return $false
+        }
+
+        if (-not (Test-Path -LiteralPath $installDir)) {
+            New-Item -Path $installDir -ItemType Directory -Force | Out-Null
+        }
+        Copy-Item -Path (Join-Path $source '*') -Destination $installDir -Recurse -Force -ErrorAction Stop
+
+        $installer = Join-Path $installDir 'install-sshd.ps1'
+        Write-Host 'Registering sshd and ssh-agent services ...'
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning ("install-sshd.ps1 exited with {0}" -f $LASTEXITCODE)
+        }
+
+        if (-not (Test-Path -LiteralPath $sshdConfig)) {
+            $defaultConfig = Join-Path $installDir 'sshd_config_default'
+            if (Test-Path -LiteralPath $defaultConfig) {
+                $configDir = Split-Path -Parent $sshdConfig
+                if (-not (Test-Path -LiteralPath $configDir)) {
+                    New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+                }
+                Copy-Item -LiteralPath $defaultConfig -Destination $sshdConfig -Force
+            }
+        }
+
+        $service = Get-Service -Name sshd -ErrorAction SilentlyContinue
+        return [bool]$service
+    } catch {
+        Write-Warning ("Win32-OpenSSH install failed: {0}" -f $_.Exception.Message)
+        return $false
+    } finally {
+        if ($temp) {
+            Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Install-OpenSshCapability {
+    if (-not (Get-Command Get-WindowsCapability -ErrorAction SilentlyContinue)) {
+        Write-Warning 'Get-WindowsCapability is not available on this build.'
+        return $false
+    }
+
+    $cap = Get-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue
+    if (-not $cap) {
+        Write-Warning ("Capability not found: {0}" -f $capability)
+        return $false
+    }
+    if ($cap.State -ne 'Installed') {
+        Write-Host ("Installing {0} ..." -f $capability)
+        Write-Host 'Windows Modules Installer may use CPU for several minutes; this is normal.' -ForegroundColor Yellow
+        Add-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue | Out-Null
+        $cap = Get-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue
+    }
+
+    $service = Get-Service -Name sshd -ErrorAction SilentlyContinue
+    if (-not $cap -or $cap.State -ne 'Installed' -or -not $service) {
+        Write-Warning 'The Windows OpenSSH capability did not install cleanly.'
+        return $false
+    }
+    return $true
+}
+
 function Enable-Ssh {
     if (-not (Test-Admin)) {
         Write-Warning 'OpenSSH setup needs an elevated shell. Run enable-ssh.bat or helper.bat.'
@@ -201,30 +305,49 @@ function Enable-Ssh {
     }
 
     Write-Host 'Installing and enabling OpenSSH Server ...'
-    if (-not (Get-Command Get-WindowsCapability -ErrorAction SilentlyContinue)) {
-        Write-Warning 'Get-WindowsCapability is not available on this build.'
-        return
-    }
+    $service = Get-Service -Name sshd -ErrorAction SilentlyContinue
 
-    $cap = Get-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue
-    if (-not $cap) {
-        Write-Warning ("Capability not found: {0}" -f $capability)
-        return
-    }
-    if ($cap.State -ne 'Installed') {
-        Write-Host ("Installing {0} ..." -f $capability)
-        Add-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue | Out-Null
-        $cap = Get-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue
-        if (-not $cap -or $cap.State -ne 'Installed') {
-            Write-Warning 'OpenSSH Server could not be installed. Check Windows Update or add it with DISM.'
-            return
+    if ($service -and (Get-Command Get-CimInstance -ErrorAction SilentlyContinue)) {
+        $serviceInfo = Get-CimInstance Win32_Service -Filter "Name='sshd'" -ErrorAction SilentlyContinue
+        if ($serviceInfo -and $serviceInfo.PathName) {
+            $rawPath = $serviceInfo.PathName
+            if ($rawPath -match '^\s*"([^"]+)"') {
+                $binary = $Matches[1]
+            } else {
+                $binary = ($rawPath -split '\s+')[0]
+            }
+            if (-not (Test-Path -LiteralPath $binary)) {
+                Write-Warning 'The existing sshd service points to a missing binary; recreating it.'
+                Stop-Service -Name sshd -Force -ErrorAction SilentlyContinue
+                & sc.exe delete sshd | Out-Null
+                $service = $null
+            }
         }
     }
 
-    $service = Get-Service -Name sshd -ErrorAction SilentlyContinue
     if (-not $service) {
-        Write-Warning 'The sshd service is missing after installation.'
-        return
+        $installed = $false
+        switch ($Method) {
+            'Win32' {
+                $installed = Install-Win32OpenSsh
+            }
+            'Capability' {
+                $installed = Install-OpenSshCapability
+            }
+            default {
+                $installed = Install-Win32OpenSsh
+                if (-not $installed) {
+                    Write-Warning 'Win32-OpenSSH failed; trying the Windows capability instead.'
+                    $installed = Install-OpenSshCapability
+                }
+            }
+        }
+
+        $service = Get-Service -Name sshd -ErrorAction SilentlyContinue
+        if (-not $installed -or -not $service) {
+            Write-Warning 'OpenSSH Server could not be installed.'
+            return
+        }
     }
 
     Set-Service -Name sshd -StartupType Automatic
@@ -297,6 +420,11 @@ function Uninstall-Ssh {
     if (Get-Command Remove-WindowsCapability -ErrorAction SilentlyContinue) {
         Write-Host 'Removing the OpenSSH Server capability ...'
         Remove-WindowsCapability -Online -Name $capability -ErrorAction SilentlyContinue | Out-Null
+    }
+    $win32Uninstall = Join-Path $env:ProgramFiles 'OpenSSH\uninstall-sshd.ps1'
+    if (Test-Path -LiteralPath $win32Uninstall) {
+        Write-Host 'Removing the Win32-OpenSSH services ...'
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $win32Uninstall
     }
     Remove-NetFirewallRule -Name $firewallRule -ErrorAction SilentlyContinue
     Write-Host 'OpenSSH Server removed. The sshd_config backup is left in place.' -ForegroundColor Green
