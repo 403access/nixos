@@ -152,6 +152,23 @@ Load the driver, select the disk, and after installation run
 `virtio-win-guest-tools.exe` from the same CD (network, graphics, balloon),
 then `fsutil behavior set DisableDeleteNotify 0` as Administrator for TRIM.
 
+### Secure Boot and Windows 11 24H2 or newer
+
+Windows 11 24H2+ boot managers are signed with the **Microsoft UEFI CA 2023**.
+The Debian OVMF variables template shipped by `pkgs.OVMFFull` does not include
+that CA in its Secure Boot database, so Setup logs:
+
+```text
+BFSVC: USE_EX_BINS flag is specified, but 2023 cert is not in db
+BCD: Failed to add system store ... Status: c000000f
+```
+
+and the guest loops after installation even though Windows was applied to the
+disk. Use `--no-secure-boot` for these builds: the firmware is still UEFI and
+the vTPM stays enabled, so Windows 11 still satisfies its hardware checks.
+Revisit this once the OVMF vars template ships the 2023 CA; until then,
+Secure Boot on 24H2+ is not usable with this firmware packaging.
+
 ### Remote desktop from macOS
 
 The guest is Windows 11 **Pro**, so it can host RDP. Enable it inside Windows
