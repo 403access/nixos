@@ -12,6 +12,8 @@ matter.
 | `debloat.bat` | Runs `windows/scripts/SetupComplete.ps1 -ProfileName lean` |
 | `enable-autologon.bat` | Prompts for the account password and enables automatic logon |
 | `disable-autologon.bat` | Removes automatic logon and the stored password |
+| `trim-memory.bat` | Removes OneDrive startup, disables Widgets/Recall/background apps |
+| `trim-memory-aggressive.bat` | Same, plus disables Search indexing and SysMain |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
 
 ## Build and insert the CD
@@ -39,7 +41,10 @@ sudo virsh change-media win11-stock sdb /tmp/windows-helper.iso --insert --live
 ```
 
 `make-helper-iso.sh` also copies `windows/scripts/SetupComplete.ps1` into the
-CD, so the debloat action is always available.  If `insert` reports
+CD, so the debloat action is always available.
+
+`trim-memory.bat` only reduces what Windows itself keeps resident. The host
+still holds the full VM allocation; use `scripts/vm-memory.sh` for that.  If `insert` reports
 `Cannot access storage file`, the ISO was not built (usually because the host
 did not have the scripts yet) — run `ls` in the directory and rebuild.
 

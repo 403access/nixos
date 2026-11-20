@@ -62,6 +62,28 @@ host boot and does not need a reboot to confirm the setting.
 network is started by the NixOS module at boot, so the guest gets its lease
 without manual steps.
 
+## Memory
+
+Windows 11 idle at ~2.6 GB is normal and already low after the `lean`
+debloat; Defender, the servicing stack and the driver set account for most of
+it.  The number that matters on the host is the full allocation: a 12 GiB
+guest holds ~12 GiB RSS even when Windows touches only 2.6 GB.
+
+Reduce the host footprint first, from the NixOS host:
+
+```bash
+sudo ./scripts/vm-memory.sh 8 win11-stock
+```
+
+It shuts the guest down gracefully, sets `maxMemory` and `currentMemory` to
+8 GiB, restarts it, and prints the result.  Use 8 GiB for RDP/Office/browser
+work; 12 GiB is only useful for heavy local applications.
+
+Guest-side trims are optional and modest (`trim-memory.bat` on the helper CD):
+OneDrive startup, Widgets, Recall and background apps are disabled; the
+aggressive variant also disables Search indexing and SysMain.  Defender,
+Windows Update and VBS stay enabled.
+
 ## Automatic logon
 
 RDP does **not** require it: the client authenticates and creates its own
