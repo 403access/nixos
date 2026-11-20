@@ -96,17 +96,16 @@ virt-manager
   passthrough, so this is fast for apps and software 3D, not for gaming;
 - no memory balloon, optional 2 MiB hugepages (`--hugepages`).
 
-The disk defaults to qcow2 in `/var/lib/libvirt/images`. On ZFS, create a
-dedicated dataset once and use a raw image:
+The disk defaults to qcow2 in `/var/lib/libvirt/images` on the NVMe root.
+Keep it there: `tank` is a mirror of two 8 TB HDDs at 81% capacity, so a
+guest disk on it would be slow and consume the remaining free space.  Use
+`--raw` to avoid qcow2 copy-on-write overhead on ext4:
 
 ```bash
-sudo zfs create -o recordsize=16k tank/vm
-sudo windows-vm-create --iso /var/lib/libvirt/images/Win11.iso \
-  --raw --disk-dir /mnt/tank/vm
+sudo windows-vm-create --iso /var/lib/libvirt/images/Win11.iso --raw
 ```
 
-`zfs create` is additive; it never touches existing datasets, and the
-installer never runs against a disk that holds `tank`.
+The installer never runs against a disk that holds `tank`.
 
 `--no-virtio` falls back to SATA/e1000e (works with any ISO, much slower).
 `--no-secure-boot` disables Secure Boot. To use hugepages, set

@@ -121,12 +121,12 @@ in
       diskDir = lib.mkOption {
         type = lib.types.str;
         default = "/var/lib/libvirt/images";
-        example = "/mnt/tank/vm";
+        example = "/var/lib/libvirt/images";
         description = ''
-          Default directory for the Windows disk image.  A dedicated ZFS
-          dataset (for example `tank/vm` with `recordsize=16k`) is much faster
-          than a file inside the pool root.  The helper never formats the
-          pool; create the dataset once with `zfs create tank/vm`.
+          Default directory for the Windows disk image.  Keep it on the NVMe
+          root: `tank` is a mirror of two HDDs, so a guest disk there is slow
+          and consumes the remaining pool space.  The helper only creates a
+          file; it never formats a pool.
         '';
       };
 

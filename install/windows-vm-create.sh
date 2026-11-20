@@ -11,12 +11,10 @@
 #   - io_uring with cache=none, TRIM/discard on
 #   - UEFI + Secure Boot + vTPM, which Windows 11 expects anyway
 #
-# The disk is still a normal file.  qcow2 is the safe default; on ZFS prefer
-# --raw inside a dedicated dataset, for example:
-#   sudo zfs create -o recordsize=16k tank/vm
-#   sudo windows-vm-create --iso /path/Win11.iso --raw --disk-dir /mnt/tank/vm
-# `zfs create` is additive and never touches existing datasets.  Never run the
-# installer against a disk that holds `tank`; it now refuses to do so.
+# The disk is a normal file on the NVMe root.  qcow2 is the safe default;
+# --raw avoids copy-on-write overhead.  Keep it off tank: that is an HDD
+# mirror at 81% capacity.  Never run the installer against a disk that holds
+# `tank`; it now refuses to do so.
 set -euo pipefail
 
 name="windows11"
@@ -66,8 +64,10 @@ Performance notes:
     picked up from the nix store when `virtio-win` is installed.
   - With only an integrated Intel GPU there is no PCI passthrough.  The guest
     uses virtio-gpu; expect fast 2D and software 3D, not gaming performance.
-  - Put the disk on a dedicated ZFS dataset (`tank/vm`, recordsize=16k) and
-    use --raw.  Never run install/install.sh against that disk.
+  - Keep the disk on the NVMe root (the default, /var/lib/libvirt/images).
+    tank is a mirror of two HDDs at 81% capacity; a guest disk there is slow.
+    Use --raw to avoid qcow2 overhead.  Never run install/install.sh against
+    a disk that holds tank.
 EOF
 }
 

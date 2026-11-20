@@ -23,11 +23,10 @@
     memory = 12288;
     vcpus = 6;
 
-    # The VM disk is a file, not a partition.  For best throughput create a
-    # dedicated dataset once and switch diskDir to it:
-    #   sudo zfs create -o recordsize=16k tank/vm
-    #   myInstall.vm.diskDir = "/mnt/tank/vm";
-    # Then create the VM with --raw.  The helper never formats the pool.
+    # The VM disk is a file, not a partition.  Keep it on the NVMe root
+    # (1.5 TB free): tank is a mirror of two 8 TB HDDs at 81% capacity, so
+    # a guest disk there would be slow and eat the remaining space.
+    # Create the VM with --raw to avoid qcow2 copy-on-write overhead.
     diskDir = "/var/lib/libvirt/images";
 
     # Hugepages pin the guest memory and add a few percent.  They reserve
