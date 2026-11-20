@@ -294,6 +294,7 @@ sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
 services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
+docs/windows-vm.md         Windows guest: install record, RDP from macOS
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project

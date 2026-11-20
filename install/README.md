@@ -208,6 +208,28 @@ sign in to the same tailnet, and RDP to its `100.x.y.z` address from any
 device, with no tunnel. Either way, do not expose 3389 on the LAN or open it
 in `networking.firewall`; keep it on loopback, SSH or the tailnet.
 
+### Guest account
+
+The local account configured during OOBE on this machine is **`Windows-PC`**.
+
+Its password is deliberately **not** recorded in this repository. The repo is
+public, and anything committed here — including a later deletion — remains in
+the git history. Keep the password in a password manager, and use a strong one
+before enabling RDP, because a weak password plus remote desktop is the
+easiest way into the guest.
+
+The complete verified procedure for the installed guest — helper CD, firewall
+port rule, DHCP reservation and the macOS client — is in
+[`../docs/windows-vm.md`](../docs/windows-vm.md).
+
+If a local reminder is needed, keep it outside the checkout, for example:
+
+```bash
+umask 077
+printf 'account=Windows-PC\npassword=<from your password manager>\n' \
+  > ~/windows-vm.credentials
+```
+
 `virt-manager` is the console that is installed. `virt-viewer` is **not**
 part of the system profile; use it from an ephemeral shell when wanted:
 
