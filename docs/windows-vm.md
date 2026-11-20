@@ -115,13 +115,28 @@ or SDDM and honour the same option.
 
 ## Enabling RDP (no typing in the console)
 
-The scripts are kept in [`../scripts/windows/`](../scripts/windows/); build
-the CD with:
+The scripts are kept in [`../scripts/windows/`](../scripts/windows/).  They
+are edited on the Mac, but the CD is built on the NixOS host (it needs
+`xorriso` and the libvirt tools):
+
+On the **Mac**:
 
 ```bash
-cd scripts/windows
+scp -r /Users/olivermolnar/Desktop/nixos/scripts/windows \
+  nixos@192.168.178.5:~/Desktop/nixos/scripts/
+```
+
+On the **NixOS host**:
+
+```bash
+cd ~/Desktop/nixos/scripts/windows
+ls
 ./make-helper-iso.sh /tmp/windows-helper.iso
 ```
+
+A common mistake is running the `scp` on the host: `/Users/...` is a Mac path
+and the host does not have it.  The host copy lives under
+`~/Desktop/nixos/scripts/windows`, not `/etc/nixos`.
 
 The SPICE console plus a German keymap makes typing long commands painful.
 Put the commands on a helper CD and double-click a batch file.
