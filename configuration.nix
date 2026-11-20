@@ -17,6 +17,12 @@
   networking.hostId = "c0debabe";
   # Automatically import your ZFS pool on boot
   boot.zfs.extraPools = [ "tank" ];
+
+  # /mnt/tank is intentionally NOT declared in fileSystems.  ZFS mounts each
+  # dataset from its own `mountpoint` property, so `nixos-rebuild` can never
+  # format, empty or re-create it.  Do not add a fileSystems entry here and
+  # never re-run install/install.sh against this disk: the installer now
+  # refuses to touch a disk that carries ZFS data (see install/README.md).
   boot.zfs.forceImportRoot = true;  # da es kein root-pool ist
   boot.zfs.forceImportAll = true;    # erzwingt Import aller Pools
   # ZFS services

@@ -30,6 +30,7 @@ DUAL_ORDER=""
 WINDOWS_ISO=""
 WINDOWS_TOOLCHAIN=""
 VM_ISO_TARGET="/var/lib/libvirt/images/Win11.iso"
+DESTROY_TANK=0
 
 HAS_WINDOWS=0
 WIN_ESP=""
@@ -77,6 +78,11 @@ Options:
                           Default: prompt (native if you press Enter).
                           Native installs wimlib, 7-Zip, xorriso, ntfs-3g,
                           chntpw, hivex and python3 on this machine.
+  --destroy-tank          DESTRUCTIVE. Allow partitioning a disk that already
+                          contains a ZFS pool. Without this flag the installer
+                          refuses to touch any disk with existing ZFS data, so
+                          an existing pool such as `tank` is never destroyed by
+                          accident.
   -h, --help              Show this help
 
 Examples:
@@ -157,6 +163,10 @@ parse_args() {
       --windows-toolchain)
         WINDOWS_TOOLCHAIN="${2:?--windows-toolchain needs a value}"
         shift 2
+        ;;
+      --destroy-tank)
+        DESTROY_TANK=1
+        shift
         ;;
       -h | --help)
         usage
@@ -325,6 +335,77 @@ validate_disk() {
   fi
 }
 
+# Refuse to wipe a disk that carries ZFS data.
+#
+# `tank` is a mirror on its own disks on a real machine, but the installer
+# creates a pool *named* `tank` on the target disk.  Both cases must be caught:
+# a `zfs_member` signature on the target disk, and any pool that is already
+# imported or importable.  `sgdisk --zap-all` erases pool labels without
+# asking, so this runs before every destructive step.
+assert_no_existing_zfs() {
+  if [ "$DESTROY_TANK" -eq 1 ]; then
+    warn "--destroy-tank given: existing ZFS pools on $DISK will be destroyed"
+    return 0
+  fi
+
+  local dev pool disk_devs members=() pools=()
+
+  # Exact set of devices on the target disk: the disk itself and partitions.
+  while read -r dev; do
+    if [ -n "$dev" ]; then
+      disk_devs+=("$dev")
+    fi
+  done < <(lsblk -lnpo NAME "$DISK" 2>/dev/null || true)
+
+  for dev in "${disk_devs[@]}"; do
+    if [ "$(blkid -p -o value -s TYPE "$dev" 2>/dev/null || true)" = "zfs_member" ]; then
+      members+=("$dev")
+    fi
+  done
+
+  # Same information via the signature database, in case lsblk misses a
+  # nested device.
+  while read -r dev; do
+    [ -n "$dev" ] || continue
+    for disk_dev in "${disk_devs[@]}"; do
+      if [ "$dev" = "$disk_dev" ]; then
+        members+=("$dev")
+      fi
+    done
+  done < <(blkid -p -t TYPE=zfs_member -o device 2>/dev/null || true)
+
+  if [ "${#members[@]}" -gt 0 ]; then
+    mapfile -t members < <(printf '%s\n' "${members[@]}" | sort -u)
+    die "refusing to partition $DISK: it carries ZFS data (${members[*]}).
+       Every dataset and share on that pool would be lost.
+       Use a different disk, or pass --destroy-tank if this data is
+       expendable (it cannot be undone)."
+  fi
+
+  # Imported pools.
+  while read -r pool; do
+    if [ -n "$pool" ]; then
+      pools+=("$pool")
+    fi
+  done < <(zpool list -H -o name 2>/dev/null || true)
+
+  # Exported pools are not mounted but are still importable.
+  while read -r pool; do
+    if [ -n "$pool" ]; then
+      pools+=("$pool")
+    fi
+  done < <(zpool import -n 2>/dev/null | awk -F': *' '/^[[:space:]]*pool:/ { print $2 }')
+
+  if [ "${#pools[@]}" -gt 0 ]; then
+    mapfile -t pools < <(printf '%s\n' "${pools[@]}" | sort -u)
+    die "refusing to install on $DISK: ZFS pool(s) already exist (${pools[*]}).
+       This installer creates a new pool named 'tank', which would collide
+       with an existing tank and could import the wrong data at boot.
+       Export/back up the existing pool first, or pass --destroy-tank if you
+       really intend to replace it (irreversible)."
+  fi
+}
+
 validate_sizes() {
   local esp_bytes root_bytes windows_bytes disk_bytes required
 
@@ -406,6 +487,8 @@ plan_existing_windows() {
 
 create_fresh_layout() {
   local include_windows="$1"
+
+  assert_no_existing_zfs
 
   log "Wiping and partitioning $DISK"
   sgdisk --zap-all "$DISK"
@@ -510,6 +593,12 @@ format_and_mount() {
     wipefs -a "$WINDOWS_PART" || true
   fi
 
+  # Refuse to wipe a partition that still carries a ZFS label unless the user
+  # explicitly opted into destroying the pool.
+  if [ "$DESTROY_TANK" -ne 1 ] \
+    && [ "$(blkid -p -o value -s TYPE "$NIXOS_ZFS" 2>/dev/null || true)" = "zfs_member" ]; then
+    die "$NIXOS_ZFS carries a ZFS label; refusing to overwrite it (see --destroy-tank)"
+  fi
   wipefs -a "$NIXOS_ZFS"
 
   mkdir -p /mnt
@@ -521,9 +610,12 @@ format_and_mount() {
   if zpool list -H -o name tank >/dev/null 2>&1; then
     die "ZFS pool 'tank' already exists; export or destroy it before installing"
   fi
+
+  # Never force-create over a signature.  Without -f, zpool refuses to use a
+  # device that still carries a pool or filesystem label.
   local zfs_dev
   zfs_dev="/dev/disk/by-partuuid/$(blkid -s PARTUUID -o value "$NIXOS_ZFS")"
-  zpool create -f \
+  zpool create \
     -o ashift=12 \
     -O compression=lz4 \
     -O atime=off \
@@ -775,6 +867,13 @@ main() {
   fi
 
   log "Windows ISO build toolchain: $WINDOWS_TOOLCHAIN"
+
+  # Fail early, including in dry runs, when the selected layout would wipe a
+  # disk that still holds ZFS data.  A windows-first dual boot only creates new
+  # partitions in free space, so it is allowed to see an existing pool.
+  if [ "$MODE" != "dual" ] || [ "$DUAL_ORDER" = "nixos-first" ]; then
+    assert_no_existing_zfs
+  fi
 
   if [ "$APPLY" -eq 0 ]; then
     cat <<EOF
