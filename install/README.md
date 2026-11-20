@@ -119,6 +119,13 @@ After Setup, eject the install ISO so later reboots go straight to Windows
 (virt-manager: *View → Details → SATA CDROM 1 → Disconnect*, or
 `virsh change-media windows11 TARGET --eject` after `virsh domblklist`).
 
+If the guest still stops in the TianoCore/OVMF screen instead of starting
+Setup, it is the firmware boot **manager**, not a failed boot: open
+*Boot Manager* and choose the CD-ROM entry for the Windows ISO. There are two
+CD-ROMs attached (Windows and virtio-win), so pick the Windows one. The
+explicit boot order above makes this unnecessary on a normal first start; it
+is the workaround for older firmware or a manually changed order.
+
 `virt-manager` is the console that is installed. `virt-viewer` is **not**
 part of the system profile; use it from an ephemeral shell when wanted:
 

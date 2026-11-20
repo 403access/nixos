@@ -341,9 +341,10 @@ virt-viewer is not installed; virt-manager is the full console.  For the
 lightweight viewer use: nix-shell -p virt-viewer --run 'virt-viewer --connect $connect $name'
 
 Boot order is Windows ISO (1), disk (2), virtio-win CD (3), so Setup starts
-without picking a device in the firmware menu.  After Windows is installed,
-eject the install ISO in virt-manager (View -> Details -> SATA CDROM 1 ->
-Disconnect), or with:
+without picking a device in the firmware menu.  If the guest stops in the
+TianoCore/OVMF boot manager anyway, choose the CD-ROM entry for the Windows
+ISO, not the virtio-win one.  After Windows is installed, eject the install
+ISO in virt-manager (View -> Details -> SATA CDROM 1 -> Disconnect), or with:
   virsh --connect $connect domblklist $name
   virsh --connect $connect change-media $name TARGET --eject
 
