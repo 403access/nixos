@@ -20,7 +20,7 @@ param(
     [ValidateSet('None', 'Lean', 'Aggressive')]
     [string]$Apps = 'None',
 
-    [ValidateSet('None', 'Lean', 'Aggressive')]
+    [ValidateSet('None', 'Lean', 'Balanced', 'Aggressive')]
     [string]$Services = 'None',
 
     [switch]$RestoreOneDrive,
@@ -102,7 +102,22 @@ $leanServices = @(
     [pscustomobject]@{ Name = 'WpcMonSvc'; Type = 'Manual'; Label = 'Parental Controls' }
 )
 
-$aggressiveServices = $leanServices + @(
+$balancedServices = @(
+    [pscustomobject]@{ Name = 'DiagTrack'; Type = 'Disabled'; Label = 'Connected User Experiences and Telemetry' },
+    [pscustomobject]@{ Name = 'dmwappushservice'; Type = 'Disabled'; Label = 'Device Management WAP Push' },
+    [pscustomobject]@{ Name = 'RetailDemo'; Type = 'Disabled'; Label = 'Retail Demo' },
+    [pscustomobject]@{ Name = 'Fax'; Type = 'Disabled'; Label = 'Fax' },
+    [pscustomobject]@{ Name = 'RemoteRegistry'; Type = 'Disabled'; Label = 'Remote Registry' },
+    [pscustomobject]@{ Name = 'MapsBroker'; Type = 'Disabled'; Label = 'Downloaded Maps Manager' },
+    [pscustomobject]@{ Name = 'WMPNetworkSvc'; Type = 'Disabled'; Label = 'Windows Media Player sharing' },
+    [pscustomobject]@{ Name = 'WalletService'; Type = 'Disabled'; Label = 'Wallet Service' },
+    [pscustomobject]@{ Name = 'PhoneSvc'; Type = 'Manual'; Label = 'Phone Service' },
+    [pscustomobject]@{ Name = 'PcaSvc'; Type = 'Manual'; Label = 'Program Compatibility Assistant' },
+    [pscustomobject]@{ Name = 'WpcMonSvc'; Type = 'Manual'; Label = 'Parental Controls' }
+)
+
+$aggressiveServices = @(
+    $leanServices + $balancedServices + @(
     [pscustomobject]@{ Name = 'WSearch'; Type = 'Disabled'; Label = 'Windows Search' },
     [pscustomobject]@{ Name = 'SysMain'; Type = 'Disabled'; Label = 'SysMain' },
     [pscustomobject]@{ Name = 'bthserv'; Type = 'Disabled'; Label = 'Bluetooth Support' },
@@ -151,7 +166,8 @@ $aggressiveServices = $leanServices + @(
     [pscustomobject]@{ Name = 'GamingServices'; Type = 'Disabled'; Label = 'Gaming Services' },
     [pscustomobject]@{ Name = 'GamingServicesNet'; Type = 'Disabled'; Label = 'Gaming Services Network' },
     [pscustomobject]@{ Name = 'CloudBackupRestoreSvc'; Type = 'Disabled'; Label = 'Cloud Backup and Restore' }
-)
+    )
+) | Sort-Object Name -Unique
 
 function Test-Admin {
     try {
@@ -568,7 +584,7 @@ function Show-StockStatus {
     }
 
     Write-Host 'Stock services' -ForegroundColor Cyan
-    $allServices = @($leanServices + $aggressiveServices | Sort-Object Name -Unique)
+    $allServices = @($leanServices + $balancedServices + $aggressiveServices | Sort-Object Name -Unique)
     $allServices |
         Select-Object Name, Label, @{n='State';e={Get-ServiceState -Name $_.Name}} |
         Format-Table -AutoSize
@@ -634,6 +650,7 @@ if ($OneDrive -ne 'None' -or $Apps -ne 'None' -or $Services -ne 'None') {
     if ($Apps -eq 'Lean') { Remove-StockApps -Patterns $leanApps }
     if ($Apps -eq 'Aggressive') { Remove-StockApps -Patterns $aggressiveApps }
     if ($Services -eq 'Lean') { Disable-StockServices -Entries $leanServices }
+    if ($Services -eq 'Balanced') { Disable-StockServices -Entries $balancedServices }
     if ($Services -eq 'Aggressive') { Disable-StockServices -Entries $aggressiveServices }
     return
 }

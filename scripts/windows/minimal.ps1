@@ -11,9 +11,17 @@
 
 [CmdletBinding()]
 param(
+    [ValidateSet('custom', 'developer', 'power', 'regular')]
+    [string]$Mode = 'custom',
+    [ValidateSet('None', 'Lean', 'Aggressive')]
+    [string]$StockApps = 'Lean',
+    [ValidateSet('None', 'Lean', 'Balanced', 'Aggressive')]
+    [string]$StockServices = 'Lean',
+    [switch]$EnableSsh,
     [switch]$SkipCleanup,
     [switch]$SkipGaming,
     [switch]$SkipStockApps,
+    [switch]$SkipServices,
     [switch]$IncludeSearch,
     [switch]$IncludeSysMain,
     [switch]$ComponentCleanup,
@@ -21,6 +29,28 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+
+switch ($Mode) {
+    'developer' {
+        $StockApps = 'Lean'
+        $StockServices = 'Aggressive'
+        $IncludeSearch = $true
+        $IncludeSysMain = $true
+        $EnableSsh = $true
+    }
+    'power' {
+        $StockApps = 'Lean'
+        $StockServices = 'Balanced'
+        $SkipGaming = $true
+        $SkipServices = $true
+    }
+    'regular' {
+        $StockApps = 'None'
+        $StockServices = 'None'
+        $SkipGaming = $true
+        $SkipServices = $true
+    }
+}
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($identity)
@@ -41,6 +71,10 @@ try {
     Start-Transcript -Path $log -Append -Force | Out-Null
 } catch {
     Write-Warning "Could not start transcript: $($_.Exception.Message)"
+}
+
+if ($Mode -ne 'custom') {
+    Write-Host ("Profile: {0}" -f $Mode) -ForegroundColor Cyan
 }
 
 function Invoke-Step {
@@ -69,6 +103,9 @@ function Invoke-Step {
 }
 
 $total = 9
+if ($EnableSsh) {
+    $total = 10
+}
 
 Invoke-Step -Number 1 -Total $total -Label 'Visual effects' -Script 'disable-visuals.ps1'
 Invoke-Step -Number 2 -Total $total -Label 'AI, search and suggestions' -Script 'disable-ai.ps1'
@@ -78,33 +115,42 @@ Invoke-Step -Number 4 -Total $total -Label 'Scheduled tasks' -Script 'disable-sc
 $serviceArgs = @{}
 if ($IncludeSearch) { $serviceArgs['IncludeSearch'] = $true }
 if ($IncludeSysMain) { $serviceArgs['IncludeSysMain'] = $true }
-Invoke-Step -Number 5 -Total $total -Label 'Services' -Script 'optimize-services.ps1' -Arguments $serviceArgs
+if ($SkipServices) {
+    Write-Host ''
+    Write-Host "===== [5/$total] Services skipped (-SkipServices) ====="
+} else {
+    Invoke-Step -Number 5 -Total $total -Label 'Services' -Script 'optimize-services.ps1' -Arguments $serviceArgs
+}
 
 Invoke-Step -Number 6 -Total $total -Label 'Startup apps' -Script 'trim-autostart.ps1'
 
 if ($SkipStockApps) {
     Write-Host ''
-    Write-Host '===== [7/9] Stock apps and OneDrive skipped (-SkipStockApps) ====='
+    Write-Host "===== [7/$total] Stock apps and OneDrive skipped (-SkipStockApps) ====="
 } else {
     Invoke-Step -Number 7 -Total $total -Label 'Stock apps and OneDrive' -Script 'trim-stock.ps1' `
-        -Arguments @{ OneDrive = 'Disable'; Apps = 'Lean'; Services = 'Lean' }
+        -Arguments @{ OneDrive = 'Disable'; Apps = $StockApps; Services = $StockServices }
 }
 
 if ($SkipGaming) {
     Write-Host ''
-    Write-Host '===== [8/9] Gaming features skipped (-SkipGaming) ====='
+    Write-Host "===== [8/$total] Gaming features skipped (-SkipGaming) ====="
 } else {
     Invoke-Step -Number 8 -Total $total -Label 'Gaming features' -Script 'disable-gaming.ps1'
 }
 
 if ($SkipCleanup) {
     Write-Host ''
-    Write-Host '===== [9/9] Cleanup skipped (-SkipCleanup) ====='
+    Write-Host "===== [9/$total] Cleanup skipped (-SkipCleanup) ====="
 } else {
     $cleanupArgs = @{}
     if ($ComponentCleanup) { $cleanupArgs['ComponentCleanup'] = $true }
     if ($ResetBase) { $cleanupArgs['ResetBase'] = $true }
     Invoke-Step -Number 9 -Total $total -Label 'Cleanup' -Script 'cleanup.ps1' -Arguments $cleanupArgs
+}
+
+if ($EnableSsh) {
+    Invoke-Step -Number 10 -Total $total -Label 'SSH server' -Script 'enable-ssh.ps1'
 }
 
 Write-Host ''
