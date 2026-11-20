@@ -45,6 +45,11 @@ Set-ServiceState -Name Fax           -Label 'Fax'                               
 Set-ServiceState -Name RemoteRegistry -Label 'Remote Registry'                  -StartupType Disabled
 Set-ServiceState -Name RetailDemo    -Label 'Retail Demo'                       -StartupType Disabled
 Set-ServiceState -Name WMPNetworkSvc -Label 'Windows Media Player sharing'      -StartupType Disabled
+Set-ServiceState -Name Spooler       -Label 'Print Spooler'                     -StartupType Disabled
+Set-ServiceState -Name PrintWorkflowUserSvc -Label 'Print Workflow'             -StartupType Disabled
+Set-ServiceState -Name PrintScanBrokerService -Label 'Print Scan Broker'        -StartupType Disabled
+Set-ServiceState -Name PrintDeviceConfigurationService -Label 'Print Device Config' -StartupType Disabled
+Set-ServiceState -Name PrintNotify   -Label 'Print Notification'                -StartupType Disabled
 
 Write-Host 'Switching occasional services to manual ...'
 Set-ServiceState -Name PcaSvc    -Label 'Program Compatibility Assistant' -StartupType Manual
@@ -62,7 +67,8 @@ if ($IncludeSysMain) {
 }
 
 Write-Host ''
-Write-Host 'Kept enabled: Defender, Windows Update, BITS, Event Log, RPC, audio, print spooler.'
+Write-Host 'Kept enabled: Defender, Windows Update, BITS, Event Log, RPC, audio.'
+Write-Host 'Printing is disabled with the Print Spooler; re-enable Spooler if needed.'
 if (-not $IncludeSearch) {
     Write-Host 'Search indexing still runs; use -IncludeSearch to disable it.'
 }
