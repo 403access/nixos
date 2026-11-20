@@ -1,0 +1,37 @@
+{
+  "apps": [
+    {
+      "id": "everything",
+      "name": "Everything",
+      "version": "1.4.1.1028",
+      "description": "Instant file and folder search by voidtools.",
+      "file": "Everything-1.4.1.1028.x64-Setup.exe",
+      "url": "https://www.voidtools.com/Everything-1.4.1.1028.x64-Setup.exe",
+      "sha256": "874e87dc9de6e99bcbf46400bf7eced0deda402fc79dd13e0cafabf2277c8149",
+      "silentArgs": "/S",
+      "detectPath": "C:\\Program Files\\Everything\\Everything.exe"
+    },
+    {
+      "id": "7zip",
+      "name": "7-Zip",
+      "version": "24.09",
+      "description": "Archive manager for zip, 7z, rar and more.",
+      "file": "7z2409-x64.exe",
+      "url": "https://www.7-zip.org/a/7z2409-x64.exe",
+      "sha256": "bdd1a33de78618d16ee4ce148b849932c05d0015491c34887846d431d29f308e",
+      "silentArgs": "/S",
+      "detectPath": "C:\\Program Files\\7-Zip\\7zFM.exe"
+    },
+    {
+      "id": "notepadpp",
+      "name": "Notepad++",
+      "version": "8.9.9.1",
+      "description": "Lightweight text and code editor.",
+      "file": "npp.8.9.9.1.Installer.x64.exe",
+      "url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.9.1/npp.8.9.9.1.Installer.x64.exe",
+      "sha256": "ce3267f5c4e7e42f847e00f4b20234da6150647203033cdde34a69593efc3152",
+      "silentArgs": "/S",
+      "detectPath": "C:\\Program Files\\Notepad++\\notepad++.exe"
+    }
+  ]
+}

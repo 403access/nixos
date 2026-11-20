@@ -35,6 +35,9 @@ windows/out/
 windows/themes/downloads/*
 !windows/themes/downloads/.gitkeep
 
+# Third-party Windows app installers (fetched locally, not committed)
+scripts/windows/apps/
+
 # Python bytecode from the unattend renderer
 __pycache__/
 *.pyc
