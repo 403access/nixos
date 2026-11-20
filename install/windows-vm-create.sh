@@ -245,13 +245,17 @@ ovmf_code="$ovmf_dir/OVMF_CODE.fd"
 ovmf_vars="$ovmf_dir/OVMF_VARS.fd"
 loader_secure="no"
 if [ "$secure_boot" -eq 1 ]; then
+  # OVMFFull builds its plain OVMF_CODE.fd with SECURE_BOOT_ENABLE, and the
+  # .ms name is only a symlink to it.  Some builds ship the symlink dangling,
+  # so prefer it when it resolves and fall back to the plain CODE otherwise.
   ovmf_code="$ovmf_dir/OVMF_CODE.ms.fd"
+  [ -r "$ovmf_code" ] || ovmf_code="$ovmf_dir/OVMF_CODE.fd"
   ovmf_vars="$ovmf_dir/OVMF_VARS.ms.fd"
   loader_secure="yes"
 fi
 
 [ -r "$ovmf_code" ] && [ -r "$ovmf_vars" ] \
-  || die "OVMF firmware not found in $ovmf_dir (Secure Boot needs OVMF_CODE.ms.fd); install an OVMF with Microsoft keys, for example pkgs.OVMFFull.fd"
+  || die "OVMF firmware not found in $ovmf_dir (Secure Boot needs OVMF_VARS.ms.fd); install an OVMF with Microsoft keys, for example pkgs.OVMFFull.fd"
 
 boot_args="loader=$ovmf_code,loader.readonly=yes,loader.type=pflash,nvram.template=$ovmf_vars,loader_secure=$loader_secure"
 
