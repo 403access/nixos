@@ -426,6 +426,7 @@ function Show-MainMenu {
     Write-MenuItem '9' 'Install apps' 'Everything, 7-Zip, Notepad++ from the CD'
     Write-MenuItem '10' 'Startup apps (autostart)' 'list, disable, remove or restore startup entries'
     Write-MenuItem '11' 'Stock apps & OneDrive' 'disable/uninstall OneDrive, remove stock apps, disable services'
+    Write-MenuItem '12' 'SSH server (terminal access)' 'enable/disable OpenSSH, install a key, show commands'
     Write-Host ''
     Write-MenuItem '0' 'Exit'
     Write-Host ''
@@ -886,6 +887,65 @@ function Show-AutostartMenu {
     }
 }
 
+function Show-SshMenu {
+    while ($true) {
+        Show-Header
+        Write-Host ' SSH server (terminal access)' -ForegroundColor Cyan
+        Write-Host ('-' * 64)
+        Write-MenuItem '1' 'Enable SSH server' 'installs OpenSSH.Server, starts sshd, opens TCP 22'
+        Write-MenuItem '2' 'Disable SSH server' 'stops sshd and disables the firewall rule'
+        Write-MenuItem '3' 'Show SSH status and connection command'
+        Write-MenuItem '4' 'Install an SSH public key' 'enables SSH and installs the key for passwordless login'
+        Write-MenuItem '5' 'Uninstall OpenSSH Server' 'removes the capability; keys and config stay'
+        Write-Host ''
+        Write-MenuItem '0' 'Back'
+
+        $choice = Read-MenuChoice 'ssh'
+        if ($null -eq $choice) { return }
+        if ($choice -eq '') { continue }
+
+        switch ($choice) {
+            '1' {
+                if (Confirm-Action 'Install and enable OpenSSH Server on port 22') {
+                    Invoke-Helper -Script 'enable-ssh.ps1' -Label 'Enable SSH server'
+                    Pause-Menu
+                }
+            }
+            '2' {
+                if (Confirm-Action 'Stop sshd and disable the SSH firewall rule') {
+                    Invoke-Helper -Script 'enable-ssh.ps1' -Label 'Disable SSH server' -Arguments @{ Disable = $true }
+                    Pause-Menu
+                }
+            }
+            '3' {
+                Invoke-Helper -Script 'enable-ssh.ps1' -Label 'SSH status' -Arguments @{ Status = $true }
+                Pause-Menu
+            }
+            '4' {
+                $keyPath = Read-Host 'Path to the public key (for example C:\Tools\id_ed25519.pub)'
+                if (-not [string]::IsNullOrWhiteSpace($keyPath)) {
+                    if (Confirm-Action ("Install {0} and enable SSH" -f $keyPath.Trim())) {
+                        Invoke-Helper -Script 'enable-ssh.ps1' -Label 'Enable SSH with public key' `
+                            -Arguments @{ PublicKeyPath = $keyPath.Trim() }
+                        Pause-Menu
+                    }
+                }
+            }
+            '5' {
+                if (Confirm-Action 'Remove the OpenSSH Server capability? Keys and sshd_config stay') {
+                    Invoke-Helper -Script 'enable-ssh.ps1' -Label 'Uninstall OpenSSH Server' -Arguments @{ Uninstall = $true }
+                    Pause-Menu
+                }
+            }
+            '0' { return }
+            default {
+                Write-Host 'Unknown choice.' -ForegroundColor Yellow
+                Start-Sleep -Milliseconds 700
+            }
+        }
+    }
+}
+
 $isAdmin = Test-Admin
 Write-Log ('start user={0} admin={1} path={2}' -f $env:USERNAME, $isAdmin, $scriptRoot)
 
@@ -935,6 +995,7 @@ while ($running) {
             Invoke-Helper -Script 'trim-stock.ps1' -Label 'Stock apps, OneDrive and services'
             Pause-Menu
         }
+        '12' { Show-SshMenu }
         '0' {
             $running = $false
         }
