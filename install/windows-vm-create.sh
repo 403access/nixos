@@ -236,15 +236,24 @@ else
   net_model="e1000e"
 fi
 
-boot_args="uefi"
+# NixOS exposes OVMF through /run/libvirt/nix-ovmf (see the libvirtd module's
+# qemu.conf nvram pairs).  Firmware autoselection needs descriptor JSONs that
+# NixOS does not install, so point libvirt at the explicit pflash files.  The
+# .ms variants carry the Microsoft keys and are the Secure Boot pair.
+ovmf_dir="/run/libvirt/nix-ovmf"
+ovmf_code="$ovmf_dir/OVMF_CODE.fd"
+ovmf_vars="$ovmf_dir/OVMF_VARS.fd"
+loader_secure="no"
 if [ "$secure_boot" -eq 1 ]; then
-  # virt-install >= 4 uses firmware features, not the old "secure=on".
-  boot_args="uefi"
-  boot_args+=",firmware.feature0.name=secure-boot"
-  boot_args+=",firmware.feature0.enabled=yes"
-  boot_args+=",firmware.feature1.name=enrolled-keys"
-  boot_args+=",firmware.feature1.enabled=yes"
+  ovmf_code="$ovmf_dir/OVMF_CODE.ms.fd"
+  ovmf_vars="$ovmf_dir/OVMF_VARS.ms.fd"
+  loader_secure="yes"
 fi
+
+[ -r "$ovmf_code" ] && [ -r "$ovmf_vars" ] \
+  || die "OVMF firmware not found in $ovmf_dir (Secure Boot needs OVMF_CODE.ms.fd); enable virtualisation.libvirtd.qemu.ovmf"
+
+boot_args="loader=$ovmf_code,loader.readonly=yes,loader.type=pflash,nvram.template=$ovmf_vars,loader_secure=$loader_secure"
 
 # VirtIO + host-passthrough + Hyper-V enlightenments.  These are what make a
 # Windows guest feel local: paravirtualised timer/IPI/TLB, no CPU emulation,
