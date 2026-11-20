@@ -88,5 +88,17 @@ in
     systemd.tmpfiles.rules = [
       "d ${cfg.workspaceRoot} 0750 ${cfg.user} users -"
     ];
+
+    # krunvm shells out to buildah, which on Linux looks for its signature
+    # policy and registries in /etc/containers.  NixOS does not create those
+    # files, so image pulls fail with "no policy.json file found".
+    environment.etc."containers/policy.json".text = ''
+      {
+        "default": [ { "type": "insecureAcceptAnything" } ]
+      }
+    '';
+    environment.etc."containers/registries.conf".text = ''
+      unqualified-search-registries = ["docker.io"]
+    '';
   };
 }
