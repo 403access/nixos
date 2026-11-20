@@ -520,6 +520,10 @@ function Disable-StockServices {
             if ($entry.Type -eq 'Disabled') {
                 Stop-Service -Name $entry.Name -Force -ErrorAction SilentlyContinue
             }
+            if ($entry.Name -eq 'WSearch') {
+                Get-Process -Name SearchHost, SearchIndexer, SearchProtocolHost, SearchFilterHost -ErrorAction SilentlyContinue |
+                    Stop-Process -Force -ErrorAction SilentlyContinue
+            }
             if ($didChange) {
                 $changed++
             }

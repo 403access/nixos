@@ -25,6 +25,11 @@ function Test-AccessDenied {
     return [bool]($ErrorRecord.Exception.Message -match 'Zugriff verweigert|Access is denied|Access denied|0x5')
 }
 
+function Stop-SearchProcesses {
+    Get-Process -Name SearchHost, SearchIndexer, SearchProtocolHost, SearchFilterHost -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+}
+
 function Set-ServiceState {
     param(
         [string]$Name,
@@ -75,6 +80,7 @@ Set-ServiceState -Name PhoneSvc  -Label 'Phone Service (Phone Link)'     -Startu
 if ($IncludeSearch) {
     Write-Host 'Disabling Windows Search indexing ...'
     Set-ServiceState -Name WSearch -Label 'Windows Search' -StartupType Disabled
+    Stop-SearchProcesses
 }
 
 if ($IncludeSysMain) {
