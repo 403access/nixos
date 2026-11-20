@@ -79,10 +79,12 @@ It shuts the guest down gracefully, sets `maxMemory` and `currentMemory` to
 8 GiB, restarts it, and prints the result.  Use 8 GiB for RDP/Office/browser
 work; 12 GiB is only useful for heavy local applications.
 
-Guest-side trims are optional and modest (`trim-memory.bat` on the helper CD):
-OneDrive startup, Widgets, Recall and background apps are disabled; the
-aggressive variant also disables Search indexing and SysMain.  Defender,
-Windows Update and VBS stay enabled.
+Guest-side trims are optional and modest.  `trim-memory.bat` on the helper CD
+removes OneDrive startup, Widgets, Recall and background apps; the aggressive
+variant also disables Search indexing and SysMain.  For a full slim desktop,
+run `minimal.bat` instead: it adds best-performance visuals, AI/web-search
+removal, telemetry and background-task reduction, service trimming, Game DVR
+shutdown and cache cleanup.  Defender, Windows Update and VBS stay enabled.
 
 ## Automatic logon
 
@@ -161,7 +163,8 @@ and the host does not have it.  The host copy lives under
 `~/Desktop/nixos/scripts/windows`, not `/etc/nixos`.
 
 The SPICE console plus a German keymap makes typing long commands painful.
-Put the commands on a helper CD and double-click a batch file.
+Put the commands on a helper CD and double-click `helper.bat` for the menu, or
+an individual launcher for one action.
 
 ### 1. Build the helper CD on the host
 

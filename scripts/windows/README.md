@@ -7,14 +7,127 @@ matter.
 
 | File | Purpose |
 | --- | --- |
+| `helper.bat` | Interactive menu for every action below; start here |
+| `install-apps.bat` | Installs Everything, 7-Zip and Notepad++ from the CD's offline cache |
 | `enable-rdp.bat` | Starts `TermService`, enables RDP, recreates the TCP 3389 rule, sets the network profile to Private |
-| `restore-point.bat` | Enables System Restore and creates the `Before debloat` checkpoint |
+| `disable-rdp.bat` | Disables RDP and removes the explicit `RDP 3389` firewall rule |
+| `create-restore-point.bat` | Enables System Restore and creates the `Before debloat` checkpoint (no rollback) |
 | `debloat.bat` | Runs `windows/scripts/SetupComplete.ps1 -ProfileName lean` |
 | `enable-autologon.bat` | Prompts for the account password and enables automatic logon |
 | `disable-autologon.bat` | Removes automatic logon and the stored password |
 | `trim-memory.bat` | Removes OneDrive startup, disables Widgets/Recall/background apps |
 | `trim-memory-aggressive.bat` | Same, plus disables Search indexing and SysMain |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
+| `apply-explorer-preferences.bat` | Shows hidden files, shows all extensions, opens This PC; optional protected files |
+| `disable-visuals.bat` | Best-performance visuals: no animations, transparency, shadows, Aero Peek; per user |
+| `disable-ai.bat` | Copilot, Recall, Click to Do, Widgets, taskbar Chat, web search, Start recommendations |
+| `disable-telemetry.bat` | Minimum diagnostic data, no feedback prompts, activity history or advertising ID |
+| `disable-scheduled-tasks.bat` | Disables telemetry, compatibility, disk-diagnostic, Maps and tips tasks |
+| `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing; PcaSvc, WpcMonSvc, PhoneSvc to manual |
+| `disable-gaming.bat` | Game DVR, Game Bar, Game Mode and Xbox services (breaks the Xbox app) |
+| `cleanup.bat` | Temp, Delivery Optimization, thumbnails, WER and CBS logs; optional DISM/WU cache flags |
+| `minimal.bat` | Runs the slim scripts above in order and writes a transcript |
+
+## Main menu
+
+`helper.bat` is the entry point. The main menu puts the common actions first:
+
+1. **Create a restore point** — enables System Restore and checkpoints immediately
+2. **System dashboard** — Windows build, memory, disk, restore points, tweak state, network
+3. **Slim profile** — full run plus `-SkipGaming`, `-SkipCleanup` and Search/SysMain variants
+4. **Performance & privacy** — visuals, AI, telemetry, tasks, services, gaming, memory, tune, debloat
+5. **Cleanup & storage** — quick cleanup, dry run, Windows Update cache, DISM, Disk Cleanup
+6. **Network & access** — enable/disable RDP, autologon, IP and listener info
+7. **Tools & settings** — install to `C:\Tools\windows-helper`, logs, README, Settings, restart Explorer/Windows
+8. **Apply my Explorer preferences** — hidden files, all extensions, open This PC
+9. **Install apps** — Everything, 7-Zip and Notepad++ from the offline cache
+
+### Explorer preferences
+
+Main menu 8 writes the current user's `Explorer\Advanced` values:
+
+- `Hidden = 1` — show hidden files and folders
+- `HideFileExt = 0` — show every file extension, including unknown types
+- `LaunchTo = 1` — open File Explorer in This PC instead of Home
+
+Protected operating system files stay hidden by default; the menu asks before
+enabling `ShowSuperHidden`. It can restart Explorer immediately. These are
+per-user settings, so run it once per account.
+
+`Tools > Install helper to C:\Tools\windows-helper` copies every script and
+adds a desktop shortcut, so the CD is only needed once. All menu actions are
+logged to `%ProgramData%\WindowsSlim\windows-helper-menu.log`.
+
+## Apps
+
+Main menu 9, or `install-apps.bat`, installs from the CD:
+
+| App | Version | Notes |
+| --- | --- | --- |
+| Everything | 1.4.1.1028 | Instant file and folder search |
+| 7-Zip | 24.09 | Archive manager |
+| Notepad++ | 8.9.9.1 | Text and code editor |
+
+Installers live in `scripts/windows/apps/` and are intentionally ignored by
+git (size and licensing). `apps.json` pins the file name, official URL,
+SHA-256 and silent arguments. The CD build copies both the manifest and the
+installers, so installation works offline.
+
+To refresh the cache on the host or Mac:
+
+```bash
+cd scripts/windows
+./fetch-apps.sh
+```
+
+PowerShell options:
+
+```powershell
+.\install-apps.ps1 -List
+.\install-apps.ps1 -Verify
+.\install-apps.ps1 -App everything,7zip
+.\install-apps.ps1 -All
+.\install-apps.ps1 -App everything -Download   # official URL fallback
+.\install-apps.ps1 -App everything -Force      # reinstall
+```
+
+Every installer hash is verified before it runs. `Tools > Install helper to
+C:\Tools` copies `apps/` too, so the installed helper keeps working without
+the CD. To add an app, add an entry to `apps.json` and drop its installer into
+`apps/`.
+
+## Minimal profile
+
+`minimal.bat` is the one-click combined run (main menu 3 → 1). It elevates
+once and executes visuals, AI/suggestions, telemetry, scheduled tasks,
+services, gaming and cleanup. Create a restore point first (main menu 1 or
+`create-restore-point.bat`), then reboot when it finishes. To roll back later,
+run `rstrui.exe` and pick the `Before debloat` checkpoint; the batch file never
+restores anything itself.
+
+Two details matter:
+
+- `disable-visuals.ps1` writes `HKCU`, so sign in to each account and run it
+  again for that profile. The other scripts are machine-wide.
+- The gaming script disables the Xbox services. Steam and standalone games
+  are unaffected; the Xbox app and Game Pass are not. Call
+  `minimal.ps1 -SkipGaming` when you need those.
+
+For the optional behaviour, call the PowerShell file directly from an
+elevated prompt:
+
+```powershell
+.\minimal.ps1 -IncludeSearch -IncludeSysMain -ComponentCleanup
+.\minimal.ps1 -SkipCleanup
+.\minimal.ps1 -SkipGaming
+.\cleanup.ps1 -DryRun
+.\cleanup.ps1 -WindowsUpdateCache -ComponentCleanup -ResetBase
+```
+
+`-ResetBase` makes installed updates non-removable, so leave it out unless you
+need the space and accept that trade-off. The full log is written to
+`%ProgramData%\WindowsSlim\windows-minimal.log`; the menu writes
+`%ProgramData%\WindowsSlim\windows-helper-menu.log`.
 
 ## Build and insert the CD
 
@@ -34,14 +147,16 @@ On the **NixOS host**:
 ```bash
 cd ~/Desktop/nixos/scripts/windows
 ls                                        # the .bat/.ps1 files must be there
+./fetch-apps.sh                           # only if apps/ is empty
 ./make-helper-iso.sh /tmp/windows-helper.iso
 
 sudo virsh change-media win11-stock sdb --eject --live
 sudo virsh change-media win11-stock sdb /tmp/windows-helper.iso --insert --live
 ```
 
-`make-helper-iso.sh` also copies `windows/scripts/SetupComplete.ps1` into the
-CD, so the debloat action is always available.
+`make-helper-iso.sh` also copies `windows/scripts/SetupComplete.ps1`,
+`apps.json` and the `apps/` installers into the CD, so the debloat and app
+installation actions are always available.
 
 `trim-memory.bat` only reduces what Windows itself keeps resident. The host
 still holds the full VM allocation; use `scripts/vm-memory.sh` for that.  If `insert` reports
@@ -55,5 +170,6 @@ domain is open, and `xorriso` cannot overwrite it. `enable-rdp.bat` and the
 others need CRLF line endings; the repository enforces that through
 `.gitattributes`.
 
-In Windows: File Explorer → the CD → F5 → double-click the launcher → **Ja**
-on UAC.
+In Windows: File Explorer → the CD → F5 → double-click `helper.bat` → **Ja**
+on UAC → choose an action. The individual `.bat` launchers still work if you
+prefer one action at a time.
