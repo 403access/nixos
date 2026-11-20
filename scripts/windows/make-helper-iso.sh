@@ -11,6 +11,15 @@ trap 'rm -rf "$stage"' EXIT
 
 cp "$here"/*.ps1 "$here"/*.bat "$stage/"
 cp "$repo/windows/scripts/SetupComplete.ps1" "$stage/"
+if [ -f "$here/README.md" ]; then
+  cp "$here/README.md" "$stage/"
+fi
+if [ -f "$here/apps.json" ]; then
+  cp "$here/apps.json" "$stage/"
+fi
+if [ -d "$here/apps" ]; then
+  cp -R "$here/apps" "$stage/apps"
+fi
 
 xorriso -as mkisofs -o "$out" -J -R "$stage"
 printf 'wrote %s\n' "$out"
