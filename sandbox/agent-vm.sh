@@ -216,6 +216,17 @@ if [ "${#port_args[@]}" -gt 0 ] && [ "$offline" -eq 1 ]; then
   die "--port needs --online (published ports imply guest networking)"
 fi
 
+# libkrun serializes the command into the guest kernel command line, which
+# cannot carry newlines or tabs.  Fail clearly instead of letting libkrun
+# panic with "InvalidAscii".
+for arg in "${command_args[@]}"; do
+  case "$arg" in
+    *$'\n'* | *$'\t'*)
+      die "command arguments cannot contain newlines or tabs; use a script in the workspace"
+      ;;
+  esac
+done
+
 env_args=()
 for entry in "${envs[@]}"; do
   case "$entry" in
