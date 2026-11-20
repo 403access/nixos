@@ -276,6 +276,41 @@ sudo virsh net-update default add ip-dhcp-host \
 After a guest reboot the tunnel becomes
 `ssh -N -L 13389:192.168.122.50:3389 nixos@192.168.178.5`.
 
+## SSH (terminal only)
+
+The guest does not enable OpenSSH by default. Run the helper CD once and choose
+**12 → 1** (`enable-ssh.bat`). It installs `OpenSSH.Server`, starts `sshd`,
+opens TCP 22 and sets PowerShell as the default shell.
+
+From the repo root on the Mac, use a jump through the host:
+
+```bash
+./scripts/win-ssh.sh
+# equivalent:
+ssh -J nixos@192.168.178.5 Windows-PC@192.168.122.50
+```
+
+The default guest address is the reserved lease `192.168.122.50`. If DHCP moved
+it, check `sudo virsh domifaddr win11-stock --source lease` on the host and
+override it:
+
+```bash
+WINDOWS_SSH=Windows-PC@192.168.122.60 ./scripts/win-ssh.sh
+```
+
+Password login uses the Windows account password. For key login, copy the
+public key somewhere the guest can read (for example `C:\Tools\id_ed25519.pub`),
+then use helper menu **12 → 4**. To disable password authentication afterwards,
+run:
+
+```powershell
+.\enable-ssh.ps1 -PublicKeyPath C:\Tools\id_ed25519.pub -DisablePasswordAuthentication
+```
+
+`disable-ssh.bat` stops the service and disables the firewall rule; menu 12 → 5
+removes the capability. SSH is only reachable through the host jump, not from
+the LAN directly.
+
 ## Troubleshooting
 
 | Symptom | Cause / fix |

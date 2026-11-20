@@ -11,6 +11,8 @@ matter.
 | `install-apps.bat` | Installs Everything, 7-Zip and Notepad++ from the CD's offline cache |
 | `enable-rdp.bat` | Starts `TermService`, enables RDP, recreates the TCP 3389 rule, sets the network profile to Private |
 | `disable-rdp.bat` | Disables RDP and removes the explicit `RDP 3389` firewall rule |
+| `enable-ssh.bat` | Installs OpenSSH Server, starts `sshd`, opens TCP 22, sets PowerShell as the shell |
+| `disable-ssh.bat` | Stops `sshd` and disables the SSH firewall rule |
 | `create-restore-point.bat` | Enables System Restore and creates the `Before debloat` checkpoint (no rollback) |
 | `debloat.bat` | Runs `windows/scripts/SetupComplete.ps1 -ProfileName lean` |
 | `enable-autologon.bat` | Prompts for the account password and enables automatic logon |
@@ -45,6 +47,7 @@ matter.
 9. **Install apps** — Everything, 7-Zip and Notepad++ from the offline cache
 10. **Startup apps (autostart)** — list, disable, remove or restore startup entries
 11. **Stock apps & OneDrive** — disable/uninstall OneDrive, remove stock apps, disable services
+12. **SSH server (terminal access)** — enable/disable OpenSSH, install a key, show commands
 
 ### Explorer preferences
 
@@ -162,6 +165,32 @@ is not reversible from the script, but OneDrive can be downloaded again.
 App removal uses the supported AppX cmdlets and cannot be undone by the helper;
 reinstall removed apps from the Store or the Windows image. `minimal.ps1`
 applies the recommended combination as step 7 and accepts `-SkipStockApps`.
+
+## SSH
+
+Main menu 12, or `enable-ssh.bat`, installs the Windows OpenSSH Server
+capability, starts `sshd`, opens TCP 22 and sets PowerShell as the default
+shell. Password authentication stays enabled; pass `-PublicKeyPath` to install
+an authorized key, then optionally `-DisablePasswordAuthentication`.
+
+From the repo root on the Mac, jump through the NixOS host:
+
+```bash
+./scripts/win-ssh.sh
+# or
+ssh -J nixos@192.168.178.5 Windows-PC@192.168.122.50
+```
+
+The default guest address is the reserved libvirt lease `192.168.122.50`.
+If it changes, pass it explicitly:
+
+```bash
+WINDOWS_SSH=Windows-PC@192.168.122.60 ./scripts/win-ssh.sh
+```
+
+Main menu 12 also shows the status/listener and connection command, installs a
+public key, and can disable or uninstall OpenSSH. The SSH port is only reachable
+through the host jump; it is not exposed on the LAN.
 
 ## Minimal profile
 
