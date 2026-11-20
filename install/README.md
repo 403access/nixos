@@ -20,7 +20,7 @@ from a checkout of this repository.
 > The installer refuses to partition a disk that already contains ZFS data
 > (`blkid -t TYPE=zfs_member` on the disk and its partitions), and refuses to
 > run while any pool — especially `tank` — is imported or importable
-> (`zpool import -n`). An existing `tank` is therefore never wiped, and the
+> (`zpool import`, list-only). An existing `tank` is therefore never wiped, and the
 > new pool cannot collide with it. `--destroy-tank` overrides both checks and
 > is irreversible.
 

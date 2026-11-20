@@ -398,12 +398,15 @@ assert_no_existing_zfs() {
     fi
   done < <(zpool list -H -o name 2>/dev/null || true)
 
-  # Exported pools are not mounted but are still importable.
+  # Exported pools are not mounted but are still importable.  Plain
+  # `zpool import` only lists candidates; it never imports.  (-n is only
+  # valid together with -F and otherwise errors out, which would silently
+  # disable this check.)
   while read -r pool; do
     if [ -n "$pool" ]; then
       pools+=("$pool")
     fi
-  done < <(zpool import -n 2>/dev/null | awk -F': *' '/^[[:space:]]*pool:/ { print $2 }')
+  done < <(zpool import 2>/dev/null | awk -F': *' '/^[[:space:]]*pool:/ { print $2 }')
 
   if [ "${#pools[@]}" -gt 0 ]; then
     mapfile -t pools < <(printf '%s\n' "${pools[@]}" | sort -u)

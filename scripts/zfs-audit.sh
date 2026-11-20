@@ -54,7 +54,7 @@ section "tank members (physical paths)"
 show zpool status -P tank
 
 section "blkid signatures"
-show blkid -p
+show blkid
 
 section "ZFS pool status"
 show zpool status -v
@@ -65,8 +65,8 @@ show zpool list -v
 section "ZFS pool properties"
 show zpool get all tank
 
-section "Importable pools (no import)"
-show zpool import -n
+section "Importable pools (list only, no import)"
+show zpool import
 
 section "Datasets"
 show zfs list -o name,used,avail,refer,mountpoint,recordsize,compression,quota,reservation,readonly,canmount,encryption,keystatus
