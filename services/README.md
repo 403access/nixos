@@ -56,6 +56,35 @@ networks: [internal]
 Never add `network_mode: host`, `privileged: true`, or
 `/var/run/docker.sock` as a volume. Those three undo the isolation.
 
+### Networks: published service vs. no egress
+
+Docker **does not publish ports from an `internal: true` network** (the
+network has no default gateway), so a service that must be reachable from the
+host belongs on a normal project bridge.  That is what the example now uses.
+
+For a service that must have no outbound route, put it on an internal network
+and add a small proxy attached to both the internal network and a normal one:
+
+```yaml
+services:
+  app:
+    networks: [backend]
+  proxy:
+    image: alpine/socat
+    command: ["TCP-LISTEN:8080,fork,reuseaddr", "TCP:app:8080"]
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [backend, edge]   # backend: internal; edge: normal
+
+networks:
+  backend:
+    internal: true
+  edge:
+```
+
+The app then has no egress; only the trusted proxy does.  Agents use the KVM
+microVM sandbox instead, which has no network at all unless `--online` is
+passed.
+
 ## Remote access
 
 Nothing is published beyond loopback. To reach a service from the phone or

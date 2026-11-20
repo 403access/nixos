@@ -7,7 +7,7 @@
 #   - read-only root filesystem, tmpfs for scratch space
 #   - all capabilities dropped, no-new-privileges
 #   - non-root UID
-#   - one internal network, so the container has no outbound route
+#   - one project network; the host is the only ingress via 127.0.0.1
 #   - published on 127.0.0.1 only, never on 0.0.0.0
 #   - no docker socket, no host network, no privileged mode
 name: example
@@ -29,7 +29,10 @@ services:
     networks:
       - edge
 
+# A published service needs a normal bridge: Docker does not forward ports
+# from an internal network (no default gateway).  Use internal networks for
+# backend-only services (databases, workers) and put a proxy in front if the
+# frontend must not have egress.
 networks:
   edge:
     driver: bridge
-    internal: true
