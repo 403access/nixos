@@ -88,13 +88,5 @@ in
     systemd.tmpfiles.rules = [
       "d ${cfg.workspaceRoot} 0750 ${cfg.user} users -"
     ];
-
-    # /dev/kvm access.  agent-vm itself runs through sudo, but the group keeps
-    # direct qemu/virt-manager use working for the same user.
-    users.users = lib.mkIf (lib.hasAttr cfg.user config.users.users) {
-      ${cfg.user} = {
-        extraGroups = [ "kvm" ];
-      };
-    };
   };
 }
