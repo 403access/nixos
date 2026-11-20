@@ -10,6 +10,8 @@ matter.
 | `enable-rdp.bat` | Starts `TermService`, enables RDP, recreates the TCP 3389 rule, sets the network profile to Private |
 | `restore-point.bat` | Enables System Restore and creates the `Before debloat` checkpoint |
 | `debloat.bat` | Runs `windows/scripts/SetupComplete.ps1 -ProfileName lean` |
+| `enable-autologon.bat` | Prompts for the account password and enables automatic logon |
+| `disable-autologon.bat` | Removes automatic logon and the stored password |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
 
 ## Build and insert the CD

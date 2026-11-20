@@ -70,10 +70,16 @@ only useful when programs inside Windows must start without anyone connecting.
 
 ### Windows guest
 
-Run `control userpasswords2` (or `netplwiz`) in the guest, select the
-`Windows-PC` account and clear **“Users must enter a user name and password to
-use this computer”**, then enter the password when prompted.  Windows stores it
-so it can log the account in at boot.
+Either run `control userpasswords2` (or `netplwiz`) and clear **“Users must
+enter a user name and password to use this computer”**, or use the helper CD:
+
+- `enable-autologon.bat` — prompts for the account password and writes the
+  Winlogon values
+- `disable-autologon.bat` — reverts it and removes the stored password
+
+The prompt is masked; the password is still stored by Windows (Winlogon
+registry, or an LSA secret with Sysinternals Autologon) so the account can be
+logged in at boot.
 
 The equivalent registry form, for reference:
 
