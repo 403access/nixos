@@ -21,13 +21,13 @@ matter.
 | `trim-memory-aggressive.bat` | Same, plus disables Search indexing and SysMain |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
 | `trim-autostart.bat` | Disables non-essential Run/Startup-folder/packaged startup entries, with backup and restore |
-| `trim-stock.bat` | Disables or uninstalls OneDrive, removes stock apps, disables stock services |
+| `trim-stock.bat` | Disables or uninstalls OneDrive, removes stock apps, disables stock services (including printing) |
 | `apply-explorer-preferences.bat` | Shows hidden files, shows all extensions, opens This PC; optional protected files |
 | `disable-visuals.bat` | Best-performance visuals: no animations, transparency, shadows, Aero Peek; per user |
 | `disable-ai.bat` | Copilot, Recall, Click to Do, Widgets, taskbar Chat, web search, Start recommendations |
 | `disable-telemetry.bat` | Minimum diagnostic data, no feedback prompts, activity history or advertising ID |
 | `disable-scheduled-tasks.bat` | Disables telemetry, compatibility, disk-diagnostic, Maps and tips tasks |
-| `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing; PcaSvc, WpcMonSvc, PhoneSvc to manual |
+| `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing/Print Spooler; PcaSvc, WpcMonSvc, PhoneSvc to manual |
 | `disable-gaming.bat` | Game DVR, Game Bar, Game Mode and Xbox services (breaks the Xbox app) |
 | `cleanup.bat` | Temp, Delivery Optimization, thumbnails, WER and CBS logs; optional DISM/WU cache flags |
 | `minimal.bat` | Runs the slim scripts above in order and writes a transcript |
@@ -146,12 +146,17 @@ Main menu 11, or `trim-stock.bat`, covers the stock consumer layer:
 - **Stock apps** — lean list (Bing apps, Xbox, Office Hub, Teams, Clipchamp,
   Solitaire, Maps, Alarms, etc.) or aggressive list, which also removes Store.
 - **Stock services** — disables the lean list (telemetry, RetailDemo, Fax,
-  RemoteRegistry, Maps, WMP sharing, wallet, Xbox) or aggressive
-  (adds Search and SysMain).
+  RemoteRegistry, Maps, WMP sharing, wallet, Xbox, **Print Spooler and the
+  print workflow/broker services**) or aggressive, which adds Search, SysMain,
+  Bluetooth, Wi-Fi/hotspot, camera/scanner, location/sensors, smart cards,
+  notifications, error reporting, diagnostics, network discovery, WinRM,
+  VPN/IPsec, offline files, backup, gaming services and Delivery Optimization.
 
 Services are only disabled, never deleted. Their original startup types are
 saved to `%ProgramData%\WindowsSlim\stock-services.json` and can be restored
-from the menu. OneDrive state is saved to `onedrive-state.json`; the uninstaller
+from the menu. Printing is disabled in the lean list; use **8) Restore service
+startup types** or run `Set-Service Spooler -StartupType Automatic` if you ever
+need it again. OneDrive state is saved to `onedrive-state.json`; the uninstaller
 is not reversible from the script, but OneDrive can be downloaded again.
 
 ```powershell
@@ -200,6 +205,8 @@ services, startup-app cleanup, stock-app/OneDrive cleanup, gaming and cleanup.
 Create a restore point first (main menu 1 or `create-restore-point.bat`), then
 reboot when it finishes. To roll back later, run `rstrui.exe` and pick the
 `Before debloat` checkpoint; the batch file never restores anything itself.
+The stock-service step also disables printing; use `-SkipStockApps` to keep the
+stock apps and services.
 
 Two details matter:
 
