@@ -424,6 +424,7 @@ function Show-MainMenu {
     Write-MenuItem '7' 'Tools & settings' 'install to C:\Tools, logs, Settings, restart Explorer/Windows'
     Write-MenuItem '8' 'Apply my Explorer preferences' 'hidden files, all extensions, open This PC'
     Write-MenuItem '9' 'Install apps' 'Everything, 7-Zip, Notepad++ from the CD'
+    Write-MenuItem '10' 'Startup apps (autostart)' 'list, disable, remove or restore startup entries'
     Write-Host ''
     Write-MenuItem '0' 'Exit'
     Write-Host ''
@@ -819,6 +820,63 @@ function Show-ToolsMenu {
     }
 }
 
+function Show-AutostartMenu {
+    while ($true) {
+        Show-Header
+        Write-Host ' Startup apps (autostart)' -ForegroundColor Cyan
+        Write-Host ('-' * 64)
+        Write-MenuItem '1' 'List startup entries' 'Run keys, Startup folders, packaged apps'
+        Write-MenuItem '2' 'Disable non-essential entries' 'Task Manager-style; a backup is written first'
+        Write-MenuItem '3' 'Disable everything (aggressive)' 'also disables the security/input/audio whitelist'
+        Write-MenuItem '4' 'Remove non-essential Run values' 'deletes values after a backup'
+        Write-MenuItem '5' 'Restore the latest backup'
+        Write-MenuItem '6' 'Open Windows Startup settings'
+        Write-Host ''
+        Write-MenuItem '0' 'Back'
+
+        $choice = Read-MenuChoice 'autostart'
+        if ($null -eq $choice) { return }
+        if ($choice -eq '') { continue }
+
+        switch ($choice) {
+            '1' {
+                Invoke-Helper -Script 'trim-autostart.ps1' -Label 'Startup entries' -Arguments @{ List = $true }
+                Pause-Menu
+            }
+            '2' {
+                if (Confirm-Action 'Disable non-essential startup entries? A backup is written first') {
+                    Invoke-Helper -Script 'trim-autostart.ps1' -Label 'Disable startup entries'
+                    Pause-Menu
+                }
+            }
+            '3' {
+                if (Confirm-Action 'Disable ALL startup entries, including the security/input/audio whitelist') {
+                    Invoke-Helper -Script 'trim-autostart.ps1' -Label 'Disable all startup entries' -Arguments @{ Aggressive = $true }
+                    Pause-Menu
+                }
+            }
+            '4' {
+                if (Confirm-Action 'Remove non-essential Run values? A backup is written first') {
+                    Invoke-Helper -Script 'trim-autostart.ps1' -Label 'Remove startup entries' -Arguments @{ Remove = $true }
+                    Pause-Menu
+                }
+            }
+            '5' {
+                if (Confirm-Action 'Restore the latest autostart backup') {
+                    Invoke-Helper -Script 'trim-autostart.ps1' -Label 'Restore startup entries' -Arguments @{ Restore = $true }
+                    Pause-Menu
+                }
+            }
+            '6' { Start-Setting -Target 'ms-settings:startupapps' -Label 'Startup settings' }
+            '0' { return }
+            default {
+                Write-Host 'Unknown choice.' -ForegroundColor Yellow
+                Start-Sleep -Milliseconds 700
+            }
+        }
+    }
+}
+
 $isAdmin = Test-Admin
 Write-Log ('start user={0} admin={1} path={2}' -f $env:USERNAME, $isAdmin, $scriptRoot)
 
@@ -863,6 +921,7 @@ while ($running) {
             Invoke-Helper -Script 'install-apps.ps1' -Label 'Install apps'
             Pause-Menu
         }
+        '10' { Show-AutostartMenu }
         '0' {
             $running = $false
         }

@@ -67,7 +67,7 @@ function Invoke-Step {
     }
 }
 
-$total = 7
+$total = 8
 
 Invoke-Step -Number 1 -Total $total -Label 'Visual effects' -Script 'disable-visuals.ps1'
 Invoke-Step -Number 2 -Total $total -Label 'AI, search and suggestions' -Script 'disable-ai.ps1'
@@ -79,21 +79,23 @@ if ($IncludeSearch) { $serviceArgs['IncludeSearch'] = $true }
 if ($IncludeSysMain) { $serviceArgs['IncludeSysMain'] = $true }
 Invoke-Step -Number 5 -Total $total -Label 'Services' -Script 'optimize-services.ps1' -Arguments $serviceArgs
 
+Invoke-Step -Number 6 -Total $total -Label 'Startup apps' -Script 'trim-autostart.ps1'
+
 if ($SkipGaming) {
     Write-Host ''
-    Write-Host '===== [6/7] Gaming features skipped (-SkipGaming) ====='
+    Write-Host '===== [7/8] Gaming features skipped (-SkipGaming) ====='
 } else {
-    Invoke-Step -Number 6 -Total $total -Label 'Gaming features' -Script 'disable-gaming.ps1'
+    Invoke-Step -Number 7 -Total $total -Label 'Gaming features' -Script 'disable-gaming.ps1'
 }
 
 if ($SkipCleanup) {
     Write-Host ''
-    Write-Host '===== [7/7] Cleanup skipped (-SkipCleanup) ====='
+    Write-Host '===== [8/8] Cleanup skipped (-SkipCleanup) ====='
 } else {
     $cleanupArgs = @{}
     if ($ComponentCleanup) { $cleanupArgs['ComponentCleanup'] = $true }
     if ($ResetBase) { $cleanupArgs['ResetBase'] = $true }
-    Invoke-Step -Number 7 -Total $total -Label 'Cleanup' -Script 'cleanup.ps1' -Arguments $cleanupArgs
+    Invoke-Step -Number 8 -Total $total -Label 'Cleanup' -Script 'cleanup.ps1' -Arguments $cleanupArgs
 }
 
 Write-Host ''
