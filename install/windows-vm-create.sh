@@ -282,6 +282,7 @@ disk_size_gib="${disk_size_gib%g}"
 # driver.cache/io/discard are the current virt-install spellings; the short
 # cache=/io= aliases still parse but are deprecated.
 disk_opts="path=$disk_path,size=$disk_size_gib,format=$disk_format,bus=$disk_bus"
+disk_opts+=",boot.order=2"
 disk_opts+=",driver.cache=none,driver.io=io_uring,driver.discard=unmap"
 
 # Windows 11 needs its own osinfo entry for sensible driver defaults; fall
@@ -312,7 +313,7 @@ virt_install_args=(
   --clock "offset=localtime,hypervclock_present=yes"
   --tpm "backend.type=emulator,backend.version=2.0"
   --disk "$disk_opts"
-  --cdrom "$iso"
+  --disk "path=$iso,device=cdrom,boot.order=1"
   --network "network=default,model=$net_model"
   --graphics "spice,listen=127.0.0.1"
   --video virtio
@@ -325,7 +326,7 @@ if [ "$hugepages" -eq 1 ]; then
 fi
 
 if [ "$use_virtio" = "on" ]; then
-  virt_install_args+=(--disk "path=$virtio_iso,device=cdrom")
+  virt_install_args+=(--disk "path=$virtio_iso,device=cdrom,boot.order=3")
 fi
 
 virt-install "${virt_install_args[@]}"
@@ -335,7 +336,16 @@ cat <<EOF
 $name is starting.  Open the console with:
 
   virt-manager --connect $connect
-  virsh --connect $connect console $name
+
+virt-viewer is not installed; virt-manager is the full console.  For the
+lightweight viewer use: nix-shell -p virt-viewer --run 'virt-viewer --connect $connect $name'
+
+Boot order is Windows ISO (1), disk (2), virtio-win CD (3), so Setup starts
+without picking a device in the firmware menu.  After Windows is installed,
+eject the install ISO in virt-manager (View -> Details -> SATA CDROM 1 ->
+Disconnect), or with:
+  virsh --connect $connect domblklist $name
+  virsh --connect $connect change-media $name TARGET --eject
 
 EOF
 

@@ -113,6 +113,19 @@ The installer never runs against a disk that holds `tank`.
 rebuild, reboot, then pass `--hugepages`. With only an integrated Intel GPU,
 loading the VirtIO guest tools after Setup gives the best result.
 
+Boot order is set explicitly: Windows ISO (1), disk (2), virtio-win CD (3).
+That avoids having to pick a device in the OVMF boot menu on first start.
+After Setup, eject the install ISO so later reboots go straight to Windows
+(virt-manager: *View → Details → SATA CDROM 1 → Disconnect*, or
+`virsh change-media windows11 TARGET --eject` after `virsh domblklist`).
+
+`virt-manager` is the console that is installed. `virt-viewer` is **not**
+part of the system profile; use it from an ephemeral shell when wanted:
+
+```bash
+nix-shell -p virt-viewer --run 'virt-viewer --connect qemu:///system windows11'
+```
+
 The NixOS module enables `libvirtd`, `swtpm`, OVMF, SPICE USB redirection,
 virt-manager and the default NAT network.
 
