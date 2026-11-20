@@ -152,6 +152,45 @@ Load the driver, select the disk, and after installation run
 `virtio-win-guest-tools.exe` from the same CD (network, graphics, balloon),
 then `fsutil behavior set DisableDeleteNotify 0` as Administrator for TRIM.
 
+### Remote desktop from macOS
+
+The guest is Windows 11 **Pro**, so it can host RDP. Enable it inside Windows
+first (Settings → System → Remote Desktop → On) and install the VirtIO guest
+tools so the NIC works.
+
+The VM is behind libvirt's NAT (`192.168.122.0/24`), so the Mac cannot reach
+it directly. Two things to keep straight:
+
+- `192.168.178.5:3389` belongs to the **NixOS host's xrdp**, not to Windows.
+- The guest needs a port forward or a tunnel.
+
+Quickest is an SSH tunnel from the Mac:
+
+```bash
+sudo virsh domifaddr windows11          # on the host, note the 192.168.122.x address
+ssh -N -L 13389:192.168.122.45:3389 nixos@192.168.178.5
+```
+
+Then in Microsoft Remote Desktop / **Windows App** on macOS:
+
+- PC name: `localhost:13389`
+- User: `NIXOS-WIN11\Admin`
+- Password: the one printed by the ISO build
+
+Pin the address so the tunnel survives reboots — get the MAC from
+`virsh dumpxml windows11`, then on the host:
+
+```bash
+sudo virsh net-update default add ip-dhcp-host \
+  '<host mac="52:54:00:xx:xx:xx" name="windows11" ip="192.168.122.50"/>' \
+  --live --config
+```
+
+The cleaner long-term option is Tailscale **inside the guest**: install it,
+sign in to the same tailnet, and RDP to its `100.x.y.z` address from any
+device, with no tunnel. Either way, do not expose 3389 on the LAN or open it
+in `networking.firewall`; keep it on loopback, SSH or the tailnet.
+
 `virt-manager` is the console that is installed. `virt-viewer` is **not**
 part of the system profile; use it from an ephemeral shell when wanted:
 
