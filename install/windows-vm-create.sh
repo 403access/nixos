@@ -238,7 +238,12 @@ fi
 
 boot_args="uefi"
 if [ "$secure_boot" -eq 1 ]; then
-  boot_args="uefi,secure=on"
+  # virt-install >= 4 uses firmware features, not the old "secure=on".
+  boot_args="uefi"
+  boot_args+=",firmware.feature0.name=secure-boot"
+  boot_args+=",firmware.feature0.enabled=yes"
+  boot_args+=",firmware.feature1.name=enrolled-keys"
+  boot_args+=",firmware.feature1.enabled=yes"
 fi
 
 # VirtIO + host-passthrough + Hyper-V enlightenments.  These are what make a
