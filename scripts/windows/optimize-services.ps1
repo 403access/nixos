@@ -12,6 +12,19 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+function Test-AccessDenied {
+    param($ErrorRecord)
+
+    if (-not $ErrorRecord) {
+        return $false
+    }
+    $inner = $ErrorRecord.Exception.InnerException
+    if ($inner -and $inner.NativeErrorCode -eq 5) {
+        return $true
+    }
+    return [bool]($ErrorRecord.Exception.Message -match 'Zugriff verweigert|Access is denied|Access denied|0x5')
+}
+
 function Set-ServiceState {
     param(
         [string]$Name,
@@ -35,7 +48,11 @@ function Set-ServiceState {
         }
         Write-Host "    $($StartupType.ToLower()): $Label ($Name)"
     } catch {
-        Write-Warning "    failed: $Label ($Name): $($_.Exception.Message)"
+        if (Test-AccessDenied $_) {
+            Write-Host "    skipped (protected): $Label ($Name)" -ForegroundColor Yellow
+        } else {
+            Write-Warning "    failed: $Label ($Name): $($_.Exception.Message)"
+        }
     }
 }
 
@@ -46,7 +63,6 @@ Set-ServiceState -Name RemoteRegistry -Label 'Remote Registry'                  
 Set-ServiceState -Name RetailDemo    -Label 'Retail Demo'                       -StartupType Disabled
 Set-ServiceState -Name WMPNetworkSvc -Label 'Windows Media Player sharing'      -StartupType Disabled
 Set-ServiceState -Name Spooler       -Label 'Print Spooler'                     -StartupType Disabled
-Set-ServiceState -Name PrintWorkflowUserSvc -Label 'Print Workflow'             -StartupType Disabled
 Set-ServiceState -Name PrintScanBrokerService -Label 'Print Scan Broker'        -StartupType Disabled
 Set-ServiceState -Name PrintDeviceConfigurationService -Label 'Print Device Config' -StartupType Disabled
 Set-ServiceState -Name PrintNotify   -Label 'Print Notification'                -StartupType Disabled

@@ -86,7 +86,6 @@ $leanServices = @(
     [pscustomobject]@{ Name = 'RetailDemo'; Type = 'Disabled'; Label = 'Retail Demo' },
     [pscustomobject]@{ Name = 'Fax'; Type = 'Disabled'; Label = 'Fax' },
     [pscustomobject]@{ Name = 'Spooler'; Type = 'Disabled'; Label = 'Print Spooler' },
-    [pscustomobject]@{ Name = 'PrintWorkflowUserSvc'; Type = 'Disabled'; Label = 'Print Workflow' },
     [pscustomobject]@{ Name = 'PrintScanBrokerService'; Type = 'Disabled'; Label = 'Print Scan Broker' },
     [pscustomobject]@{ Name = 'PrintDeviceConfigurationService'; Type = 'Disabled'; Label = 'Print Device Configuration' },
     [pscustomobject]@{ Name = 'PrintNotify'; Type = 'Disabled'; Label = 'Print Notification' },
@@ -423,6 +422,19 @@ function Remove-StockApps {
     }
 }
 
+function Test-AccessDenied {
+    param($ErrorRecord)
+
+    if (-not $ErrorRecord) {
+        return $false
+    }
+    $inner = $ErrorRecord.Exception.InnerException
+    if ($inner -and $inner.NativeErrorCode -eq 5) {
+        return $true
+    }
+    return [bool]($ErrorRecord.Exception.Message -match 'Zugriff verweigert|Access is denied|Access denied|0x5')
+}
+
 function Disable-StockServices {
     param(
         [object[]]$Entries,
@@ -449,6 +461,7 @@ function Disable-StockServices {
     }
 
     $changed = 0
+    $skipped = 0
     foreach ($entry in $Entries) {
         $service = Get-Service -Name $entry.Name -ErrorAction SilentlyContinue
         if (-not $service) {
@@ -466,15 +479,24 @@ function Disable-StockServices {
         }
 
         try {
+            $didChange = $false
             if ([string]$service.StartType -ne $entry.Type) {
                 Set-Service -Name $entry.Name -StartupType $entry.Type -ErrorAction Stop
+                $didChange = $true
             }
             if ($entry.Type -eq 'Disabled') {
                 Stop-Service -Name $entry.Name -Force -ErrorAction SilentlyContinue
             }
-            $changed++
+            if ($didChange) {
+                $changed++
+            }
         } catch {
-            Write-Warning ("service failed: {0}: {1}" -f $entry.Name, $_.Exception.Message)
+            if (Test-AccessDenied $_) {
+                Write-Host ("    skipped (protected): {0}" -f $entry.Name) -ForegroundColor Yellow
+                $skipped++
+            } else {
+                Write-Warning ("service failed: {0}: {1}" -f $entry.Name, $_.Exception.Message)
+            }
         }
     }
 
@@ -493,7 +515,8 @@ function Disable-StockServices {
         if ($DryRun) {
             Write-Host 'Dry run: no services were changed.' -ForegroundColor Yellow
         } else {
-            Write-Host ("Changed {0} service(s). Restore with -RestoreServices." -f $changed) -ForegroundColor Green
+            Write-Host ("Changed {0} service(s); skipped {1} protected." -f $changed, $skipped) -ForegroundColor Green
+            Write-Host 'Restore with -RestoreServices.'
         }
     }
 }
