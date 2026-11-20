@@ -842,6 +842,9 @@ $securityItems = @(
     New-TuiNode -Label 'Open Windows Security' -Description 'Open the Defender dashboard.' -Action {
         Invoke-Helper -Script 'manage-defender.ps1' -Label 'Windows Security' -Arguments @{ Open = $true }
     }
+    New-TuiNode -Label 'Open Tamper Protection settings' -Description 'Opens Virus & threat protection settings for the manual Tamper toggle.' -Action {
+        Invoke-Helper -Script 'manage-defender.ps1' -Label 'Tamper Protection settings' -Arguments @{ OpenTamper = $true }
+    }
 )
 
 $stockItems = @(

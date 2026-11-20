@@ -9,7 +9,8 @@ param(
     [switch]$Status,
     [switch]$Disable,
     [switch]$Enable,
-    [switch]$Open
+    [switch]$Open,
+    [switch]$OpenTamper
 )
 
 $ErrorActionPreference = 'Continue'
@@ -93,6 +94,16 @@ function Disable-Defender {
         Write-Host 'Tamper Protection is enabled; refusing to change Defender.' -ForegroundColor Yellow
         Write-Host 'Windows Security > Virus & threat protection > Manage settings > Tamper Protection.'
         Write-Host 'Turn that off first, then retry.'
+        try {
+            Start-Process -FilePath 'windowsdefender://threatsettings' -ErrorAction Stop
+            Write-Host 'Opened the Virus & threat protection settings page.'
+        } catch {
+            try {
+                Start-Process -FilePath 'ms-settings:windowsdefender' -ErrorAction Stop
+            } catch {
+                Write-Host 'Could not open Windows Security automatically.'
+            }
+        }
         return
     }
 
@@ -163,6 +174,19 @@ function Enable-Defender {
     }
 
     Write-Host 'Defender re-enabled. Reboot if the service did not start.' -ForegroundColor Green
+}
+
+if ($OpenTamper) {
+    try {
+        Start-Process -FilePath 'windowsdefender://threatsettings' -ErrorAction Stop
+    } catch {
+        try {
+            Start-Process -FilePath 'ms-settings:windowsdefender' -ErrorAction Stop
+        } catch {
+            Write-Host ("Could not open the Defender settings: {0}" -f $_.Exception.Message) -ForegroundColor Red
+        }
+    }
+    return
 }
 
 if ($Open) {
