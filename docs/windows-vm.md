@@ -62,6 +62,51 @@ host boot and does not need a reboot to confirm the setting.
 network is started by the NixOS module at boot, so the guest gets its lease
 without manual steps.
 
+## Automatic logon
+
+RDP does **not** require it: the client authenticates and creates its own
+session, even when the console sits at the lock screen.  Automatic logon is
+only useful when programs inside Windows must start without anyone connecting.
+
+### Windows guest
+
+Run `control userpasswords2` (or `netplwiz`) in the guest, select the
+`Windows-PC` account and clear **“Users must enter a user name and password to
+use this computer”**, then enter the password when prompted.  Windows stores it
+so it can log the account in at boot.
+
+The equivalent registry form, for reference:
+
+```powershell
+$k = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+Set-ItemProperty $k -Name AutoAdminLogon -Value '1'
+Set-ItemProperty $k -Name DefaultUserName  -Value 'Windows-PC'
+Set-ItemProperty $k -Name DefaultDomainName -Value $env:COMPUTERNAME
+# DefaultPassword stores the password in cleartext; prefer netplwiz or
+# Sysinternals Autologon, which keeps it in an LSA secret.
+```
+
+With autostart enabled, the chain becomes: host boots → libvirtd starts
+`win11-stock` → Windows logs in → RDP connects to an already unlocked session.
+
+Security: automatic logon removes the password prompt on the console.  Only
+use it with a strong account password, and keep the guest reachable only over
+loopback/SSH/Tailscale.
+
+### NixOS host (if meant instead)
+
+For the host desktop, the display manager can auto-login too:
+
+```nix
+services.displayManager.autoLogin = {
+  enable = true;
+  user = "nixos";
+};
+```
+
+The Hyprland wrapper already sets this; the XFCE/plasma profiles use lightdm
+or SDDM and honour the same option.
+
 ## Enabling RDP (no typing in the console)
 
 The scripts are kept in [`../scripts/windows/`](../scripts/windows/); build

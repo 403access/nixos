@@ -7,7 +7,7 @@ matter.
 
 | File | Purpose |
 | --- | --- |
-| `enable-rdp.bat` | Enables RDP, creates a TCP 3389 firewall rule, sets the network profile to Private |
+| `enable-rdp.bat` | Starts `TermService`, enables RDP, recreates the TCP 3389 rule, sets the network profile to Private |
 | `restore-point.bat` | Enables System Restore and creates the `Before debloat` checkpoint |
 | `debloat.bat` | Runs `windows/scripts/SetupComplete.ps1 -ProfileName lean` |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
