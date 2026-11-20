@@ -155,9 +155,12 @@ Main menu 11, or `trim-stock.bat`, covers the stock consumer layer:
 
 Services are only disabled, never deleted. Their original startup types are
 saved to `%ProgramData%\WindowsSlim\stock-services.json` and can be restored
-from the menu. Printing is disabled in the lean list; use **8) Restore service
-startup types** or run `Set-Service Spooler -StartupType Automatic` if you ever
-need it again. OneDrive state is saved to `onedrive-state.json`; the uninstaller
+from the menu. Windows-protected services such as `DoSvc`, or the per-user
+`PrintWorkflowUserSvc`, may refuse changes; they are reported as
+`skipped (protected)`. The Spooler is the effective printing switch. Use
+**8) Restore service startup types** or run
+`Set-Service Spooler -StartupType Automatic` if you ever need printing again.
+OneDrive state is saved to `onedrive-state.json`; the uninstaller
 is not reversible from the script, but OneDrive can be downloaded again.
 
 ```powershell
