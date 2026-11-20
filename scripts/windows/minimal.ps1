@@ -13,6 +13,7 @@
 param(
     [switch]$SkipCleanup,
     [switch]$SkipGaming,
+    [switch]$SkipStockApps,
     [switch]$IncludeSearch,
     [switch]$IncludeSysMain,
     [switch]$ComponentCleanup,
@@ -67,7 +68,7 @@ function Invoke-Step {
     }
 }
 
-$total = 8
+$total = 9
 
 Invoke-Step -Number 1 -Total $total -Label 'Visual effects' -Script 'disable-visuals.ps1'
 Invoke-Step -Number 2 -Total $total -Label 'AI, search and suggestions' -Script 'disable-ai.ps1'
@@ -81,21 +82,29 @@ Invoke-Step -Number 5 -Total $total -Label 'Services' -Script 'optimize-services
 
 Invoke-Step -Number 6 -Total $total -Label 'Startup apps' -Script 'trim-autostart.ps1'
 
+if ($SkipStockApps) {
+    Write-Host ''
+    Write-Host '===== [7/9] Stock apps and OneDrive skipped (-SkipStockApps) ====='
+} else {
+    Invoke-Step -Number 7 -Total $total -Label 'Stock apps and OneDrive' -Script 'trim-stock.ps1' `
+        -Arguments @{ OneDrive = 'Disable'; Apps = 'Lean'; Services = 'Lean' }
+}
+
 if ($SkipGaming) {
     Write-Host ''
-    Write-Host '===== [7/8] Gaming features skipped (-SkipGaming) ====='
+    Write-Host '===== [8/9] Gaming features skipped (-SkipGaming) ====='
 } else {
-    Invoke-Step -Number 7 -Total $total -Label 'Gaming features' -Script 'disable-gaming.ps1'
+    Invoke-Step -Number 8 -Total $total -Label 'Gaming features' -Script 'disable-gaming.ps1'
 }
 
 if ($SkipCleanup) {
     Write-Host ''
-    Write-Host '===== [8/8] Cleanup skipped (-SkipCleanup) ====='
+    Write-Host '===== [9/9] Cleanup skipped (-SkipCleanup) ====='
 } else {
     $cleanupArgs = @{}
     if ($ComponentCleanup) { $cleanupArgs['ComponentCleanup'] = $true }
     if ($ResetBase) { $cleanupArgs['ResetBase'] = $true }
-    Invoke-Step -Number 8 -Total $total -Label 'Cleanup' -Script 'cleanup.ps1' -Arguments $cleanupArgs
+    Invoke-Step -Number 9 -Total $total -Label 'Cleanup' -Script 'cleanup.ps1' -Arguments $cleanupArgs
 }
 
 Write-Host ''

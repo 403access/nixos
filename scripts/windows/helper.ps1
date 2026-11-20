@@ -425,6 +425,7 @@ function Show-MainMenu {
     Write-MenuItem '8' 'Apply my Explorer preferences' 'hidden files, all extensions, open This PC'
     Write-MenuItem '9' 'Install apps' 'Everything, 7-Zip, Notepad++ from the CD'
     Write-MenuItem '10' 'Startup apps (autostart)' 'list, disable, remove or restore startup entries'
+    Write-MenuItem '11' 'Stock apps & OneDrive' 'disable/uninstall OneDrive, remove stock apps, disable services'
     Write-Host ''
     Write-MenuItem '0' 'Exit'
     Write-Host ''
@@ -439,6 +440,7 @@ function Show-ProfileMenu {
         Write-MenuItem '2' 'Full profile, keep the Xbox app' 'adds -SkipGaming'
         Write-MenuItem '3' 'Full profile, skip cleanup' 'adds -SkipCleanup'
         Write-MenuItem '4' 'Full profile + Search/SysMain trim' 'adds -IncludeSearch -IncludeSysMain'
+        Write-MenuItem '5' 'Full profile, keep stock apps' 'adds -SkipStockApps'
         Write-Host ''
         Write-MenuItem '0' 'Back'
 
@@ -448,7 +450,7 @@ function Show-ProfileMenu {
 
         switch ($choice) {
             '1' {
-                if (Confirm-Action 'Apply the full slim profile now? It disables services, tasks, AI features and Game DVR, then cleans up') {
+                if (Confirm-Action 'Apply the full slim profile now? It disables services, tasks, AI features and Game DVR, removes lean stock apps, then cleans up') {
                     Invoke-Helper -Script 'minimal.ps1' -Label 'Full slim profile'
                     Write-Host 'Reboot when convenient.' -ForegroundColor Yellow
                     Pause-Menu
@@ -471,6 +473,13 @@ function Show-ProfileMenu {
             '4' {
                 if (Confirm-Action 'Apply the full profile and disable Search indexing and SysMain') {
                     Invoke-Helper -Script 'minimal.ps1' -Label 'Full slim profile (Search/SysMain trim)' -Arguments @{ IncludeSearch = $true; IncludeSysMain = $true }
+                    Write-Host 'Reboot when convenient.' -ForegroundColor Yellow
+                    Pause-Menu
+                }
+            }
+            '5' {
+                if (Confirm-Action 'Apply the full profile but keep the stock apps and OneDrive') {
+                    Invoke-Helper -Script 'minimal.ps1' -Label 'Full slim profile (keep stock apps)' -Arguments @{ SkipStockApps = $true }
                     Write-Host 'Reboot when convenient.' -ForegroundColor Yellow
                     Pause-Menu
                 }
@@ -922,6 +931,10 @@ while ($running) {
             Pause-Menu
         }
         '10' { Show-AutostartMenu }
+        '11' {
+            Invoke-Helper -Script 'trim-stock.ps1' -Label 'Stock apps, OneDrive and services'
+            Pause-Menu
+        }
         '0' {
             $running = $false
         }
