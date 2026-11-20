@@ -251,7 +251,7 @@ if [ "$secure_boot" -eq 1 ]; then
 fi
 
 [ -r "$ovmf_code" ] && [ -r "$ovmf_vars" ] \
-  || die "OVMF firmware not found in $ovmf_dir (Secure Boot needs OVMF_CODE.ms.fd); enable virtualisation.libvirtd.qemu.ovmf"
+  || die "OVMF firmware not found in $ovmf_dir (Secure Boot needs OVMF_CODE.ms.fd); install an OVMF with Microsoft keys, for example pkgs.OVMFFull.fd"
 
 boot_args="loader=$ovmf_code,loader.readonly=yes,loader.type=pflash,nvram.template=$ovmf_vars,loader_secure=$loader_secure"
 

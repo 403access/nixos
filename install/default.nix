@@ -230,7 +230,13 @@ in
       virtualisation.libvirtd = {
         enable = true;
         qemu.swtpm.enable = true;
-        qemu.ovmf.enable = true;
+        # OVMF.fd does not build the Microsoft-key vars template, so the
+        # nix-ovmf/*.ms.fd symlinks dangle.  OVMFFull enables secureBoot and
+        # msVarsTemplate, which Secure Boot and Windows 11 need.
+        qemu.ovmf = {
+          enable = true;
+          packages = [ pkgs.OVMFFull.fd ];
+        };
       };
 
       # Reserve 2 MiB hugepages for the guest when requested.  memory is in
