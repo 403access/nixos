@@ -30,7 +30,7 @@ matter.
 | `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing/Print Spooler; PcaSvc, WpcMonSvc, PhoneSvc to manual |
 | `disable-search.bat` | Disables `WSearch` and stops SearchHost/SearchIndexer |
 | `enable-search.bat` | Restores `WSearch` and restarts indexing |
-| `manage-defender.bat` | Shows Defender status and opens Windows Security; never disables Defender |
+| `manage-defender.bat` | Shows Defender status; the TUI has explicit disable/enable actions |
 | `disable-gaming.bat` | Game DVR, Game Bar, Game Mode and Xbox services (breaks the Xbox app) |
 | `cleanup.bat` | Temp, Delivery Optimization, thumbnails, WER and CBS logs; optional DISM/WU cache flags |
 | `minimal.bat` | Runs the slim scripts in order; `minimal.ps1 -Mode developer/power/regular` |
@@ -46,14 +46,18 @@ select, **Enter** to open/apply, **Esc** to go back and **Q** to quit.
 
 - **Developer (most aggressive)** — lean stock apps, aggressive services
   (search, printing, Bluetooth, camera, notifications and diagnostics off),
-  SSH enabled, Game DVR off, cleanup.
+  SSH enabled, Game DVR off, cleanup; Defender stays enabled.
+- **Developer + Defender off** — the same run followed by an explicit Defender
+  disable attempt; requires Tamper Protection off and a reboot.
 - **Power user (balanced)** — lean apps, balanced services; keeps search,
   printing, Bluetooth and gaming; OneDrive disabled; cleanup.
 - **Regular user (light)** — visuals, AI/telemetry, Explorer preferences,
   startup trim and OneDrive disabled; keeps stock apps, services, search and
   printing.
 
-Create a restore point from the Restore tab before applying a profile.
+Create a restore point from the Restore tab before applying a profile. After a
+profile run, the console keeps the output and offers **V** to open the full
+transcript; the same log is under **Tools → Open last profile log**.
 
 **Changes** — nested categories: System & desktop, Privacy & AI, Security &
 Defender, Services & stock apps, Network & access, Apps & cleanup, Tools &
@@ -227,7 +231,8 @@ port is only reachable through the host jump; it is not exposed on the LAN.
 
 - **disable** — sets `WSearch` to Disabled and stops SearchHost, SearchIndexer,
   SearchProtocolHost and SearchFilterHost. `SearchHost.exe` is the UI; Windows
-  can start it again until `WSearch` stays disabled.
+  can start it again when the Start menu or search UI is opened, but the
+  indexing service stays disabled.
 - **enable** — restores the saved startup type and starts indexing again.
 - **status** — shows the service and processes.
 
@@ -235,10 +240,22 @@ The standalone launchers are `disable-search.bat` and `enable-search.bat`.
 
 ## Microsoft Defender
 
-**Changes → Security & Defender** shows Defender status and opens Windows
-Security. The helper **does not disable Defender**: Tamper Protection blocks
-scripted changes on current builds, and Defender is the security baseline for
-this image. `manage-defender.bat` is the read-only status launcher.
+**Changes → Security & Defender** shows Defender status, opens Windows
+Security, and offers explicit **Disable** / **Enable** actions.
+
+The normal Developer profile **keeps Defender enabled**. The separate
+**Developer + Defender off** profile and the Security action attempt a real
+disable only after checking Tamper Protection:
+
+- Tamper Protection must be off (Windows Security → Virus & threat protection →
+  Manage settings); the script refuses otherwise.
+- It disables real-time/behaviour/script scanning, sets the Defender policy and
+  disables `WinDefend`/`WdNisSvc`.
+- A reboot is required; Windows updates may re-enable Defender.
+- Use **Enable Microsoft Defender** to restore it.
+
+This is unsupported and removes the security baseline. Prefer keeping it on
+unless this VM is isolated and you accept the risk.
 
 ## Minimal profile
 
@@ -252,7 +269,9 @@ modes:
 ```
 
 - **developer** — lean apps, aggressive stock services (including printing),
-  Search/SysMain, SSH server, gaming off, cleanup.
+  Search/SysMain, SSH server, gaming off, cleanup. Defender stays enabled; use
+  the TUI **Developer + Defender off** profile or run
+  `.\manage-defender.ps1 -Disable` after it.
 - **power** — lean apps, balanced stock services (printing, Bluetooth, Search
   and gaming kept), OneDrive disabled, cleanup.
 - **regular** — visuals, AI/telemetry, Explorer preferences, startup trim,
