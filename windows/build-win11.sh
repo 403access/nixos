@@ -327,12 +327,12 @@ if [[ -z "$INDEX" ]]; then
             sub(/^Name:[[:space:]]*/, "", name)
             if (name ~ /^Windows 11 Pro($| )/) { print idx; exit }
         }
-    ')"
+    ' || true)"
     [[ -n "$INDEX" ]] || die "could not auto-detect Windows 11 Pro; pass --index N"
 fi
 
 wimlib-imagex info "$WIM" "$INDEX" >/dev/null 2>&1 || die "image index $INDEX does not exist"
-EDITION="$(wimlib-imagex info "$WIM" "$INDEX" | awk -F': *' '/^Name:/ {print $2; exit}')"
+EDITION="$(wimlib-imagex info "$WIM" "$INDEX" | awk -F': *' '/^Name:/ {print $2; exit}' || true)"
 [[ -n "$EDITION" ]] || EDITION="Windows 11"
 log "Selected image $INDEX: $EDITION"
 
