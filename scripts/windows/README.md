@@ -28,6 +28,9 @@ matter.
 | `disable-telemetry.bat` | Minimum diagnostic data, no feedback prompts, activity history or advertising ID |
 | `disable-scheduled-tasks.bat` | Disables telemetry, compatibility, disk-diagnostic, Maps and tips tasks |
 | `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing/Print Spooler; PcaSvc, WpcMonSvc, PhoneSvc to manual |
+| `disable-search.bat` | Disables `WSearch` and stops SearchHost/SearchIndexer |
+| `enable-search.bat` | Restores `WSearch` and restarts indexing |
+| `manage-defender.bat` | Shows Defender status and opens Windows Security; never disables Defender |
 | `disable-gaming.bat` | Game DVR, Game Bar, Game Mode and Xbox services (breaks the Xbox app) |
 | `cleanup.bat` | Temp, Delivery Optimization, thumbnails, WER and CBS logs; optional DISM/WU cache flags |
 | `minimal.bat` | Runs the slim scripts in order; `minimal.ps1 -Mode developer/power/regular` |
@@ -42,17 +45,19 @@ select, **Enter** to open/apply, **Esc** to go back and **Q** to quit.
 **Profiles**
 
 - **Developer (most aggressive)** — lean stock apps, aggressive services
-  (printing, Bluetooth, camera, notifications and diagnostics off), SSH
-  enabled, Game DVR off, cleanup.
-- **Power user (balanced)** — lean apps, balanced services; keeps printing,
-  Bluetooth, Search and gaming; OneDrive disabled; cleanup.
+  (search, printing, Bluetooth, camera, notifications and diagnostics off),
+  SSH enabled, Game DVR off, cleanup.
+- **Power user (balanced)** — lean apps, balanced services; keeps search,
+  printing, Bluetooth and gaming; OneDrive disabled; cleanup.
 - **Regular user (light)** — visuals, AI/telemetry, Explorer preferences,
-  startup trim and OneDrive disabled; keeps stock apps, services and printing.
+  startup trim and OneDrive disabled; keeps stock apps, services, search and
+  printing.
 
 Create a restore point from the Restore tab before applying a profile.
 
-**Changes** — nested categories: System & desktop, Privacy & AI, Services &
-stock apps, Network & access, Apps & cleanup, Tools & maintenance.
+**Changes** — nested categories: System & desktop, Privacy & AI, Security &
+Defender, Services & stock apps, Network & access, Apps & cleanup, Tools &
+maintenance.
 
 ### Explorer preferences
 
@@ -210,6 +215,25 @@ WINDOWS_SSH=Windows-PC@192.168.122.60 ./scripts/win-ssh.sh
 The Network & access category also shows the status/listener and connection
 command, installs a public key, and can disable or uninstall OpenSSH. The SSH
 port is only reachable through the host jump; it is not exposed on the LAN.
+
+## Windows Search
+
+**Changes → Privacy & AI → Windows Search** controls the service:
+
+- **disable** — sets `WSearch` to Disabled and stops SearchHost, SearchIndexer,
+  SearchProtocolHost and SearchFilterHost. `SearchHost.exe` is the UI; Windows
+  can start it again until `WSearch` stays disabled.
+- **enable** — restores the saved startup type and starts indexing again.
+- **status** — shows the service and processes.
+
+The standalone launchers are `disable-search.bat` and `enable-search.bat`.
+
+## Microsoft Defender
+
+**Changes → Security & Defender** shows Defender status and opens Windows
+Security. The helper **does not disable Defender**: Tamper Protection blocks
+scripted changes on current builds, and Defender is the security baseline for
+this image. `manage-defender.bat` is the read-only status launcher.
 
 ## Minimal profile
 
