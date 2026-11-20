@@ -108,9 +108,9 @@ pub fn human_duration(duration: std::time::Duration) -> String {
         let millis = duration.as_millis();
         return format!("{millis} milliseconds");
     }
-    if seconds.is_multiple_of(60) {
+    if seconds % 60 == 0 {
         let minutes = seconds / 60;
-        if minutes.is_multiple_of(60) {
+        if minutes % 60 == 0 {
             let hours = minutes / 60;
             return format!("{hours} {}", plural(hours, "hour"));
         }
