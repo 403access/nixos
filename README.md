@@ -290,6 +290,8 @@ installation-mode.nix      Layout chosen by install/install.sh (nixos|vm|dual)
 install/                   Interactive installer and layout module
 nixos-control.nix          NixOS module: packages and runs the server
 desktop/                   Desktop profile selector, Catppuccin themes, wallpaper
+sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
+services/                  Isolated Docker project services (project-up/down)
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
