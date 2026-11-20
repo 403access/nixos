@@ -21,7 +21,7 @@ let
     set -euo pipefail
     project="''${1:-}"
     case "$project" in
-      '' | *[!A-Za-z0-9_-]*)
+      "" | *[!A-Za-z0-9_-]*)
         printf 'usage: project-up NAME\n' >&2
         exit 2
         ;;
@@ -39,7 +39,7 @@ let
     set -euo pipefail
     project="''${1:-}"
     case "$project" in
-      '' | *[!A-Za-z0-9_-]*)
+      "" | *[!A-Za-z0-9_-]*)
         printf 'usage: project-down NAME\n' >&2
         exit 2
         ;;
@@ -56,7 +56,7 @@ let
     set -euo pipefail
     project="''${1:-}"
     case "$project" in
-      '' | *[!A-Za-z0-9_-]*)
+      "" | *[!A-Za-z0-9_-]*)
         printf 'usage: project-logs NAME [SERVICE]\n' >&2
         exit 2
         ;;
