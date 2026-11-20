@@ -36,6 +36,7 @@ let
     export MYINSTALL_VM_MEMORY="${toString cfg.vm.memory}"
     export MYINSTALL_VM_VCPUS="${toString cfg.vm.vcpus}"
     export MYINSTALL_VM_DISK_SIZE="${cfg.vm.diskSize}"
+    export MYINSTALL_VM_DISK_DIR="${cfg.vm.diskDir}"
     ${builtins.readFile ./windows-vm-create.sh}
   '';
 
@@ -115,6 +116,29 @@ in
         type = lib.types.str;
         default = "80G";
         description = "Default qcow2 disk size for `windows-vm-create`.";
+      };
+
+      diskDir = lib.mkOption {
+        type = lib.types.str;
+        default = "/var/lib/libvirt/images";
+        example = "/mnt/tank/vm";
+        description = ''
+          Default directory for the Windows disk image.  A dedicated ZFS
+          dataset (for example `tank/vm` with `recordsize=16k`) is much faster
+          than a file inside the pool root.  The helper never formats the
+          pool; create the dataset once with `zfs create tank/vm`.
+        '';
+      };
+
+      hugepages = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Reserve 2 MiB hugepages at boot for the Windows guest.  This sets
+          `hugepages=<memory/2>` on the kernel command line, so the guest
+          memory is pinned and cannot be swapped.  Pass `--hugepages` to
+          `windows-vm-create` to use it.
+        '';
       };
     };
 
@@ -206,7 +230,14 @@ in
       virtualisation.libvirtd = {
         enable = true;
         qemu.swtpm.enable = true;
+        qemu.ovmf.enable = true;
       };
+
+      # Reserve 2 MiB hugepages for the guest when requested.  memory is in
+      # MiB, so memory/2 pages back the whole guest.
+      boot.kernelParams = lib.optionals cfg.vm.hugepages [
+        "hugepages=${toString (cfg.vm.memory / 2)}"
+      ];
 
       virtualisation.spiceUSBRedirection.enable = true;
       programs.virt-manager.enable = true;

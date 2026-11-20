@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
 #
-# Create a Windows 11 VM with libvirt/QEMU.
+# Create a performance-tuned Windows 11 VM with libvirt/QEMU.
 #
 # This helper is installed by install/default.nix when myInstall.mode = "vm".
 # It is intentionally small: virt-manager remains the full management UI.
+#
+# Defaults are chosen for throughput on a normal workstation:
+#   - VirtIO disk (virtio-blk) and VirtIO network, not SATA/e1000e
+#   - host-passthrough CPU plus Hyper-V enlightenments
+#   - io_uring with cache=none, TRIM/discard on
+#   - UEFI + Secure Boot + vTPM, which Windows 11 expects anyway
+#
+# The disk is still a normal file.  qcow2 is the safe default; on ZFS prefer
+# --raw inside a dedicated dataset, for example:
+#   sudo zfs create -o recordsize=16k tank/vm
+#   sudo windows-vm-create --iso /path/Win11.iso --raw --disk-dir /mnt/tank/vm
+# `zfs create` is additive and never touches existing datasets.  Never run the
+# installer against a disk that holds `tank`; it now refuses to do so.
 set -euo pipefail
 
 name="windows11"
@@ -11,36 +24,50 @@ iso="${MYINSTALL_VM_ISO:-}"
 memory="${MYINSTALL_VM_MEMORY:-8192}"
 vcpus="${MYINSTALL_VM_VCPUS:-4}"
 disk_size="${MYINSTALL_VM_DISK_SIZE:-80G}"
-disk_dir="/var/lib/libvirt/images"
+disk_dir="${MYINSTALL_VM_DISK_DIR:-/var/lib/libvirt/images}"
+disk_format="qcow2"
 virtio_iso=""
-use_virtio=0
-secure_boot=0
+use_virtio=auto
+secure_boot=1
+hugepages=0
 connect="qemu:///system"
 
 usage() {
   cat <<'EOF'
 Usage: sudo windows-vm-create [options]
 
-Create and start a Windows 11 VM.  The default disk is SATA so Windows Setup
-does not need VirtIO drivers.  Pass --virtio to use a VirtIO disk; you must then
-load the viostor driver from the virtio-win ISO during Setup.
+Create and start a Windows 11 VM.
 
 Options:
   --name NAME          VM name (default: windows11)
   --iso PATH           Windows 11 ISO (default: myInstall.vm.iso or search)
   --memory MiB         Guest memory (default: 8192)
-  --vcpus N            Guest vCPUs (default: 4)
-  --disk-size SIZE     qcow2 disk size (default: 80G)
-  --disk-dir PATH      Directory for the qcow2 disk
-  --virtio             Use VirtIO for disk and network
-  --virtio-iso PATH    virtio-win ISO (required with --virtio)
-  --secure-boot        Enable Secure Boot in the VM firmware
+  --vcpus N            Guest vCPUs (default: 4; use host threads, not all)
+  --disk-size SIZE     Disk size (default: 80G)
+  --disk-dir PATH      Directory for the disk image
+  --raw                Create a raw image instead of qcow2 (faster on ZFS/LVM)
+  --virtio             Force VirtIO even without virtio-win ISO (install
+                       will not see the disk; only use with a driver CD)
+  --no-virtio          Fall back to SATA + e1000e (slow, last resort)
+  --virtio-iso PATH    virtio-win ISO (default: auto-detect)
+  --secure-boot        Enable Secure Boot in the VM firmware (default)
+  --no-secure-boot     Disable Secure Boot
+  --hugepages          Back guest memory with 2 MiB hugepages (requires
+                       myInstall.vm.hugepages = true and a reboot)
   --connect URI        libvirt URI (default: qemu:///system)
   -h, --help           Show this help
 
 After creation:
   virsh --connect qemu:///system list --all
   virt-manager --connect qemu:///system
+
+Performance notes:
+  - VirtIO needs the virtio-win driver CD during Setup.  The official ISO is
+    picked up from the nix store when `virtio-win` is installed.
+  - With only an integrated Intel GPU there is no PCI passthrough.  The guest
+    uses virtio-gpu; expect fast 2D and software 3D, not gaming performance.
+  - Put the disk on a dedicated ZFS dataset (`tank/vm`, recordsize=16k) and
+    use --raw.  Never run install/install.sh against that disk.
 EOF
 }
 
@@ -75,8 +102,16 @@ while [ "$#" -gt 0 ]; do
       disk_dir="${2:?--disk-dir needs a value}"
       shift 2
       ;;
+    --raw)
+      disk_format="raw"
+      shift
+      ;;
     --virtio)
-      use_virtio=1
+      use_virtio=on
+      shift
+      ;;
+    --no-virtio)
+      use_virtio=off
       shift
       ;;
     --virtio-iso)
@@ -85,6 +120,14 @@ while [ "$#" -gt 0 ]; do
       ;;
     --secure-boot)
       secure_boot=1
+      shift
+      ;;
+    --no-secure-boot)
+      secure_boot=0
+      shift
+      ;;
+    --hugepages)
+      hugepages=1
       shift
       ;;
     --connect)
@@ -129,9 +172,43 @@ fi
 [ -f "$iso" ] || die "ISO not found: $iso"
 [ -r "$iso" ] || die "ISO is not readable: $iso"
 
-if [ "$use_virtio" -eq 1 ]; then
-  [ -n "$virtio_iso" ] || die "--virtio requires --virtio-iso PATH"
+# virtio-win ships the storage and network drivers Windows Setup needs.  It is
+# installed by configuration.nix (`virtio-win`), so try the usual paths.
+if [ -z "$virtio_iso" ]; then
+  for candidate in \
+    /run/current-system/sw/share/virtio-win/virtio-win.iso \
+    /var/lib/libvirt/images/virtio-win.iso \
+    /etc/nixos/windows/virtio-win.iso; do
+    if [ -f "$candidate" ]; then
+      virtio_iso="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ "$use_virtio" = "auto" ]; then
+  if [ -n "$virtio_iso" ] && [ -f "$virtio_iso" ]; then
+    use_virtio=on
+  else
+    use_virtio=off
+    printf 'windows-vm-create: virtio-win ISO not found, falling back to SATA\n' >&2
+    printf 'windows-vm-create: install virtio-win or pass --virtio-iso PATH for full speed\n' >&2
+  fi
+fi
+
+if [ "$use_virtio" = "on" ]; then
+  [ -n "$virtio_iso" ] || die "--virtio requires a virtio-win ISO (--virtio-iso PATH)"
   [ -f "$virtio_iso" ] || die "virtio-win ISO not found: $virtio_iso"
+fi
+
+if [ "$hugepages" -eq 1 ]; then
+  free_huge="$(awk '/^HugePages_Free:/ { print $2 }' /proc/meminfo 2>/dev/null || echo 0)"
+  free_huge="${free_huge:-0}"
+  if [ "$free_huge" -eq 0 ]; then
+    die "--hugepages needs reserved hugepages.
+       Set myInstall.vm.hugepages = true; in /etc/nixos/installation-mode.nix,
+       run sudo nixos-rebuild switch, reboot, and check /proc/meminfo."
+  fi
 fi
 
 if virsh --connect "$connect" dominfo "$name" >/dev/null 2>&1; then
@@ -146,12 +223,12 @@ if ! virsh --connect "$connect" net-list --name | grep -qx default; then
 fi
 
 mkdir -p "$disk_dir"
-disk_path="$disk_dir/$name.qcow2"
+disk_path="$disk_dir/$name.$disk_format"
 if [ -e "$disk_path" ]; then
   die "disk already exists: $disk_path"
 fi
 
-if [ "$use_virtio" -eq 1 ]; then
+if [ "$use_virtio" = "on" ]; then
   disk_bus="virtio"
   net_model="virtio"
 else
@@ -164,30 +241,63 @@ if [ "$secure_boot" -eq 1 ]; then
   boot_args="uefi,secure=on"
 fi
 
+# VirtIO + host-passthrough + Hyper-V enlightenments.  These are what make a
+# Windows guest feel local: paravirtualised timer/IPI/TLB, no CPU emulation,
+# and no memory balloon stealing pages under load.
+features="smm.state=on"
+features+=",hyperv.relaxed.state=on,hyperv.vapic.state=on"
+features+=",hyperv.spinlocks.state=on,hyperv.spinlocks.retries=8191"
+features+=",hyperv.vpindex.state=on,hyperv.runtime.state=on"
+features+=",hyperv.synic.state=on,hyperv.stimer.state=on"
+features+=",hyperv.reset.state=on,hyperv.frequencies.state=on"
+features+=",hyperv.tlbflush.state=on,hyperv.ipi.state=on"
+
+# driver.cache/io/discard are the current virt-install spellings; the short
+# cache=/io= aliases still parse but are deprecated.
+disk_opts="path=$disk_path,size=$disk_size,format=$disk_format,bus=$disk_bus"
+disk_opts+=",driver.cache=none,driver.io=io_uring,driver.discard=unmap"
+
+# Windows 11 needs its own osinfo entry for sensible driver defaults; fall
+# back to win10 on an older database instead of failing outright.
+os_variant="win11"
+if command -v osinfo-query >/dev/null 2>&1 \
+  && ! osinfo-query os short-id=win11 >/dev/null 2>&1; then
+  os_variant="win10"
+fi
+
 printf 'Creating %s\n' "$name"
-printf '  ISO:    %s\n' "$iso"
-printf '  Disk:   %s (%s, %s)\n' "$disk_path" "$disk_size" "$disk_bus"
-printf '  Memory: %s MiB, %s vCPU(s)\n' "$memory" "$vcpus"
+printf '  ISO:      %s\n' "$iso"
+printf '  Disk:     %s (%s, %s, %s)\n' "$disk_path" "$disk_size" "$disk_format" "$disk_bus"
+printf '  Memory:   %s MiB%s\n' "$memory" "$([ "$hugepages" -eq 1 ] && printf ' (hugepages)')"
+printf '  CPUs:     %s (host-passthrough)\n' "$vcpus"
+printf '  Firmware: UEFI%s + vTPM 2.0\n' "$([ "$secure_boot" -eq 1 ] && printf ' Secure Boot')"
 
 virt_install_args=(
   --connect "$connect"
   --name "$name"
+  --os-variant "$os_variant"
   --memory "$memory"
   --vcpus "$vcpus"
   --cpu host-passthrough
   --machine q35
   --boot "$boot_args"
-  --features smm=on
+  --features "$features"
+  --clock "offset=localtime,hypervclock_present=yes"
   --tpm "backend.type=emulator,backend.version=2.0"
-  --disk "path=$disk_path,size=$disk_size,format=qcow2,bus=$disk_bus"
+  --disk "$disk_opts"
   --cdrom "$iso"
   --network "network=default,model=$net_model"
-  --graphics spice
-  --video qxl
+  --graphics "spice,listen=127.0.0.1"
+  --video virtio
+  --memballoon none
   --noautoconsole
 )
 
-if [ "$use_virtio" -eq 1 ]; then
+if [ "$hugepages" -eq 1 ]; then
+  virt_install_args+=(--memorybacking hugepages=yes)
+fi
+
+if [ "$use_virtio" = "on" ]; then
   virt_install_args+=(--disk "path=$virtio_iso,device=cdrom")
 fi
 
@@ -202,9 +312,24 @@ $name is starting.  Open the console with:
 
 EOF
 
-if [ "$use_virtio" -eq 1 ]; then
+if [ "$use_virtio" = "on" ]; then
   cat <<EOF
-VirtIO disk selected.  In Windows Setup, choose "Load driver" and select the
-viostor driver from the virtio-win CD before selecting the disk.
+VirtIO is enabled.  In Windows Setup:
+  1. Choose "Load driver" > "Browse" > the virtio-win CD.
+  2. Load the VirtIO SCSI or viostor driver, then select the disk.
+  3. After installation, run virtio-win-guest-tools.exe from the CD.
+     That installs the network, balloon-free, and graphics drivers.
+
+EOF
+else
+  cat <<EOF
+SATA fallback in use.  This works with any ISO but is significantly slower.
+Recreate the VM with virtio-win installed for full VirtIO performance.
+
 EOF
 fi
+
+cat <<EOF
+Secure Boot is $( [ "$secure_boot" -eq 1 ] && printf 'on' || printf 'off' ).
+The disk stays at $disk_path and is never reformatted by this helper.
+EOF
