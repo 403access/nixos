@@ -28,6 +28,24 @@ function Test-AccessDenied {
 function Stop-SearchProcesses {
     Get-Process -Name SearchHost, SearchIndexer, SearchProtocolHost, SearchFilterHost -ErrorAction SilentlyContinue |
         Stop-Process -Force -ErrorAction SilentlyContinue
+    foreach ($name in 'SearchHost', 'SearchIndexer', 'SearchProtocolHost', 'SearchFilterHost') {
+        & taskkill.exe /F /IM "$name.exe" /T 2>$null | Out-Null
+    }
+    try {
+        $searchKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search'
+        if (-not (Test-Path -LiteralPath $searchKey)) {
+            New-Item -Path $searchKey -Force | Out-Null
+        }
+        New-ItemProperty -Path $searchKey -Name 'SearchboxTaskbarMode' -Value 0 -PropertyType DWord -Force | Out-Null
+        New-ItemProperty -Path $searchKey -Name 'BingSearchEnabled' -Value 0 -PropertyType DWord -Force | Out-Null
+    } catch {
+        # Hiding the taskbar box is best-effort.
+    }
+    Start-Sleep -Milliseconds 800
+    $remaining = @(Get-Process -Name SearchHost, SearchIndexer -ErrorAction SilentlyContinue)
+    if ($remaining.Count -gt 0) {
+        Write-Host ("    still running: {0}; SearchHost is the UI and may restart" -f (($remaining | Select-Object -ExpandProperty ProcessName -Unique) -join ', ')) -ForegroundColor Yellow
+    }
 }
 
 function Set-ServiceState {
