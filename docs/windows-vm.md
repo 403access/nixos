@@ -37,7 +37,29 @@ apply the debloat as a normal first-logon script (see *Debloat* below).
   the Microsoft UEFI CA 2023, which the OVMF vars template used here does not
   trust. TPM 2.0 remains enabled.
 
+## Autostart
+
+The domain is created with autostart disabled.  To start it with the host:
+
+```bash
+sudo virsh autostart win11-stock
+sudo virsh dominfo win11-stock | grep Autostart     # Autostart: enable
+ls -l /etc/libvirt/qemu/autostart/                  # symlink to win11-stock.xml
+```
+
+`sudo virsh autostart --disable win11-stock` reverts it.  The default libvirt
+network is started by the NixOS module at boot, so the guest gets its lease
+without manual steps.
+
 ## Enabling RDP (no typing in the console)
+
+The scripts are kept in [`../scripts/windows/`](../scripts/windows/); build
+the CD with:
+
+```bash
+cd scripts/windows
+./make-helper-iso.sh /tmp/windows-helper.iso
+```
 
 The SPICE console plus a German keymap makes typing long commands painful.
 Put the commands on a helper CD and double-click a batch file.
