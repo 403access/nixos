@@ -30,29 +30,34 @@ matter.
 | `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing/Print Spooler; PcaSvc, WpcMonSvc, PhoneSvc to manual |
 | `disable-gaming.bat` | Game DVR, Game Bar, Game Mode and Xbox services (breaks the Xbox app) |
 | `cleanup.bat` | Temp, Delivery Optimization, thumbnails, WER and CBS logs; optional DISM/WU cache flags |
-| `minimal.bat` | Runs the slim scripts above in order and writes a transcript |
+| `minimal.bat` | Runs the slim scripts in order; `minimal.ps1 -Mode developer/power/regular` |
 
-## Main menu
+## Tabbed UI
 
-`helper.bat` is the entry point. The main menu puts the common actions first:
+`helper.bat` opens a tabbed console UI. Use **←/→** to switch tabs, **↑/↓** to
+select, **Enter** to open/apply, **Esc** to go back and **Q** to quit.
 
-1. **Create a restore point** — enables System Restore and checkpoints immediately
-2. **System dashboard** — Windows build, memory, disk, restore points, tweak state, network
-3. **Slim profile** — full run plus `-SkipGaming`, `-SkipCleanup` and Search/SysMain variants
-4. **Performance & privacy** — visuals, AI, telemetry, tasks, services, gaming, memory, tune, debloat
-5. **Cleanup & storage** — quick cleanup, dry run, Windows Update cache, DISM, Disk Cleanup
-6. **Network & access** — enable/disable RDP, autologon, IP and listener info
-7. **Tools & settings** — install to `C:\Tools\windows-helper`, logs, README, Settings, restart Explorer/Windows
-8. **Apply my Explorer preferences** — hidden files, all extensions, open This PC
-9. **Install apps** — Everything, 7-Zip and Notepad++ from the offline cache
-10. **Startup apps (autostart)** — list, disable, remove or restore startup entries
-11. **Stock apps & OneDrive** — disable/uninstall OneDrive, remove stock apps, disable services
-12. **SSH server (terminal access)** — enable/disable OpenSSH, install a key, show commands
-13. **Activation** — inert preview of `irm https://get.activated.win | iex`; no download, no execution
+**Restore** — create/list restore points, open System Restore, dashboard.
+
+**Profiles**
+
+- **Developer (most aggressive)** — lean stock apps, aggressive services
+  (printing, Bluetooth, camera, notifications and diagnostics off), SSH
+  enabled, Game DVR off, cleanup.
+- **Power user (balanced)** — lean apps, balanced services; keeps printing,
+  Bluetooth, Search and gaming; OneDrive disabled; cleanup.
+- **Regular user (light)** — visuals, AI/telemetry, Explorer preferences,
+  startup trim and OneDrive disabled; keeps stock apps, services and printing.
+
+Create a restore point from the Restore tab before applying a profile.
+
+**Changes** — nested categories: System & desktop, Privacy & AI, Services &
+stock apps, Network & access, Apps & cleanup, Tools & maintenance.
 
 ### Explorer preferences
 
-Main menu 8 writes the current user's `Explorer\Advanced` values:
+**Changes → System & desktop → Explorer preferences** writes the current user's
+`Explorer\Advanced` values:
 
 - `Hidden = 1` — show hidden files and folders
 - `HideFileExt = 0` — show every file extension, including unknown types
@@ -64,7 +69,8 @@ per-user settings, so run it once per account.
 
 ## Startup apps
 
-Main menu 10, or `trim-autostart.bat`, empties the Windows autostart list:
+**Changes → System & desktop → Startup apps**, or `trim-autostart.bat`, empties
+the Windows autostart list:
 
 - `HKCU` and `HKLM` Run keys, including `WOW6432Node`
 - the per-user and common Startup folders
@@ -78,7 +84,7 @@ Packaged tasks get `State = 1` (disabled by the user). The default keep list is
 
 Every change is backed up to
 `%ProgramData%\WindowsSlim\autostart-backup\<timestamp>\` (`.reg` exports plus
-`approved-state.json` and `uwp-startup.json`). Main menu 10 offers restore, and
+`approved-state.json` and `uwp-startup.json`). The Startup apps menu offers restore, and
 `minimal.ps1` includes the startup cleanup as step 6.
 
 ```powershell
@@ -100,7 +106,8 @@ logged to `%ProgramData%\WindowsSlim\windows-helper-menu.log`.
 
 ## Apps
 
-Main menu 9, or `install-apps.bat`, installs from the CD:
+**Changes → Apps & cleanup → Install apps...**, or `install-apps.bat`, installs
+from the CD:
 
 | App | Version | Notes |
 | --- | --- | --- |
@@ -138,7 +145,8 @@ the CD. To add an app, add an entry to `apps.json` and drop its installer into
 
 ## Stock apps and OneDrive
 
-Main menu 11, or `trim-stock.bat`, covers the stock consumer layer:
+**Changes → Services & stock apps**, or `trim-stock.bat`, covers the stock
+consumer layer:
 
 - **OneDrive: disable** — sets the sync policy, stops OneDrive/FileCoAuth, removes
   the Run entry and disables OneDrive scheduled tasks; local files stay.
@@ -146,9 +154,9 @@ Main menu 11, or `trim-stock.bat`, covers the stock consumer layer:
   removes the `Microsoft.OneDriveSync` bridge and leaves local files in place.
 - **Stock apps** — lean list (Bing apps, Xbox, Office Hub, Teams, Clipchamp,
   Solitaire, Maps, Alarms, etc.) or aggressive list, which also removes Store.
-- **Stock services** — disables the lean list (telemetry, RetailDemo, Fax,
-  RemoteRegistry, Maps, WMP sharing, wallet, Xbox, **Print Spooler and the
-  print workflow/broker services**) or aggressive, which adds Search, SysMain,
+- **Stock services** — disables the balanced list (telemetry, RetailDemo, Fax,
+  RemoteRegistry, Maps, WMP, wallet; printing/Bluetooth/Search/Xbox kept), the
+  lean list (also printing and Xbox) or aggressive, which adds Search, SysMain,
   Bluetooth, Wi-Fi/hotspot, camera/scanner, location/sensors, smart cards,
   notifications, error reporting, diagnostics, network discovery, WinRM,
   VPN/IPsec, offline files, backup, gaming services and Delivery Optimization.
@@ -158,13 +166,14 @@ saved to `%ProgramData%\WindowsSlim\stock-services.json` and can be restored
 from the menu. Windows-protected services such as `DoSvc`, or the per-user
 `PrintWorkflowUserSvc`, may refuse changes; they are reported as
 `skipped (protected)`. The Spooler is the effective printing switch. Use
-**8) Restore service startup types** or run
+**Restore service startup types** under Services & stock apps, or run
 `Set-Service Spooler -StartupType Automatic` if you ever need printing again.
 OneDrive state is saved to `onedrive-state.json`; the uninstaller
 is not reversible from the script, but OneDrive can be downloaded again.
 
 ```powershell
 .\trim-stock.ps1 -List
+.\trim-stock.ps1 -OneDrive Disable -Apps Lean -Services Balanced
 .\trim-stock.ps1 -OneDrive Disable -Apps Lean -Services Lean
 .\trim-stock.ps1 -OneDrive Remove -Apps Aggressive -Services Aggressive
 .\trim-stock.ps1 -RestoreServices
@@ -177,7 +186,8 @@ applies the recommended combination as step 7 and accepts `-SkipStockApps`.
 
 ## SSH
 
-Main menu 12, or `enable-ssh.bat`, installs the Windows OpenSSH Server
+**Changes → Network & access → Enable SSH server**, or `enable-ssh.bat`,
+installs the Windows OpenSSH Server
 capability, starts `sshd`, opens TCP 22 and sets PowerShell as the default
 shell. Password authentication stays enabled; pass `-PublicKeyPath` to install
 an authorized key, then optionally `-DisablePasswordAuthentication`.
@@ -197,44 +207,49 @@ If it changes, pass it explicitly:
 WINDOWS_SSH=Windows-PC@192.168.122.60 ./scripts/win-ssh.sh
 ```
 
-Main menu 12 also shows the status/listener and connection command, installs a
-public key, and can disable or uninstall OpenSSH. The SSH port is only reachable
-through the host jump; it is not exposed on the LAN.
-
-### Activation
-
-The Activation entry is a UI preview. It prints
-`irm https://get.activated.win | iex` but makes no network request and does not call
-`Invoke-Expression`. For real remote installs, use `apps.json` with a pinned
-SHA-256 and the offline app installer instead.
+The Network & access category also shows the status/listener and connection
+command, installs a public key, and can disable or uninstall OpenSSH. The SSH
+port is only reachable through the host jump; it is not exposed on the LAN.
 
 ## Minimal profile
 
-`minimal.bat` is the one-click combined run (main menu 3 → 1). It elevates
-once and executes visuals, AI/suggestions, telemetry, scheduled tasks,
-services, startup-app cleanup, stock-app/OneDrive cleanup, gaming and cleanup.
-Create a restore point first (main menu 1 or `create-restore-point.bat`), then
+`minimal.bat` is the one-click combined run. The Profiles tab uses the same
+modes:
+
+```powershell
+.\minimal.ps1 -Mode developer
+.\minimal.ps1 -Mode power
+.\minimal.ps1 -Mode regular
+```
+
+- **developer** — lean apps, aggressive stock services (including printing),
+  Search/SysMain, SSH server, gaming off, cleanup.
+- **power** — lean apps, balanced stock services (printing, Bluetooth, Search
+  and gaming kept), OneDrive disabled, cleanup.
+- **regular** — visuals, AI/telemetry, Explorer preferences, startup trim,
+  OneDrive disabled; stock apps/services and printing kept.
+
+Create a restore point first (Restore tab or `create-restore-point.bat`), then
 reboot when it finishes. To roll back later, run `rstrui.exe` and pick the
 `Before debloat` checkpoint; the batch file never restores anything itself.
-The stock-service step also disables printing; use `-SkipStockApps` to keep the
-stock apps and services.
 
 Two details matter:
 
 - `disable-visuals.ps1` writes `HKCU`, so sign in to each account and run it
   again for that profile. The other scripts are machine-wide.
 - The gaming script disables the Xbox services. Steam and standalone games
-  are unaffected; the Xbox app and Game Pass are not. Call
-  `minimal.ps1 -SkipGaming` when you need those.
+  are unaffected; Steam users can keep gaming services with `-SkipGaming` or
+  the Power/Regular profile.
 
-For the optional behaviour, call the PowerShell file directly from an
-elevated prompt:
+For optional behaviour, call the PowerShell file directly from an elevated
+prompt:
 
 ```powershell
 .\minimal.ps1 -IncludeSearch -IncludeSysMain -ComponentCleanup
 .\minimal.ps1 -SkipCleanup
 .\minimal.ps1 -SkipGaming
 .\minimal.ps1 -SkipStockApps
+.\minimal.ps1 -SkipServices
 .\cleanup.ps1 -DryRun
 .\cleanup.ps1 -WindowsUpdateCache -ComponentCleanup -ResetBase
 ```

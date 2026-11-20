@@ -300,15 +300,16 @@ WINDOWS_SSH=Windows-PC@192.168.122.60 ./scripts/win-ssh.sh
 
 Password login uses the Windows account password. For key login, copy the
 public key somewhere the guest can read (for example `C:\Tools\id_ed25519.pub`),
-then use helper menu **12 → 4**. To disable password authentication afterwards,
+then use **Changes → Network & access → SSH: install public key...**. To
+disable password authentication afterwards,
 run:
 
 ```powershell
 .\enable-ssh.ps1 -PublicKeyPath C:\Tools\id_ed25519.pub -DisablePasswordAuthentication
 ```
 
-`disable-ssh.bat` stops the service and disables the firewall rule; menu 12 → 5
-removes the capability. SSH is only reachable through the host jump, not from
+`disable-ssh.bat` stops the service and disables the firewall rule;
+**Changes → Network & access → Uninstall OpenSSH Server** removes the capability. SSH is only reachable through the host jump, not from
 the LAN directly.
 
 ## Troubleshooting
