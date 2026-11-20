@@ -49,6 +49,7 @@
       ./jotta-cli.nix
       ./desktop
       ./sandbox
+      ./services
     ];
 
   # Choose the desktop profile.  `xfce` preserves the original setup;
@@ -70,6 +71,9 @@
 
   # Untrusted agents run in KVM microVMs, not in containers on the host kernel.
   mySandbox.enable = true;
+
+  # Trusted project services run in Docker with per-project networks.
+  myServices.enable = true;
 
   nixpkgs.config.allowUnfree = true;
 

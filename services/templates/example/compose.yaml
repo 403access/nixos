@@ -1,0 +1,35 @@
+# Example project stack.
+#
+# Copy this directory to /var/lib/projects/example (or your own name) and run
+# sudo project-up example.  Then open http://127.0.0.1:8080/.
+#
+# Hardening shown here:
+#   - read-only root filesystem, tmpfs for scratch space
+#   - all capabilities dropped, no-new-privileges
+#   - non-root UID
+#   - one internal network, so the container has no outbound route
+#   - published on 127.0.0.1 only, never on 0.0.0.0
+#   - no docker socket, no host network, no privileged mode
+name: example
+
+services:
+  whoami:
+    image: docker.io/traefik/whoami:v1.10
+    command: ["--port=8080"]
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    user: "65534:65534"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=8m
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - edge
+
+networks:
+  edge:
+    driver: bridge
+    internal: true
