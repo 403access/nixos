@@ -795,8 +795,26 @@ $privacyItems = @(
     New-TuiNode -Label 'Scheduled background tasks' -Description 'Compatibility, CEIP, feedback, diagnostics and Maps tasks.' -Action {
         Invoke-Helper -Script 'disable-scheduled-tasks.ps1' -Label 'Scheduled background tasks'
     }
+    New-TuiNode -Label 'Windows Search: disable' -Description 'Disables WSearch and stops SearchHost/SearchIndexer.' -Confirm 'Disable Windows Search (WSearch) and stop the search processes?' -Action {
+        Invoke-Helper -Script 'toggle-search.ps1' -Label 'Disable Windows Search' -Arguments @{ Disable = $true }
+    }
+    New-TuiNode -Label 'Windows Search: enable' -Description 'Restores WSearch and restarts indexing.' -Action {
+        Invoke-Helper -Script 'toggle-search.ps1' -Label 'Enable Windows Search' -Arguments @{ Enable = $true }
+    }
+    New-TuiNode -Label 'Windows Search: status' -Description 'Shows the service state and SearchHost processes.' -Action {
+        Invoke-Helper -Script 'toggle-search.ps1' -Label 'Windows Search status' -Arguments @{ Status = $true }
+    }
     New-TuiNode -Label 'Open Privacy settings' -Description 'Windows Settings, Privacy and security.' -Action {
         Start-Setting -Target 'ms-settings:privacy' -Label 'Privacy settings'
+    }
+)
+
+$securityItems = @(
+    New-TuiNode -Label 'Microsoft Defender: status' -Description 'Real-time protection, tamper protection, signatures and services.' -Action {
+        Invoke-Helper -Script 'manage-defender.ps1' -Label 'Microsoft Defender status' -Arguments @{ Status = $true }
+    }
+    New-TuiNode -Label 'Open Windows Security' -Description 'Open the Defender dashboard; this helper does not disable Defender.' -Action {
+        Invoke-Helper -Script 'manage-defender.ps1' -Label 'Windows Security' -Arguments @{ Open = $true }
     }
 )
 
@@ -982,7 +1000,8 @@ $toolsItems = @(
 
 $changeItems = @(
     New-TuiNode -Label 'System & desktop' -Description 'Visuals, Explorer, power and startup.' -Children $systemItems
-    New-TuiNode -Label 'Privacy & AI' -Description 'AI surfaces, telemetry and background tasks.' -Children $privacyItems
+    New-TuiNode -Label 'Privacy & AI' -Description 'AI surfaces, telemetry, search and background tasks.' -Children $privacyItems
+    New-TuiNode -Label 'Security & Defender' -Description 'Defender status and Windows Security.' -Children $securityItems
     New-TuiNode -Label 'Services & stock apps' -Description 'OneDrive, stock apps, services and gaming.' -Children $stockItems
     New-TuiNode -Label 'Network & access' -Description 'RDP, SSH, autologon and network info.' -Children $networkItems
     New-TuiNode -Label 'Apps & cleanup' -Description 'Offline app installers and cleanup tools.' -Children $appsItems
