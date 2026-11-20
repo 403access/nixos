@@ -229,10 +229,11 @@ port is only reachable through the host jump; it is not exposed on the LAN.
 
 **Changes → Privacy & AI → Windows Search** controls the service:
 
-- **disable** — sets `WSearch` to Disabled and stops SearchHost, SearchIndexer,
-  SearchProtocolHost and SearchFilterHost. `SearchHost.exe` is the UI; Windows
-  can start it again when the Start menu or search UI is opened, but the
-  indexing service stays disabled.
+- **disable** — sets `WSearch` to Disabled, stops SearchHost, SearchIndexer,
+  SearchProtocolHost and SearchFilterHost, hides the taskbar search box and
+  kills remaining processes with `taskkill`. `SearchHost.exe` is the UI;
+  Windows can start it again when the Start menu or search UI is opened, but
+  the indexing service stays disabled.
 - **enable** — restores the saved startup type and starts indexing again.
 - **status** — shows the service and processes.
 
@@ -248,7 +249,7 @@ The normal Developer profile **keeps Defender enabled**. The separate
 disable only after checking Tamper Protection:
 
 - Tamper Protection must be off (Windows Security → Virus & threat protection →
-  Manage settings); the script refuses otherwise.
+  Manage settings); the script refuses otherwise and opens that settings page.
 - It disables real-time/behaviour/script scanning, sets the Defender policy and
   disables `WinDefend`/`WdNisSvc`.
 - A reboot is required; Windows updates may re-enable Defender.
