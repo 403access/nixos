@@ -1,16 +1,37 @@
-# Report Microsoft Defender status and open Windows Security.
+# Report, disable or enable Microsoft Defender.
 #
-# This helper deliberately does not disable Defender. Tamper Protection blocks
-# scripted changes on current Windows builds, and Defender is the security
-# baseline for this image.
+# The Developer profile keeps Defender enabled by design. This file offers an
+# explicit separate action: disabling requires Tamper Protection to be off,
+# needs a reboot, and is unsupported by Microsoft.
 
 [CmdletBinding()]
 param(
     [switch]$Status,
+    [switch]$Disable,
+    [switch]$Enable,
     [switch]$Open
 )
 
 $ErrorActionPreference = 'Continue'
+
+function Test-Admin {
+    try {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Set-Dword {
+    param([string]$Path, [string]$Name, [int]$Value)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        New-Item -Path $Path -Force | Out-Null
+    }
+    New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType DWord -Force | Out-Null
+}
 
 function Show-DefenderStatus {
     Write-Host 'Microsoft Defender' -ForegroundColor Cyan
@@ -53,8 +74,95 @@ function Show-DefenderStatus {
     }
 
     Write-Host ''
-    Write-Host 'This helper does not disable Defender.' -ForegroundColor Yellow
-    Write-Host 'Tamper Protection blocks scripted changes; use Windows Security if you really need to change it.'
+    Write-Host 'The Developer profile keeps Defender enabled.' -ForegroundColor Yellow
+    Write-Host 'Use Disable only if you accept the security trade-off and Tamper Protection is off.'
+}
+
+function Disable-Defender {
+    if (-not (Test-Admin)) {
+        Write-Warning 'Disabling Defender needs an elevated shell.'
+        return
+    }
+    if (-not (Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue)) {
+        Write-Warning 'Defender cmdlets are not available on this system.'
+        return
+    }
+
+    $status = Get-MpComputerStatus -ErrorAction SilentlyContinue
+    if ($status -and $status.IsTamperProtected) {
+        Write-Host 'Tamper Protection is enabled; refusing to change Defender.' -ForegroundColor Yellow
+        Write-Host 'Windows Security > Virus & threat protection > Manage settings > Tamper Protection.'
+        Write-Host 'Turn that off first, then retry.'
+        return
+    }
+
+    Write-Host 'Disabling Defender real-time protection and services ...'
+    try {
+        Set-MpPreference -DisableRealtimeMonitoring $true -DisableBehaviorMonitoring $true `
+            -DisableScriptScanning $true -DisableIOAVProtection $true -ErrorAction SilentlyContinue
+    } catch {
+        Write-Warning ("Set-MpPreference failed: {0}" -f $_.Exception.Message)
+    }
+
+    Set-Dword 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' 'DisableAntiSpyware' 1
+    Set-Dword 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender' 'DisableAntiVirus' 1
+
+    foreach ($name in 'WinDefend', 'WdNisSvc') {
+        $service = Get-Service -Name $name -ErrorAction SilentlyContinue
+        if (-not $service) {
+            continue
+        }
+        try {
+            Set-Service -Name $name -StartupType Disabled -ErrorAction Stop
+            Stop-Service -Name $name -Force -ErrorAction SilentlyContinue
+            Write-Host ("disabled: {0}" -f $name)
+        } catch {
+            Write-Warning ("Could not disable {0}: {1}" -f $name, $_.Exception.Message)
+        }
+    }
+
+    Write-Host ''
+    Write-Host 'Defender changes applied. Reboot the guest to stop the remaining processes.' -ForegroundColor Yellow
+    Write-Host 'This is unsupported; Windows updates may re-enable Defender.'
+}
+
+function Enable-Defender {
+    if (-not (Test-Admin)) {
+        Write-Warning 'Enabling Defender needs an elevated shell.'
+        return
+    }
+
+    Write-Host 'Re-enabling Microsoft Defender ...'
+    $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender'
+    foreach ($name in 'DisableAntiSpyware', 'DisableAntiVirus') {
+        Remove-ItemProperty -Path $policy -Name $name -Force -ErrorAction SilentlyContinue
+    }
+
+    foreach ($name in 'WinDefend', 'WdNisSvc') {
+        $service = Get-Service -Name $name -ErrorAction SilentlyContinue
+        if (-not $service) {
+            continue
+        }
+        try {
+            $startType = if ($name -eq 'WinDefend') { 'Automatic' } else { 'Manual' }
+            Set-Service -Name $name -StartupType $startType -ErrorAction Stop
+            Start-Service -Name $name -ErrorAction SilentlyContinue
+            Write-Host ("enabled: {0} ({1})" -f $name, $startType)
+        } catch {
+            Write-Warning ("Could not enable {0}: {1}" -f $name, $_.Exception.Message)
+        }
+    }
+
+    if (Get-Command Set-MpPreference -ErrorAction SilentlyContinue) {
+        try {
+            Set-MpPreference -DisableRealtimeMonitoring $false -DisableBehaviorMonitoring $false `
+                -DisableScriptScanning $false -DisableIOAVProtection $false -ErrorAction SilentlyContinue
+        } catch {
+            Write-Warning ("Set-MpPreference failed: {0}" -f $_.Exception.Message)
+        }
+    }
+
+    Write-Host 'Defender re-enabled. Reboot if the service did not start.' -ForegroundColor Green
 }
 
 if ($Open) {
@@ -67,6 +175,16 @@ if ($Open) {
             Write-Host ("Could not open Windows Security: {0}" -f $_.Exception.Message) -ForegroundColor Red
         }
     }
+    return
+}
+
+if ($Disable) {
+    Disable-Defender
+    return
+}
+
+if ($Enable) {
+    Enable-Defender
     return
 }
 

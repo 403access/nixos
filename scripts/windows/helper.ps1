@@ -487,7 +487,8 @@ function New-TuiNode {
         [string]$Description,
         [scriptblock]$Action,
         [object[]]$Children,
-        [string]$Confirm
+        [string]$Confirm,
+        [string]$LogPath
     )
 
     return [pscustomobject]@{
@@ -496,6 +497,7 @@ function New-TuiNode {
         Action = $Action
         Children = $Children
         Confirm = $Confirm
+        LogPath = $LogPath
     }
 }
 
@@ -574,6 +576,8 @@ function Read-TuiKey {
         'J' { return 'y' }
         'n' { return 'n' }
         'N' { return 'n' }
+        'v' { return 'v' }
+        'V' { return 'v' }
     }
     return 'None'
 }
@@ -619,11 +623,24 @@ function Invoke-TuiAction {
     Update-TuiStatus
     Write-Host ''
     if ($script:TestQueue.Count -eq 0) {
-        Write-Host 'Press any key to return.' -ForegroundColor DarkGray
-        try {
-            [void][Console]::ReadKey($true)
-        } catch {
-            # Non-interactive host; just return.
+        if ($Item.LogPath -and (Test-Path -LiteralPath $Item.LogPath)) {
+            Write-Host ("Full transcript: {0}" -f $Item.LogPath) -ForegroundColor DarkGray
+            Write-Host 'Press V to open the transcript, any other key to return.' -ForegroundColor DarkGray
+            $key = Read-TuiKey
+            if ($key -eq 'v') {
+                try {
+                    Start-Process -FilePath 'notepad.exe' -ArgumentList ('"{0}"' -f $Item.LogPath) -ErrorAction Stop
+                } catch {
+                    Write-Host ("Could not open the transcript: {0}" -f $_.Exception.Message) -ForegroundColor Red
+                }
+            }
+        } else {
+            Write-Host 'Press any key to return.' -ForegroundColor DarkGray
+            try {
+                [void][Console]::ReadKey($true)
+            } catch {
+                # Non-interactive host; just return.
+            }
         }
     }
 }
@@ -742,6 +759,9 @@ function Move-TuiSelection {
     $script:Selected = ($script:Selected + $Delta + $count) % $count
 }
 
+$helperProgramData = if ($env:ProgramData) { $env:ProgramData } else { [IO.Path]::GetTempPath() }
+$minimalLog = Join-Path $helperProgramData 'WindowsSlim\windows-minimal.log'
+
 $startupItems = @(
     New-TuiNode -Label 'List startup entries' -Description 'Run keys, Startup folders and packaged-app tasks.' -Action {
         Invoke-Helper -Script 'trim-autostart.ps1' -Label 'Startup entries' -Arguments @{ List = $true }
@@ -813,7 +833,13 @@ $securityItems = @(
     New-TuiNode -Label 'Microsoft Defender: status' -Description 'Real-time protection, tamper protection, signatures and services.' -Action {
         Invoke-Helper -Script 'manage-defender.ps1' -Label 'Microsoft Defender status' -Arguments @{ Status = $true }
     }
-    New-TuiNode -Label 'Open Windows Security' -Description 'Open the Defender dashboard; this helper does not disable Defender.' -Action {
+    New-TuiNode -Label 'Disable Microsoft Defender' -Description 'Requires Tamper Protection off; disables realtime and WinDefend services, then reboot.' -Confirm 'Disable Microsoft Defender? This removes the security baseline and needs a reboot.' -Action {
+        Invoke-Helper -Script 'manage-defender.ps1' -Label 'Disable Microsoft Defender' -Arguments @{ Disable = $true }
+    }
+    New-TuiNode -Label 'Enable Microsoft Defender' -Description 'Restores the services, policy and real-time protection.' -Action {
+        Invoke-Helper -Script 'manage-defender.ps1' -Label 'Enable Microsoft Defender' -Arguments @{ Enable = $true }
+    }
+    New-TuiNode -Label 'Open Windows Security' -Description 'Open the Defender dashboard.' -Action {
         Invoke-Helper -Script 'manage-defender.ps1' -Label 'Windows Security' -Arguments @{ Open = $true }
     }
 )
@@ -967,6 +993,13 @@ $toolsItems = @(
     New-TuiNode -Label 'Open logs folder' -Description 'Open %ProgramData%\WindowsSlim.' -Action {
         Open-Folder -Path (Join-Path $env:ProgramData 'WindowsSlim') -Label 'the logs folder'
     }
+    New-TuiNode -Label 'Open last profile log' -Description 'Open the full minimal/profile transcript in Notepad.' -Action {
+        if (Test-Path -LiteralPath $minimalLog) {
+            Start-Process -FilePath 'notepad.exe' -ArgumentList ('"{0}"' -f $minimalLog) -ErrorAction SilentlyContinue
+        } else {
+            Write-Host ("No profile log yet: {0}" -f $minimalLog) -ForegroundColor Yellow
+        }
+    }
     New-TuiNode -Label 'Open README' -Description 'Open the helper documentation.' -Action {
         $readme = Join-Path $scriptRoot 'README.md'
         if (Test-Path -LiteralPath $readme) {
@@ -1031,13 +1064,17 @@ $profileItems = @(
     New-TuiNode -Label 'Create a restore point first' -Description 'Recommended before applying any profile.' -Confirm 'Create a restore point now?' -Action {
         Invoke-Helper -Script 'create-restore-point.ps1' -Label 'Create a restore point'
     }
-    New-TuiNode -Label 'Developer (most aggressive)' -Description 'Lean apps, aggressive services, SSH on, Game DVR off, cleanup.' -Confirm 'Apply the Developer profile? Stock apps are removed and aggressive services are disabled.' -Action {
+    New-TuiNode -Label 'Developer (most aggressive)' -Description 'Lean apps, aggressive services, SSH on, Game DVR off, cleanup; Defender stays on.' -Confirm 'Apply the Developer profile? Stock apps are removed and aggressive services are disabled.' -LogPath $minimalLog -Action {
         Invoke-Helper -Script 'minimal.ps1' -Label 'Developer profile' -Arguments @{ Mode = 'developer' }
     }
-    New-TuiNode -Label 'Power user (balanced)' -Description 'Lean apps, balanced services, printing/Bluetooth/Search kept, cleanup.' -Confirm 'Apply the Power user profile?' -Action {
+    New-TuiNode -Label 'Developer + Defender off' -Description 'Developer profile, then tries to disable Defender; requires Tamper Protection off and a reboot.' -Confirm 'Apply Developer and disable Microsoft Defender? This removes the security baseline.' -LogPath $minimalLog -Action {
+        Invoke-Helper -Script 'minimal.ps1' -Label 'Developer profile' -Arguments @{ Mode = 'developer' }
+        Invoke-Helper -Script 'manage-defender.ps1' -Label 'Disable Microsoft Defender' -Arguments @{ Disable = $true }
+    }
+    New-TuiNode -Label 'Power user (balanced)' -Description 'Lean apps, balanced services, printing/Bluetooth/Search kept, cleanup.' -Confirm 'Apply the Power user profile?' -LogPath $minimalLog -Action {
         Invoke-Helper -Script 'minimal.ps1' -Label 'Power user profile' -Arguments @{ Mode = 'power' }
     }
-    New-TuiNode -Label 'Regular user (light)' -Description 'Visuals, AI/telemetry, Explorer, startup trim and OneDrive off; keeps apps and services.' -Confirm 'Apply the Regular user profile?' -Action {
+    New-TuiNode -Label 'Regular user (light)' -Description 'Visuals, AI/telemetry, Explorer, startup trim and OneDrive off; keeps apps and services.' -Confirm 'Apply the Regular user profile?' -LogPath $minimalLog -Action {
         Invoke-Helper -Script 'minimal.ps1' -Label 'Regular user profile' -Arguments @{ Mode = 'regular' }
     }
 )
