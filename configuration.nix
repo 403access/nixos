@@ -186,7 +186,10 @@ systemd.sleep.extraConfig = ''
     IdleAction=ignore
   '';
 
-services.samba = {
+# Known, accepted exposure: this exposes "/" read-write as user nixos and
+  # /mnt/tank read-write as root.  It is left unchanged on purpose; read
+  # SECURITY.md before widening it or adding users.
+  services.samba = {
     enable = true;
     openFirewall = true;
     settings = {
