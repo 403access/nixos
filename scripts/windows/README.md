@@ -192,10 +192,15 @@ applies the recommended combination as step 7 and accepts `-SkipStockApps`.
 ## SSH
 
 **Changes → Network & access → Enable SSH server**, or `enable-ssh.bat`,
-installs the Windows OpenSSH Server
-capability, starts `sshd`, opens TCP 22 and sets PowerShell as the default
-shell. Password authentication stays enabled; pass `-PublicKeyPath` to install
-an authorized key, then optionally `-DisablePasswordAuthentication`.
+installs the Windows OpenSSH server. The default uses the bundled
+Win32-OpenSSH 10.4.0.0p1 package from `apps/OpenSSH-Win64.zip` (SHA-256
+verified); it registers `sshd` directly and avoids the slow Windows Modules
+Installer/CBS path. Use `-Method Capability` if you specifically want the
+Windows optional feature instead; that path can keep `TiWorker.exe` at 100% CPU
+for several minutes.
+
+Password authentication stays enabled; pass `-PublicKeyPath` to install an
+authorized key, then optionally `-DisablePasswordAuthentication`.
 
 From the repo root on the Mac, jump through the NixOS host:
 
