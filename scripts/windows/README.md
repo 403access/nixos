@@ -18,6 +18,7 @@ matter.
 | `trim-memory.bat` | Removes OneDrive startup, disables Widgets/Recall/background apps |
 | `trim-memory-aggressive.bat` | Same, plus disables Search indexing and SysMain |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
+| `trim-autostart.bat` | Disables non-essential Run/Startup-folder/packaged startup entries, with backup and restore |
 | `apply-explorer-preferences.bat` | Shows hidden files, shows all extensions, opens This PC; optional protected files |
 | `disable-visuals.bat` | Best-performance visuals: no animations, transparency, shadows, Aero Peek; per user |
 | `disable-ai.bat` | Copilot, Recall, Click to Do, Widgets, taskbar Chat, web search, Start recommendations |
@@ -41,6 +42,7 @@ matter.
 7. **Tools & settings** — install to `C:\Tools\windows-helper`, logs, README, Settings, restart Explorer/Windows
 8. **Apply my Explorer preferences** — hidden files, all extensions, open This PC
 9. **Install apps** — Everything, 7-Zip and Notepad++ from the offline cache
+10. **Startup apps (autostart)** — list, disable, remove or restore startup entries
 
 ### Explorer preferences
 
@@ -53,6 +55,38 @@ Main menu 8 writes the current user's `Explorer\Advanced` values:
 Protected operating system files stay hidden by default; the menu asks before
 enabling `ShowSuperHidden`. It can restart Explorer immediately. These are
 per-user settings, so run it once per account.
+
+## Startup apps
+
+Main menu 10, or `trim-autostart.bat`, empties the Windows autostart list:
+
+- `HKCU` and `HKLM` Run keys, including `WOW6432Node`
+- the per-user and common Startup folders
+- packaged-app startup tasks (the entries under Settings > Startup)
+
+Run values are **disabled** through `Explorer\StartupApproved`, exactly like
+Task Manager, not deleted. Startup-folder shortcuts are moved to a backup.
+Packaged tasks get `State = 1` (disabled by the user). The default keep list is
+`ctfmon`, Windows Security, audio, touchpad and virtualization helpers;
+`-Aggressive` disables everything except `ctfmon`.
+
+Every change is backed up to
+`%ProgramData%\WindowsSlim\autostart-backup\<timestamp>\` (`.reg` exports plus
+`approved-state.json` and `uwp-startup.json`). Main menu 10 offers restore, and
+`minimal.ps1` includes the startup cleanup as step 6.
+
+```powershell
+.\trim-autostart.ps1 -List
+.\trim-autostart.ps1 -DryRun
+.\trim-autostart.ps1                  # disable, keep the safe whitelist
+.\trim-autostart.ps1 -Aggressive      # disable everything except ctfmon
+.\trim-autostart.ps1 -Remove          # remove Run values after backup
+.\trim-autostart.ps1 -Restore         # restore the latest backup
+.\trim-autostart.ps1 -Keep 'MyApp*','SecurityHealth'
+```
+
+Use the Settings shortcut in the same menu for any packaged app that still
+appears; sign out or reboot after restoring.
 
 `Tools > Install helper to C:\Tools\windows-helper` copies every script and
 adds a desktop shortcut, so the CD is only needed once. All menu actions are
@@ -100,10 +134,10 @@ the CD. To add an app, add an entry to `apps.json` and drop its installer into
 
 `minimal.bat` is the one-click combined run (main menu 3 → 1). It elevates
 once and executes visuals, AI/suggestions, telemetry, scheduled tasks,
-services, gaming and cleanup. Create a restore point first (main menu 1 or
-`create-restore-point.bat`), then reboot when it finishes. To roll back later,
-run `rstrui.exe` and pick the `Before debloat` checkpoint; the batch file never
-restores anything itself.
+services, startup-app cleanup, gaming and cleanup. Create a restore point
+first (main menu 1 or `create-restore-point.bat`), then reboot when it
+finishes. To roll back later, run `rstrui.exe` and pick the `Before debloat`
+checkpoint; the batch file never restores anything itself.
 
 Two details matter:
 
