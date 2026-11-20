@@ -382,6 +382,15 @@ function Get-StockAppMatches {
     }
 }
 
+function Test-SystemAppError {
+    param($ErrorRecord)
+
+    if (-not $ErrorRecord) {
+        return $false
+    }
+    return [bool]($ErrorRecord.Exception.Message -match '0x80070032|not supported|Bestandteil von Windows|part of Windows')
+}
+
 function Remove-StockApps {
     param(
         [string[]]$Patterns,
@@ -410,7 +419,11 @@ function Remove-StockApps {
                 Remove-AppxProvisionedPackage -Online -PackageName $package.PackageName -ErrorAction Stop | Out-Null
                 $provisionedRemoved++
             } catch {
-                Write-Warning ("provisioned failed: {0}: {1}" -f $package.PackageName, $_.Exception.Message)
+                if (Test-SystemAppError $_) {
+                    Write-Host ("    skipped (system app): {0}" -f $package.PackageName) -ForegroundColor Yellow
+                } else {
+                    Write-Warning ("provisioned failed: {0}: {1}" -f $package.PackageName, $_.Exception.Message)
+                }
             }
         }
 
@@ -424,7 +437,11 @@ function Remove-StockApps {
                 Remove-AppxPackage -Package $package.PackageFullName -AllUsers -ErrorAction Stop
                 $installedRemoved++
             } catch {
-                Write-Warning ("installed failed: {0}: {1}" -f $package.Name, $_.Exception.Message)
+                if (Test-SystemAppError $_) {
+                    Write-Host ("    skipped (system app): {0}" -f $package.Name) -ForegroundColor Yellow
+                } else {
+                    Write-Warning ("installed failed: {0}: {1}" -f $package.Name, $_.Exception.Message)
+                }
             }
         }
     }

@@ -25,8 +25,22 @@ $paths = @(
     @{ Path = '\Microsoft\Windows\Power Efficiency Diagnostics\'; Reason = 'power analysis' }
 )
 
+function Test-AccessDenied {
+    param($ErrorRecord)
+
+    if (-not $ErrorRecord) {
+        return $false
+    }
+    $inner = $ErrorRecord.Exception.InnerException
+    if ($inner -and $inner.NativeErrorCode -eq 5) {
+        return $true
+    }
+    return [bool]($ErrorRecord.Exception.Message -match 'Zugriff verweigert|Access is denied|Access denied|0x5')
+}
+
 $disabled = 0
 $failed = 0
+$skipped = 0
 
 foreach ($entry in $paths) {
     Write-Host "Disabling tasks under $($entry.Path) ($($entry.Reason)) ..."
@@ -45,12 +59,17 @@ foreach ($entry in $paths) {
             Write-Host "    disabled: $($task.TaskPath)$($task.TaskName)"
             $disabled++
         } catch {
-            Write-Warning "    failed: $($task.TaskPath)$($task.TaskName): $($_.Exception.Message)"
-            $failed++
+            if (Test-AccessDenied $_) {
+                Write-Host "    skipped (protected): $($task.TaskPath)$($task.TaskName)" -ForegroundColor Yellow
+                $skipped++
+            } else {
+                Write-Warning "    failed: $($task.TaskPath)$($task.TaskName): $($_.Exception.Message)"
+                $failed++
+            }
         }
     }
 }
 
 Write-Host ''
-Write-Host "Disabled $disabled task(s); $failed failed."
+Write-Host "Disabled $disabled task(s); $skipped skipped (protected); $failed failed."
 Write-Host 'Kept enabled: Windows Update, Defender, backup, Storage Sense and disk maintenance.'
