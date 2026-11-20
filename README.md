@@ -295,6 +295,7 @@ services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
 docs/windows-vm.md         Windows guest: install record, RDP from macOS
+scripts/sandbox-smoke-test.sh  Agent microVM + Docker service verification
 scripts/vm-stats.sh        Host + guest resource summary (read-only)
 scripts/zfs-audit.sh       Read-only ZFS/NixOS audit
 server/                    Rust API server (Cargo crate)

@@ -85,6 +85,16 @@ The app then has no egress; only the trusted proxy does.  Agents use the KVM
 microVM sandbox instead, which has no network at all unless `--online` is
 passed.
 
+## Verify the sandbox
+
+```bash
+sudo ./scripts/sandbox-smoke-test.sh
+```
+
+It starts a throwaway project from the template, checks the published port,
+read-only rootfs, dropped capabilities and the denial of direct Docker access,
+then removes everything.
+
 ## Remote access
 
 Nothing is published beyond loopback. To reach a service from the phone or

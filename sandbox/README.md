@@ -57,6 +57,15 @@ installed as a store script and validates its arguments; there is no
 passwordless sudo rule by default. Add one only if you accept that the user
 can start arbitrary OCI images inside the VM boundary.
 
+## Verify
+
+```bash
+sudo ./scripts/sandbox-smoke-test.sh
+```
+
+Besides the Docker checks, it runs an Alpine microVM against a temporary
+workspace and asserts that the guest sees the file and has no network.
+
 ## Limits
 
 - `libkrun` is a Type-2-style VMM; the security boundary is KVM plus the
