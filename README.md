@@ -292,6 +292,8 @@ nixos-control.nix          NixOS module: packages and runs the server
 desktop/                   Desktop profile selector, Catppuccin themes, wallpaper
 sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
 services/                  Isolated Docker project services (project-up/down)
+SECURITY.md                Known exposures and accepted risks
+docs/backup.md             Snapshot and offsite backup status for tank
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project

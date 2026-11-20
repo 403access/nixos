@@ -3,6 +3,7 @@
 # tank is a 2-way mirror of two 8 TB HDDs (sda1 + sdb1) holding 5.92 TB.  A
 # mirror survives one disk failure, not deletion, corruption or ransomware.
 # Snapshots are the local undo button; offsite copies are still required.
+# Status and options: docs/backup.md.
 { pkgs, ... }:
 
 {
