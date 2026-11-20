@@ -16,6 +16,13 @@ from a checkout of this repository.
 > `dual` mode with `--dual-order windows-first` preserves existing Windows
 > partitions; `--dual-order nixos-first` wipes the disk and creates an empty
 > Windows partition. Partitioning mistakes are permanent either way.
+>
+> The installer refuses to partition a disk that already contains ZFS data
+> (`blkid -t TYPE=zfs_member` on the disk and its partitions), and refuses to
+> run while any pool — especially `tank` — is imported or importable
+> (`zpool import -n`). An existing `tank` is therefore never wiped, and the
+> new pool cannot collide with it. `--destroy-tank` overrides both checks and
+> is irreversible.
 
 ## Requirements
 
@@ -78,14 +85,36 @@ sudo windows-vm-create --iso /var/lib/libvirt/images/Win11.iso
 virt-manager
 ```
 
-`windows-vm-create` creates a UEFI VM with a virtual TPM, 8 GiB RAM, 4 vCPUs
-and an 80 GiB SATA disk. SATA avoids the VirtIO driver step in Windows Setup.
-Pass `--virtio --virtio-iso /path/to/virtio-win.iso` for a VirtIO disk and
-network; you then load the `viostor` driver during Setup. Add `--secure-boot`
-if you are using a stock Windows 11 ISO that insists on Secure Boot; the
-repository's slim image can bypass the hardware checks instead.
+`windows-vm-create` creates a performance-tuned Windows 11 VM:
 
-The NixOS module enables `libvirtd`, `swtpm`, SPICE USB redirection,
+- **VirtIO** disk and network (auto-detected from the `virtio-win` ISO), with
+  `cache=none`, `io=io_uring` and TRIM;
+- **host-passthrough CPU** plus Hyper-V enlightenments (synic/stimer, vapic,
+  relaxed, spinlocks, tlbflush, IPI);
+- **UEFI + Secure Boot + vTPM 2.0** by default, as Windows 11 expects;
+- **virtio-gpu** display; with only an integrated Intel GPU there is no PCI
+  passthrough, so this is fast for apps and software 3D, not for gaming;
+- no memory balloon, optional 2 MiB hugepages (`--hugepages`).
+
+The disk defaults to qcow2 in `/var/lib/libvirt/images`. On ZFS, create a
+dedicated dataset once and use a raw image:
+
+```bash
+sudo zfs create -o recordsize=16k tank/vm
+sudo windows-vm-create --iso /var/lib/libvirt/images/Win11.iso \
+  --raw --disk-dir /mnt/tank/vm
+```
+
+`zfs create` is additive; it never touches existing datasets, and the
+installer never runs against a disk that holds `tank`.
+
+`--no-virtio` falls back to SATA/e1000e (works with any ISO, much slower).
+`--no-secure-boot` disables Secure Boot. To use hugepages, set
+`myInstall.vm.hugepages = true;` in `/etc/nixos/installation-mode.nix`,
+rebuild, reboot, then pass `--hugepages`. With only an integrated Intel GPU,
+loading the VirtIO guest tools after Setup gives the best result.
+
+The NixOS module enables `libvirtd`, `swtpm`, OVMF, SPICE USB redirection,
 virt-manager and the default NAT network.
 
 ### 3. NixOS and Windows dual boot
@@ -239,6 +268,7 @@ Use GRUB only if you need BIOS boot or a boot setup the script does not cover.
 | `--dual-order` | auto | `windows-first` or `nixos-first` |
 | `--windows-iso` | unset | ISO copied to `/var/lib/libvirt/images/Win11.iso` |
 | `--windows-toolchain` | prompt (`native`) | `native`, `docker`, `both` or `none` |
+| `--destroy-tank` | off | DESTRUCTIVE: allow partitioning a disk with existing ZFS data |
 
 ## What the script changes
 
