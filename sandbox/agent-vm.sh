@@ -186,7 +186,8 @@ workspace="$(realpath "$workspace")"
 is_sensitive "$workspace" && die "refusing to expose $workspace to a guest"
 
 if [ -z "$vm_name" ]; then
-  base="$(basename "$workspace" | tr -c 'A-Za-z0-9_.-' '-')"
+  base="$(basename "$workspace")"
+  base="$(printf '%s' "$base" | tr -c 'A-Za-z0-9_.-' '-')"
   vm_name="agent-${base:-workspace}"
 fi
 case "$vm_name" in
@@ -241,7 +242,12 @@ if [ "$ephemeral" -eq 1 ]; then
   trap 'krunvm delete "$vm_name" >/dev/null 2>&1 || true' EXIT
 fi
 
-start_args=(krunvm start "${env_args[@]}" "$vm_name" "${command_args[@]}")
+# krunvm 0.2.x parses "[FLAGS] NAME [COMMAND] [-- ARGS...]"; without the
+# separator, arguments such as -c are treated as krunvm flags.
+start_args=(krunvm start "${env_args[@]}" "$vm_name")
+if [ "${#command_args[@]}" -gt 0 ]; then
+  start_args+=("${command_args[0]}" -- "${command_args[@]:1}")
+fi
 if [ "$offline" -eq 1 ]; then
   # Empty network namespace: the VMM itself has no route to the host, so
   # libkrun's TSI networking cannot be used as an escape path.
