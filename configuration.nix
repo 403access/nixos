@@ -284,6 +284,9 @@ services.samba = {
       # remote access / management
       tailscale
 
+      # hardware inspection (lspci, lsusb, ...)
+      pciutils
+
       # backup
       jotta-cli
       rclone #rclone-ui
