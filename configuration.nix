@@ -48,6 +48,7 @@
       ./nixos-control.nix
       ./jotta-cli.nix
       ./desktop
+      ./sandbox
     ];
 
   # Choose the desktop profile.  `xfce` preserves the original setup;
@@ -66,6 +67,9 @@
       plank = true;          # WhiteSur Plank dock
     };
   };
+
+  # Untrusted agents run in KVM microVMs, not in containers on the host kernel.
+  mySandbox.enable = true;
 
   nixpkgs.config.allowUnfree = true;
 
