@@ -31,6 +31,7 @@ WINDOWS_ISO=""
 WINDOWS_TOOLCHAIN=""
 VM_ISO_TARGET="/var/lib/libvirt/images/Win11.iso"
 DESTROY_TANK=0
+CHECK_ONLY=0
 
 HAS_WINDOWS=0
 WIN_ESP=""
@@ -83,6 +84,10 @@ Options:
                           refuses to touch any disk with existing ZFS data, so
                           an existing pool such as `tank` is never destroyed by
                           accident.
+  --check-only            Run only the read-only preflight (disk checks and the
+                          ZFS guard) and exit. Makes no changes and does not
+                          need the installer ISO. Exit 0 means the disk is safe
+                          to use, exit 1 means the guard blocked it.
   -h, --help              Show this help
 
 Examples:
@@ -166,6 +171,10 @@ parse_args() {
         ;;
       --destroy-tank)
         DESTROY_TANK=1
+        shift
+        ;;
+      --check-only)
+        CHECK_ONLY=1
         shift
         ;;
       -h | --help)
@@ -823,8 +832,40 @@ Read install/README.md for the full walkthrough.
 EOF
 }
 
+check_only() {
+  local cmd
+  for cmd in lsblk blkid zpool awk sort; do
+    command -v "$cmd" >/dev/null 2>&1 || die "$cmd is missing"
+  done
+
+  [ -b "$DISK" ] || die "not a block device: $DISK"
+  DISK="$(readlink -f "$DISK")"
+
+  printf 'preflight for %s\n' "$DISK"
+  printf '  mounted:  %s\n' "$(lsblk -no MOUNTPOINT "$DISK" | grep -c . || true)"
+  printf '  zfs data: '
+  if lsblk -lnpo NAME,FSTYPE "$DISK" 2>/dev/null | grep -q 'zfs_member'; then
+    printf 'yes\n'
+  else
+    printf 'no\n'
+  fi
+  printf '  pools:    '
+  zpool list -H -o name 2>/dev/null | tr '\n' ' ' || true
+  printf '\n'
+
+  assert_no_existing_zfs
+  printf 'preflight passed: %s carries no ZFS data and no pool is imported\n' "$DISK"
+}
+
 main() {
   parse_args "$@"
+
+  if [ "$CHECK_ONLY" -eq 1 ]; then
+    [ -n "$DISK" ] || die "--check-only needs --disk DEVICE"
+    check_only
+    return
+  fi
+
   check_environment
   select_mode
   validate_mode
