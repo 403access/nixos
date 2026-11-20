@@ -47,6 +47,7 @@
       ./install
       ./nixos-control.nix
       ./jotta-cli.nix
+      ./zfs.nix
       ./desktop
       ./sandbox
       ./services
