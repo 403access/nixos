@@ -41,7 +41,7 @@ Options:
   --iso PATH           Windows 11 ISO (default: myInstall.vm.iso or search)
   --memory MiB         Guest memory (default: 8192)
   --vcpus N            Guest vCPUs (default: 4; use host threads, not all)
-  --disk-size SIZE     Disk size (default: 80G)
+  --disk-size SIZE     Disk size in GiB, e.g. 120 or 120G (default: 80G)
   --disk-dir PATH      Directory for the disk image
   --raw                Create a raw image instead of qcow2 (faster on ZFS/LVM)
   --virtio             Force VirtIO even without virtio-win ISO (install
@@ -257,9 +257,18 @@ features+=",hyperv.synic.state=on,hyperv.stimer.state=on"
 features+=",hyperv.reset.state=on,hyperv.frequencies.state=on"
 features+=",hyperv.tlbflush.state=on,hyperv.ipi.state=on"
 
+# virt-install --disk size= takes GiB as a plain number, so accept the
+# documented "120G"/"120GiB" spelling and strip the unit.
+disk_size_gib="${disk_size%GiB}"
+disk_size_gib="${disk_size_gib%gib}"
+disk_size_gib="${disk_size_gib%G}"
+disk_size_gib="${disk_size_gib%g}"
+[[ "$disk_size_gib" =~ ^[0-9]+([.][0-9]+)?$ ]] \
+  || die "--disk-size must be a number of GiB, for example 120 or 120G"
+
 # driver.cache/io/discard are the current virt-install spellings; the short
 # cache=/io= aliases still parse but are deprecated.
-disk_opts="path=$disk_path,size=$disk_size,format=$disk_format,bus=$disk_bus"
+disk_opts="path=$disk_path,size=$disk_size_gib,format=$disk_format,bus=$disk_bus"
 disk_opts+=",driver.cache=none,driver.io=io_uring,driver.discard=unmap"
 
 # Windows 11 needs its own osinfo entry for sensible driver defaults; fall
