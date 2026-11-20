@@ -19,6 +19,7 @@ matter.
 | `trim-memory-aggressive.bat` | Same, plus disables Search indexing and SysMain |
 | `tune.bat` | Enables TRIM, sets High Performance, disables hibernation/Fast Startup |
 | `trim-autostart.bat` | Disables non-essential Run/Startup-folder/packaged startup entries, with backup and restore |
+| `trim-stock.bat` | Disables or uninstalls OneDrive, removes stock apps, disables stock services |
 | `apply-explorer-preferences.bat` | Shows hidden files, shows all extensions, opens This PC; optional protected files |
 | `disable-visuals.bat` | Best-performance visuals: no animations, transparency, shadows, Aero Peek; per user |
 | `disable-ai.bat` | Copilot, Recall, Click to Do, Widgets, taskbar Chat, web search, Start recommendations |
@@ -43,6 +44,7 @@ matter.
 8. **Apply my Explorer preferences** — hidden files, all extensions, open This PC
 9. **Install apps** — Everything, 7-Zip and Notepad++ from the offline cache
 10. **Startup apps (autostart)** — list, disable, remove or restore startup entries
+11. **Stock apps & OneDrive** — disable/uninstall OneDrive, remove stock apps, disable services
 
 ### Explorer preferences
 
@@ -130,14 +132,45 @@ C:\Tools` copies `apps/` too, so the installed helper keeps working without
 the CD. To add an app, add an entry to `apps.json` and drop its installer into
 `apps/`.
 
+## Stock apps and OneDrive
+
+Main menu 11, or `trim-stock.bat`, covers the stock consumer layer:
+
+- **OneDrive: disable** — sets the sync policy, stops OneDrive/FileCoAuth, removes
+  the Run entry and disables OneDrive scheduled tasks; local files stay.
+- **OneDrive: uninstall** — runs the official `OneDriveSetup.exe /uninstall`,
+  removes the `Microsoft.OneDriveSync` bridge and leaves local files in place.
+- **Stock apps** — lean list (Bing apps, Xbox, Office Hub, Teams, Clipchamp,
+  Solitaire, Maps, Alarms, etc.) or aggressive list, which also removes Store.
+- **Stock services** — disables the lean list (telemetry, RetailDemo, Fax,
+  RemoteRegistry, Maps, WMP sharing, wallet, Xbox) or aggressive
+  (adds Search and SysMain).
+
+Services are only disabled, never deleted. Their original startup types are
+saved to `%ProgramData%\WindowsSlim\stock-services.json` and can be restored
+from the menu. OneDrive state is saved to `onedrive-state.json`; the uninstaller
+is not reversible from the script, but OneDrive can be downloaded again.
+
+```powershell
+.\trim-stock.ps1 -List
+.\trim-stock.ps1 -OneDrive Disable -Apps Lean -Services Lean
+.\trim-stock.ps1 -OneDrive Remove -Apps Aggressive -Services Aggressive
+.\trim-stock.ps1 -RestoreServices
+.\trim-stock.ps1 -RestoreOneDrive
+```
+
+App removal uses the supported AppX cmdlets and cannot be undone by the helper;
+reinstall removed apps from the Store or the Windows image. `minimal.ps1`
+applies the recommended combination as step 7 and accepts `-SkipStockApps`.
+
 ## Minimal profile
 
 `minimal.bat` is the one-click combined run (main menu 3 → 1). It elevates
 once and executes visuals, AI/suggestions, telemetry, scheduled tasks,
-services, startup-app cleanup, gaming and cleanup. Create a restore point
-first (main menu 1 or `create-restore-point.bat`), then reboot when it
-finishes. To roll back later, run `rstrui.exe` and pick the `Before debloat`
-checkpoint; the batch file never restores anything itself.
+services, startup-app cleanup, stock-app/OneDrive cleanup, gaming and cleanup.
+Create a restore point first (main menu 1 or `create-restore-point.bat`), then
+reboot when it finishes. To roll back later, run `rstrui.exe` and pick the
+`Before debloat` checkpoint; the batch file never restores anything itself.
 
 Two details matter:
 
@@ -154,6 +187,7 @@ elevated prompt:
 .\minimal.ps1 -IncludeSearch -IncludeSysMain -ComponentCleanup
 .\minimal.ps1 -SkipCleanup
 .\minimal.ps1 -SkipGaming
+.\minimal.ps1 -SkipStockApps
 .\cleanup.ps1 -DryRun
 .\cleanup.ps1 -WindowsUpdateCache -ComponentCleanup -ResetBase
 ```
