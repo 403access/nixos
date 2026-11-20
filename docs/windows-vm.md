@@ -44,8 +44,19 @@ The domain is created with autostart disabled.  To start it with the host:
 ```bash
 sudo virsh autostart win11-stock
 sudo virsh dominfo win11-stock | grep Autostart     # Autostart: enable
-ls -l /etc/libvirt/qemu/autostart/                  # symlink to win11-stock.xml
 ```
+
+`dominfo` is the authoritative check.  On NixOS libvirt keeps its config
+under `/var/lib/libvirt`, not `/etc`; locate the autostart link with:
+
+```bash
+sudo find /var/lib/libvirt /etc/libvirt -maxdepth 5 \
+  \( -name autostart -o -name 'win11-stock.xml' \) -print
+sudo virsh net-info default | grep Autostart        # network must autostart too
+```
+
+Autostart is applied when libvirtd starts, so it takes effect on the next
+host boot and does not need a reboot to confirm the setting.
 
 `sudo virsh autostart --disable win11-stock` reverts it.  The default libvirt
 network is started by the NixOS module at boot, so the guest gets its lease
