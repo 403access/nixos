@@ -176,40 +176,54 @@ function Enable-Defender {
     Write-Host 'Defender re-enabled. Reboot if the service did not start.' -ForegroundColor Green
 }
 
-if ($OpenTamper) {
-    try {
-        Start-Process -FilePath 'windowsdefender://threatsettings' -ErrorAction Stop
-    } catch {
+function Invoke-DefenderAction {
+    param(
+        [switch]$Status,
+        [switch]$Disable,
+        [switch]$Enable,
+        [switch]$Open,
+        [switch]$OpenTamper
+    )
+
+    if ($OpenTamper) {
         try {
-            Start-Process -FilePath 'ms-settings:windowsdefender' -ErrorAction Stop
+            Start-Process -FilePath 'windowsdefender://threatsettings' -ErrorAction Stop
         } catch {
-            Write-Host ("Could not open the Defender settings: {0}" -f $_.Exception.Message) -ForegroundColor Red
+            try {
+                Start-Process -FilePath 'ms-settings:windowsdefender' -ErrorAction Stop
+            } catch {
+                Write-Host ("Could not open the Defender settings: {0}" -f $_.Exception.Message) -ForegroundColor Red
+            }
         }
+        return
     }
-    return
-}
 
-if ($Open) {
-    try {
-        Start-Process -FilePath 'windowsdefender://' -ErrorAction Stop
-    } catch {
+    if ($Open) {
         try {
-            Start-Process -FilePath 'ms-settings:windowsdefender' -ErrorAction Stop
+            Start-Process -FilePath 'windowsdefender://' -ErrorAction Stop
         } catch {
-            Write-Host ("Could not open Windows Security: {0}" -f $_.Exception.Message) -ForegroundColor Red
+            try {
+                Start-Process -FilePath 'ms-settings:windowsdefender' -ErrorAction Stop
+            } catch {
+                Write-Host ("Could not open Windows Security: {0}" -f $_.Exception.Message) -ForegroundColor Red
+            }
         }
+        return
     }
-    return
+
+    if ($Disable) {
+        Disable-Defender
+        return
+    }
+
+    if ($Enable) {
+        Enable-Defender
+        return
+    }
+
+    Show-DefenderStatus
 }
 
-if ($Disable) {
-    Disable-Defender
-    return
+if ($MyInvocation.InvocationName -ne '.') {
+    Invoke-DefenderAction -Status:$Status -Disable:$Disable -Enable:$Enable -Open:$Open -OpenTamper:$OpenTamper
 }
-
-if ($Enable) {
-    Enable-Defender
-    return
-}
-
-Show-DefenderStatus

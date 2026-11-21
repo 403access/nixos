@@ -34,6 +34,7 @@ matter.
 | `disable-gaming.bat` | Game DVR, Game Bar, Game Mode and Xbox services (breaks the Xbox app) |
 | `cleanup.bat` | Temp, Delivery Optimization, thumbnails, WER and CBS logs; optional DISM/WU cache flags |
 | `minimal.bat` | Runs the slim scripts in order; `minimal.ps1 -Mode developer/power/regular` |
+| `verify-minimal.bat` | Read-only PASS/FAIL check for the hardened Search/Defender state; exits 1 on regression |
 
 ## Tabbed UI
 
@@ -307,6 +308,40 @@ prompt:
 need the space and accept that trade-off. The full log is written to
 `%ProgramData%\WindowsSlim\windows-minimal.log`; the menu writes
 `%ProgramData%\WindowsSlim\windows-helper-menu.log`.
+
+## Tests
+
+The helper scripts have a cross-platform regression suite:
+
+```bash
+./scripts/windows/tests/run-tests.sh
+```
+
+It covers the Search and Defender actions, the Developer/Power/Regular profile
+presets, the service/app lists, the tabbed menu wiring, and the offline hive
+patch.  See `scripts/windows/tests/README.md` for details.
+
+Inside the guest, use the read-only live check after a profile or an offline
+patch:
+
+```powershell
+.\verify-minimal.bat
+```
+
+For the offline host-side patch, use `offline/apply.sh` instead of ad-hoc
+scripts.  It shuts the VM down, mounts the raw disk, backs up `SYSTEM` and
+`SOFTWARE`, applies the Search/Defender changes, verifies them and starts the
+VM again:
+
+```bash
+sudo ./scripts/windows/offline/apply.sh --mode all
+sudo ./scripts/windows/offline/apply.sh --mode defender --domain win11-stock
+```
+
+`--hive-dir` runs the same merge/verify code against a pair of hive files
+without root, a VM or a disk.  `tests/offline-registry.Tests.sh` uses that mode
+with a fake `hivexregedit`; `tests/offline-hive-smoke.sh` does the same against
+real hives when `OFFLINE_TEST_HIVE_DIR` is set.
 
 ## Build and insert the CD
 

@@ -336,6 +336,48 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\SetupComplete.ps1 -Profile
 It removes consumer AppX packages, disables telemetry services and scheduled
 tasks, and leaves Store, Defender and Windows Update working.
 
+## Verify the slim state
+
+The helper CD ships `verify-minimal.bat`, a read-only check for the hardened
+Search/Defender state:
+
+```powershell
+.\verify-minimal.bat
+```
+
+It reports `PASS`/`FAIL` for the Search service and files, Defender processes,
+active binaries, policies, IFEO blocks and scheduled tasks, and exits `1` if
+anything regressed. `-Json` produces machine-readable output.
+
+## Offline Search/Defender hardening
+
+When Windows resets a service start type or restores a Defender binary, patch
+the hives with the VM shut down instead of fighting the live system:
+
+```bash
+sudo ./scripts/windows/offline/apply.sh --mode all
+sudo ./scripts/windows/offline/apply.sh --mode defender --domain win11-stock
+```
+
+The script shuts the domain down, mounts the raw disk with `qemu-nbd`, backs up
+`SYSTEM` and `SOFTWARE` under `/root`, applies the Search/Defender changes,
+verifies them, and starts the VM again. `--mode search` only touches
+`WSearch`/the search UI files.
+
+`--hive-dir` runs the merge/verify code against a pair of hive files without
+root, a VM or a disk; the test suite uses that mode.
+
+## Tests
+
+```bash
+./scripts/windows/tests/run-tests.sh
+```
+
+The suite covers the Search and Defender helpers, the profile presets, the
+service/app lists, the tabbed menu wiring, packaging, and the offline hive
+patch. See [`../scripts/windows/tests/README.md`](../scripts/windows/tests/README.md)
+for the individual files and the optional real-hive test.
+
 ## See also
 
 - [`../install/README.md`](../install/README.md) — VM creation, Secure Boot

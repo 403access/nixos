@@ -30,26 +30,16 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
-switch ($Mode) {
-    'developer' {
-        $StockApps = 'Lean'
-        $StockServices = 'Aggressive'
-        $IncludeSearch = $true
-        $IncludeSysMain = $true
-        $EnableSsh = $true
-    }
-    'power' {
-        $StockApps = 'Lean'
-        $StockServices = 'Balanced'
-        $SkipGaming = $true
-        $SkipServices = $true
-    }
-    'regular' {
-        $StockApps = 'None'
-        $StockServices = 'None'
-        $SkipGaming = $true
-        $SkipServices = $true
-    }
+. (Join-Path $PSScriptRoot 'profiles.ps1')
+$profile = Get-ProfileSettings -Mode $Mode
+if ($profile) {
+    $StockApps = $profile.StockApps
+    $StockServices = $profile.StockServices
+    if ($profile.IncludeSearch) { $IncludeSearch = $true }
+    if ($profile.IncludeSysMain) { $IncludeSysMain = $true }
+    if ($profile.EnableSsh) { $EnableSsh = $true }
+    if ($profile.SkipGaming) { $SkipGaming = $true }
+    if ($profile.SkipServices) { $SkipServices = $true }
 }
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()

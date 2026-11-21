@@ -1088,6 +1088,7 @@ $script:Tabs = @(
     [pscustomobject]@{ Title = 'Changes'; Items = $changeItems }
 )
 
+if ($MyInvocation.InvocationName -ne '.') {
 $isAdmin = Test-Admin
 $script:Running = $true
 $script:TabIndex = 0
@@ -1152,3 +1153,4 @@ try {
 
 Write-Host ''
 Write-Host 'Done.' -ForegroundColor Green
+}

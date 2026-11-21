@@ -82,23 +82,13 @@ function Show-SearchStatus {
     Write-Host 'WSearch is the service; SearchHost.exe is the per-user UI process.'
 }
 
-if ($Status) {
-    Show-SearchStatus
-    return
-}
+function Disable-Search {
+    $service = Get-Service -Name WSearch -ErrorAction SilentlyContinue
+    if (-not $service) {
+        Write-Warning 'WSearch is not present on this system.'
+        return
+    }
 
-if (-not (Get-Command Get-Service -ErrorAction SilentlyContinue)) {
-    Write-Warning 'The service cmdlets are not available on this system.'
-    return
-}
-
-$service = Get-Service -Name WSearch -ErrorAction SilentlyContinue
-if (-not $service) {
-    Write-Warning 'WSearch is not present on this system.'
-    return
-}
-
-if ($Disable) {
     try {
         if (-not (Test-Path -LiteralPath $stateFile) -and [string]$service.StartType -ne 'Disabled') {
             if (-not (Test-Path -LiteralPath $stateDir)) {
@@ -127,10 +117,15 @@ if ($Disable) {
     } catch {
         Write-Host ("Could not disable Windows Search: {0}" -f $_.Exception.Message) -ForegroundColor Red
     }
-    return
 }
 
-if ($Enable) {
+function Enable-Search {
+    $service = Get-Service -Name WSearch -ErrorAction SilentlyContinue
+    if (-not $service) {
+        Write-Warning 'WSearch is not present on this system.'
+        return
+    }
+
     $startType = 'Automatic'
     $taskbarMode = 2
     if (Test-Path -LiteralPath $stateFile) {
@@ -156,7 +151,38 @@ if ($Enable) {
     } catch {
         Write-Host ("Could not enable Windows Search: {0}" -f $_.Exception.Message) -ForegroundColor Red
     }
-    return
 }
 
-Show-SearchStatus
+function Invoke-SearchToggle {
+    param(
+        [switch]$Disable,
+        [switch]$Enable,
+        [switch]$Status
+    )
+
+    if ($Status) {
+        Show-SearchStatus
+        return
+    }
+
+    if (-not (Get-Command Get-Service -ErrorAction SilentlyContinue)) {
+        Write-Warning 'The service cmdlets are not available on this system.'
+        return
+    }
+
+    if ($Disable) {
+        Disable-Search
+        return
+    }
+
+    if ($Enable) {
+        Enable-Search
+        return
+    }
+
+    Show-SearchStatus
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+    Invoke-SearchToggle -Disable:$Disable -Enable:$Enable -Status:$Status
+}

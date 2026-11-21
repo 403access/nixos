@@ -647,6 +647,7 @@ function Invoke-Recommended {
     Disable-StockServices -Entries $leanServices
 }
 
+if ($MyInvocation.InvocationName -ne '.') {
 if ($List) {
     Show-StockStatus
     return
@@ -767,4 +768,5 @@ while ($true) {
             Start-Sleep -Milliseconds 700
         }
     }
+}
 }

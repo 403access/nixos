@@ -1,0 +1,50 @@
+name: Windows helper tests
+
+on:
+  push:
+    paths:
+      - 'scripts/windows/**'
+      - '.github/workflows/windows-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/windows/**'
+      - '.github/workflows/windows-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-registry:
+    name: Offline registry (shell)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shell syntax
+        run: |
+          bash -n scripts/windows/offline/registry.sh
+          bash -n scripts/windows/offline/apply.sh
+          bash -n scripts/windows/tests/offline-registry.Tests.sh
+          bash -n scripts/windows/tests/run-tests.sh
+
+      - name: Run offline registry tests
+        run: bash scripts/windows/tests/offline-registry.Tests.sh
+
+  pester:
+    name: Pester (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Pester suite
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/tests/run-tests.ps1
