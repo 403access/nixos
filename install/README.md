@@ -184,21 +184,21 @@ it directly. Two things to keep straight:
 Quickest is an SSH tunnel from the Mac:
 
 ```bash
-sudo virsh domifaddr windows11          # on the host, note the 192.168.122.x address
-ssh -N -L 13389:192.168.122.45:3389 nixos@192.168.178.5
+virsh -c qemu:///system domifaddr windows11  # on the host, note the 192.168.122.x address
+ssh -N -L 13389:192.168.122.50:3389 nixos@192.168.178.5
 ```
 
 Then in Microsoft Remote Desktop / **Windows App** on macOS:
 
 - PC name: `localhost:13389`
-- User: `NIXOS-WIN11\Admin`
-- Password: the one printed by the ISO build
+- User: `.\Windows-PC` (or `COMPUTERNAME\Windows-PC` from `whoami`)
+- Password: from your password manager, or the one printed by the ISO build
 
 Pin the address so the tunnel survives reboots — get the MAC from
-`virsh dumpxml windows11`, then on the host:
+`virsh -c qemu:///system dumpxml windows11`, then on the host:
 
 ```bash
-sudo virsh net-update default add ip-dhcp-host \
+virsh -c qemu:///system net-update default add ip-dhcp-host \
   '<host mac="52:54:00:xx:xx:xx" name="windows11" ip="192.168.122.50"/>' \
   --live --config
 ```

@@ -1,8 +1,8 @@
 # Windows 11 VM on nixos
 
-Verified working **2026-11-20** on NixOS 25.05 with Windows 11 build 26300
-(26H1). This is the operational record: what is installed, how RDP was turned
-on, and how to reconnect.
+Verified **2026-11-20** and updated **2026-11-21** on NixOS 25.05 with
+Windows 11 build 26300 (26H1). This is the operational record: what is
+installed, how the helper CD is attached, and how to reconnect.
 
 ## Current guest
 
@@ -11,11 +11,19 @@ on, and how to reconnect.
 | libvirt domain | `win11-stock` |
 | Disk | `/var/lib/libvirt/images/win11-stock.raw` (raw, 120 GiB) |
 | Host storage | `/dev/nvme0n1p2` ext4, mounted at `/` (not `tank`) |
-| Resources | 6 vCPU, 12 GiB, `host-passthrough`, Hyper-V enlightenments |
-| Devices | virtio-blk, virtio-net, vTPM 2.0, virtio-gpu |
+| Resources | 6 vCPU, 8 GiB, `host-passthrough`, Hyper-V enlightenments |
+| Devices | virtio-blk, virtio-net, vTPM 2.0, virtio-gpu, SATA CD |
 | Firmware | UEFI (OVMF), **Secure Boot off** — see the 2023 CA note |
 | Local account | `Windows-PC` (password kept out of this repo) |
 | Source media | official Windows 11 ISO, build 26300 |
+| Guest lease | `192.168.122.50/24` (reserved libvirt lease) |
+| Autostart | enabled |
+| CD layout | `vda` Windows disk; `sda` empty; `sdb` helper ISO |
+| Helper ISO | `/home/nixos/Downloads/windows-helper.iso` |
+
+`nixos` is in the host's `libvirtd` group, so the operational commands use
+`virsh -c qemu:///system`. Plain `virsh` connects to the per-user session and
+will report `failed to get domain 'win11-stock'`; `sudo virsh` also works.
 
 The Windows image came from the **stock** ISO, not from
 `windows/out/Win11-lean-*.iso`. The slim image's baked autounattend fails
@@ -28,7 +36,7 @@ apply the debloat as a normal first-logon script (see *Debloat* below).
 - At the disk step, load `viostor\w11\amd64` from the virtio-win CD.
 - After the first reboot, **eject the install ISO**; the no-prompt EFI boot
   image otherwise starts Setup again in a loop:
-  `sudo virsh change-media win11-stock sda --eject --live`.
+  `virsh -c qemu:///system change-media win11-stock sda --eject --live`.
 - Install `virtio-win-guest-tools.exe` from the virtio-win CD for the NIC,
   graphics and balloon drivers.
 - Enable TRIM as Administrator:
@@ -39,44 +47,44 @@ apply the debloat as a normal first-logon script (see *Debloat* below).
 
 ## Autostart
 
-The domain is created with autostart disabled.  To start it with the host:
+Autostart is **enabled** for `win11-stock`. Check it with:
 
 ```bash
-sudo virsh autostart win11-stock
-sudo virsh dominfo win11-stock | grep Autostart     # Autostart: enable
+virsh -c qemu:///system dominfo win11-stock | grep Autostart  # enable
+virsh -c qemu:///system net-info default | grep Autostart     # network too
 ```
 
-`dominfo` is the authoritative check.  On NixOS libvirt keeps its config
-under `/var/lib/libvirt`, not `/etc`; locate the autostart link with:
+`dominfo` is the authoritative check. On NixOS libvirt keeps its config under
+`/var/lib/libvirt`, not `/etc`; locate the autostart link with:
 
 ```bash
 sudo find /var/lib/libvirt /etc/libvirt -maxdepth 5 \
   \( -name autostart -o -name 'win11-stock.xml' \) -print
-sudo virsh net-info default | grep Autostart        # network must autostart too
 ```
 
-Autostart is applied when libvirtd starts, so it takes effect on the next
-host boot and does not need a reboot to confirm the setting.
+Autostart is applied when libvirtd starts, so it takes effect on the next host
+boot and does not need a reboot to confirm the setting.
 
-`sudo virsh autostart --disable win11-stock` reverts it.  The default libvirt
-network is started by the NixOS module at boot, so the guest gets its lease
-without manual steps.
+`virsh -c qemu:///system autostart --disable win11-stock` reverts it. The
+default libvirt network is started by the NixOS module at boot, so the guest
+gets its lease without manual steps.
 
 ## Memory
 
-Windows 11 idle at ~2.6 GB is normal and already low after the `lean`
-debloat; Defender, the servicing stack and the driver set account for most of
-it.  The number that matters on the host is the full allocation: a 12 GiB
-guest holds ~12 GiB RSS even when Windows touches only 2.6 GB.
+The guest currently runs with **8 GiB** (reduced from 12 GiB). Windows 11 idle
+at ~2.6 GB is normal and already low after the `lean` debloat; Defender, the
+servicing stack and the driver set account for most of it. The number that
+matters on the host is the full allocation: an 8 GiB guest holds ~8 GiB RSS
+even when Windows touches only 2.6 GB.
 
-Reduce the host footprint first, from the NixOS host:
+Change the allocation from the NixOS host:
 
 ```bash
 sudo ./scripts/vm-memory.sh 8 win11-stock
 ```
 
 It shuts the guest down gracefully, sets `maxMemory` and `currentMemory` to
-8 GiB, restarts it, and prints the result.  Use 8 GiB for RDP/Office/browser
+8 GiB, restarts it, and prints the result. Use 8 GiB for RDP/Office/browser
 work; 12 GiB is only useful for heavy local applications.
 
 Guest-side trims are optional and modest.  `trim-memory.bat` on the helper CD
@@ -137,99 +145,77 @@ services.displayManager.autoLogin = {
 The Hyprland wrapper already sets this; the XFCE/plasma profiles use lightdm
 or SDDM and honour the same option.
 
-## Enabling RDP (no typing in the console)
+## Helper CD
 
-The scripts are kept in [`../scripts/windows/`](../scripts/windows/).  They
-are edited on the Mac, but the CD is built on the NixOS host (it needs
-`xorriso` and the libvirt tools):
+The helper CD is built from `scripts/windows/` on the NixOS host. It includes
+`helper.bat`, every individual `.bat` launcher, `SetupComplete.ps1`, the
+`verify-minimal` scripts, and the offline app installers.
 
-On the **Mac**:
+### Build, mount and replace
+
+On the Mac, sync the helper directory to the host. The host copy lives under
+`~/Desktop/nixos`, not `/etc/nixos`:
 
 ```bash
 scp -r /Users/olivermolnar/Desktop/nixos/scripts/windows \
   nixos@192.168.178.5:~/Desktop/nixos/scripts/
 ```
 
-On the **NixOS host**:
+On the NixOS host:
 
 ```bash
 cd ~/Desktop/nixos/scripts/windows
-ls
-./make-helper-iso.sh /tmp/windows-helper.iso
+./fetch-apps.sh          # only if apps/ is empty
+./make-helper-iso.sh /home/nixos/Downloads/windows-helper-new.iso
 ```
 
-A common mistake is running the `scp` on the host: `/Users/...` is a Mac path
-and the host does not have it.  The host copy lives under
-`~/Desktop/nixos/scripts/windows`, not `/etc/nixos`.
-
-The SPICE console plus a German keymap makes typing long commands painful.
-Put the commands on a helper CD and double-click `helper.bat` for the menu, or
-an individual launcher for one action.
-
-### 1. Build the helper CD on the host
+Use a fresh scratch filename. An ISO that is already inserted is open, and
+`xorriso` cannot overwrite it. Eject the old CD, move the new ISO over the
+stable path, then insert it live and save the same source in the domain config:
 
 ```bash
-rm -rf /tmp/win-helper && mkdir -p /tmp/win-helper
+virsh -c qemu:///system change-media win11-stock sdb --eject --live
+mv -f /home/nixos/Downloads/windows-helper-new.iso \
+  /home/nixos/Downloads/windows-helper.iso
+virsh -c qemu:///system change-media win11-stock sdb \
+  /home/nixos/Downloads/windows-helper.iso --insert --live
 
-cat > /tmp/win-helper/enable-rdp.ps1 <<'EOF'
-$ErrorActionPreference = 'Continue'
-Write-Host '== Computer =='; hostname
-Write-Host '== Local users =='; Get-LocalUser | Select-Object Name,Enabled | Format-Table -AutoSize
-
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Value 0
-
-New-NetFirewallRule -DisplayName 'RDP 3389' -Direction Inbound -Protocol TCP `
-  -LocalPort 3389 -Action Allow -Profile Any -ErrorAction SilentlyContinue
-
-Get-NetConnectionProfile | ForEach-Object {
-  Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
-}
-
-$v = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
-Write-Host ("Edition: " + $v.ProductName + " / " + $v.EditionID)
-
-Get-NetFirewallRule -DisplayName 'RDP 3389' | Format-Table DisplayName,Enabled,Direction,Action
-netstat -an | Select-String ':3389'
-Write-Host 'Done.'
-EOF
-
-cat > /tmp/win-helper/enable-rdp.bat <<'EOF'
-@echo off
-net session >nul 2>&1
-if not "%errorlevel%"=="0" (
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-  exit /b
-)
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0enable-rdp.ps1"
-echo.
-pause
-EOF
-
-# cmd.exe needs CRLF in the batch file
-sed -i 's/$/\r/' /tmp/win-helper/enable-rdp.bat
-
-xorriso -as mkisofs -o /tmp/win-helper.iso -J -R /tmp/win-helper
+virsh -c qemu:///system change-media win11-stock sdb --eject --config
+virsh -c qemu:///system change-media win11-stock sdb \
+  /home/nixos/Downloads/windows-helper.iso --insert --config
 ```
 
-### 2. Insert it in the guest
+Current layout (verified 2026-11-21):
 
-The virtio-win CD is no longer needed once the guest tools are installed, so
-replace it. Use a **fresh ISO name** each time: an ISO that is inserted in the
-running domain is open, and `xorriso` cannot overwrite it.
+| Target | Media |
+| --- | --- |
+| `vda` | Windows disk |
+| `sda` | empty |
+| `sdb` | helper ISO |
+
+The stable helper ISO is
+`/home/nixos/Downloads/windows-helper.iso`. To update it, build a new file,
+eject `sdb`, move the new file over the stable path, then insert it again. Do
+not overwrite an ISO while it is attached.
+
+Verify from the host:
 
 ```bash
-sudo virsh change-media win11-stock sdb --eject --live
-sudo virsh change-media win11-stock sdb /tmp/win-helper.iso --insert --live
-sudo virsh domblklist win11-stock
+virsh -c qemu:///system domblklist win11-stock
+virsh -c qemu:///system dumpxml --inactive win11-stock | grep -A3 cdrom
 ```
 
-In Windows: File Explorer → the CD drive → **F5** → double-click
-`enable-rdp.bat` → **Ja** on UAC.
+In Windows: open **This PC**, press **F5**, and open the CD volume
+**ISOIMAGE**. Start with `helper.bat` and approve UAC. If the drive does not
+appear, reboot the guest or use **Device Manager → Scan for hardware
+changes**.
 
-The batch re-launches itself elevated and calls PowerShell with
-`-ExecutionPolicy Bypass`, so a machine policy that blocks scripts does not
-matter. The script enables RDP, creates a TCP 3389 firewall rule, sets the
-network profile to Private, and prints the edition, users and listener.
+### Enable RDP from the CD
+
+Double-click `enable-rdp.bat`, or open **Changes → Network & access** in
+`helper.bat`. It self-elevates, starts `TermService`, enables RDP, creates the
+TCP 3389 firewall rule, sets the network profile to Private, and prints the
+edition, users and listener.
 
 Two known quirks:
 
@@ -237,8 +223,8 @@ Two known quirks:
   German system (the group is `Remotedesktop`). Use the explicit port rule,
   which is language-independent.
 - `virsh attach-disk ... --type cdrom` can fail with
-  *“No more available PCI slots”*. Replacing the existing SATA CD with
-  `change-media` avoids it.
+  *“No more available PCI slots”*. Replace the existing SATA CD with
+  `change-media` instead.
 
 ## Connecting from macOS
 
@@ -247,10 +233,10 @@ it directly. `192.168.178.5:3389` is the host's xrdp, not Windows.
 
 ```bash
 # on the NixOS host, note the guest address
-sudo virsh domifaddr win11-stock --source lease
+virsh -c qemu:///system domifaddr win11-stock --source lease
 
-# on the Mac, keep this open
-ssh -N -L 13389:192.168.122.238:3389 nixos@192.168.178.5
+# on the Mac, keep this open (current reserved lease: .50)
+ssh -N -L 13389:192.168.122.50:3389 nixos@192.168.178.5
 ```
 
 Then in **Windows App** (formerly Microsoft Remote Desktop):
@@ -265,10 +251,10 @@ success before the client connects.
 ### Pin the guest address
 
 DHCP can move the address after a reboot. Reserve it (get the MAC from
-`virsh dumpxml win11-stock`):
+`virsh -c qemu:///system dumpxml win11-stock`):
 
 ```bash
-sudo virsh net-update default add ip-dhcp-host \
+virsh -c qemu:///system net-update default add ip-dhcp-host \
   '<host mac="52:54:00:b6:38:f5" name="win11-stock" ip="192.168.122.50"/>' \
   --live --config
 ```
@@ -278,9 +264,11 @@ After a guest reboot the tunnel becomes
 
 ## SSH (terminal only)
 
-The guest does not enable OpenSSH by default. Run the helper CD once and choose
-**12 → 1** (`enable-ssh.bat`). It installs `OpenSSH.Server`, starts `sshd`,
-opens TCP 22 and sets PowerShell as the default shell.
+The guest does not enable OpenSSH by default. Run the helper CD and choose
+**Changes → Network & access → Enable SSH server**, or double-click
+`enable-ssh.bat`. It installs the bundled Win32-OpenSSH server (use
+`-Method Capability` for the Windows optional feature), starts `sshd`, opens
+TCP 22 and sets PowerShell as the default shell.
 
 From the repo root on the Mac, use a jump through the host:
 
@@ -291,8 +279,8 @@ ssh -J nixos@192.168.178.5 Windows-PC@192.168.122.50
 ```
 
 The default guest address is the reserved lease `192.168.122.50`. If DHCP moved
-it, check `sudo virsh domifaddr win11-stock --source lease` on the host and
-override it:
+it, check `virsh -c qemu:///system domifaddr win11-stock --source lease` on the
+host and override it:
 
 ```bash
 WINDOWS_SSH=Windows-PC@192.168.122.60 ./scripts/win-ssh.sh
@@ -318,9 +306,11 @@ the LAN directly.
 | --- | --- |
 | Setup loops after install | Install ISO still attached; eject `sda` |
 | Disk list empty in Setup | Load `viostor\w11\amd64` from the virtio-win CD |
+| `failed to get domain 'win11-stock'` | Use `virsh -c qemu:///system`; plain `virsh` uses the session URI |
+| Helper CD missing in Windows | Check `domblklist`; insert on `sdb`; `sda` is empty by design |
 | `Get-NetFirewallRule -DisplayGroup` finds nothing | German localization; use the port rule |
 | Script blocked by execution policy | Run `enable-rdp.bat`, not the `.ps1` |
-| `xorriso ... Permission denied` | ISO still inserted; eject `sdb` first, use a new filename |
+| `xorriso ... Permission denied` | ISO still inserted; eject `sdb` or build to a new filename |
 | RDP `Access denied` | Wrong user form; use `COMPUTER\user` from `whoami` |
 | RDP not offered | Windows edition is Home; hosting needs Pro |
 
@@ -340,8 +330,9 @@ safe to disable, see [windows-scheduled-tasks.md](windows-scheduled-tasks.md).
 
 ## Verify the slim state
 
-The helper CD ships `verify-minimal.bat`, a read-only check for the hardened
-Search/Defender state:
+The current helper CD ships `verify-minimal.bat`, a read-only check for the
+hardened Search/Defender state. If your CD predates 2026-11-21, rebuild it
+with `make-helper-iso.sh`; older ISOs may not include this file.
 
 ```powershell
 .\verify-minimal.bat
@@ -382,6 +373,10 @@ for the individual files and the optional real-hive test.
 
 ## See also
 
+- [`windows-scheduled-tasks.md`](windows-scheduled-tasks.md) — scheduled-task
+  inventory and which tasks are safe to disable
+- [`../scripts/windows/README.md`](../scripts/windows/README.md) — helper
+  scripts, profiles, apps and offline hardening
 - [`../install/README.md`](../install/README.md) — VM creation, Secure Boot
   limitation, boot order
 - [`../SECURITY.md`](../SECURITY.md) — host exposures incl. the guest account

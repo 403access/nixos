@@ -3,7 +3,8 @@
 Run these inside the Windows 11 guest from a helper CD. They are all
 double-click launchers that self-elevate through UAC and call PowerShell with
 `-ExecutionPolicy Bypass`, so a machine policy that blocks scripts does not
-matter.
+matter. For building, mounting and replacing the CD on the host, see
+[`docs/windows-vm.md#helper-cd`](../../docs/windows-vm.md#helper-cd).
 
 | File | Purpose |
 | --- | --- |
@@ -11,7 +12,7 @@ matter.
 | `install-apps.bat` | Installs Everything, 7-Zip and Notepad++ from the CD's offline cache |
 | `enable-rdp.bat` | Starts `TermService`, enables RDP, recreates the TCP 3389 rule, sets the network profile to Private |
 | `disable-rdp.bat` | Disables RDP and removes the explicit `RDP 3389` firewall rule |
-| `enable-ssh.bat` | Installs OpenSSH Server, starts `sshd`, opens TCP 22, sets PowerShell as the shell |
+| `enable-ssh.bat` | Installs the bundled Win32-OpenSSH server, starts `sshd`, opens TCP 22, sets PowerShell as the shell |
 | `disable-ssh.bat` | Stops `sshd` and disables the SSH firewall rule |
 | `create-restore-point.bat` | Enables System Restore and creates the `Before debloat` checkpoint (no rollback) |
 | `debloat.bat` | Runs `windows/scripts/SetupComplete.ps1 -ProfileName lean` |
@@ -26,7 +27,7 @@ matter.
 | `disable-visuals.bat` | Best-performance visuals: no animations, transparency, shadows, Aero Peek; per user |
 | `disable-ai.bat` | Copilot, Recall, Click to Do, Widgets, taskbar Chat, web search, Start recommendations |
 | `disable-telemetry.bat` | Minimum diagnostic data, no feedback prompts, activity history or advertising ID |
-| `disable-scheduled-tasks.bat` | Disables telemetry, compatibility, disk-diagnostic, Maps and tips tasks |
+| `disable-scheduled-tasks.bat` | Disables telemetry, compatibility, disk-diagnostic, Maps and tips tasks; see [`docs/windows-scheduled-tasks.md`](../../docs/windows-scheduled-tasks.md) for the PI/Secure-Boot caveat |
 | `optimize-services.bat` | Disables Maps/Fax/RemoteRegistry/RetailDemo/WMP sharing/Print Spooler; PcaSvc, WpcMonSvc, PhoneSvc to manual |
 | `disable-search.bat` | Disables `WSearch` and stops SearchHost/SearchIndexer |
 | `enable-search.bat` | Restores `WSearch` and restarts indexing |
@@ -343,13 +344,25 @@ without root, a VM or a disk.  `tests/offline-registry.Tests.sh` uses that mode
 with a fake `hivexregedit`; `tests/offline-hive-smoke.sh` does the same against
 real hives when `OFFLINE_TEST_HIVE_DIR` is set.
 
-## Build and insert the CD
+## Host-side tooling
 
-These files are edited in the Mac checkout but the CD must be built on the
-NixOS host, which has `xorriso` and the libvirt tools.  Two machines, two
-steps:
+| File | Purpose |
+| --- | --- |
+| `make-helper-iso.sh` | Builds the helper CD from this directory, `windows/scripts/SetupComplete.ps1`, `apps.json` and `apps/` |
+| `fetch-apps.sh` | Downloads and verifies the offline app installers in `apps/` |
+| `apps.json` | Pinned installer names, URLs, SHA-256 hashes and silent arguments |
+| `offline/apply.sh` | Offline Search/Defender hive patch; see the main VM doc |
+| `tests/` | Cross-platform regression suite and offline-hive tests |
 
-On the **Mac**:
+## Build, mount and attach the helper CD
+
+The helper CD is built on the NixOS host. `make-helper-iso.sh` copies every
+`.bat`/`.ps1` in this directory, `windows/scripts/SetupComplete.ps1`,
+`README.md`, `apps.json`, `apps/` and the `verify-minimal` scripts. That makes
+the debloat, app install, verification and individual launchers available on
+one read-only CD.
+
+On the **Mac**, sync the current scripts to the host:
 
 ```bash
 scp -r /Users/olivermolnar/Desktop/nixos/scripts/windows \
@@ -362,28 +375,62 @@ On the **NixOS host**:
 cd ~/Desktop/nixos/scripts/windows
 ls                                        # the .bat/.ps1 files must be there
 ./fetch-apps.sh                           # only if apps/ is empty
-./make-helper-iso.sh /tmp/windows-helper.iso
-
-sudo virsh change-media win11-stock sdb --eject --live
-sudo virsh change-media win11-stock sdb /tmp/windows-helper.iso --insert --live
+./make-helper-iso.sh /home/nixos/Downloads/windows-helper-new.iso
 ```
 
-`make-helper-iso.sh` also copies `windows/scripts/SetupComplete.ps1`,
-`apps.json` and the `apps/` installers into the CD, so the debloat and app
-installation actions are always available.
+Use a **new scratch filename** each time. An inserted ISO is open, and `xorriso`
+cannot overwrite it. Eject the old CD, move the new ISO over the stable path,
+then insert it live and save the same source in the domain config:
+
+```bash
+virsh -c qemu:///system change-media win11-stock sdb --eject --live
+mv -f /home/nixos/Downloads/windows-helper-new.iso \
+  /home/nixos/Downloads/windows-helper.iso
+virsh -c qemu:///system change-media win11-stock sdb \
+  /home/nixos/Downloads/windows-helper.iso --insert --live
+
+virsh -c qemu:///system change-media win11-stock sdb --eject --config
+virsh -c qemu:///system change-media win11-stock sdb \
+  /home/nixos/Downloads/windows-helper.iso --insert --config
+```
+
+Current layout (verified 2026-11-21):
+
+| Target | Media |
+| --- | --- |
+| `vda` | Windows disk |
+| `sda` | empty |
+| `sdb` | helper ISO |
+
+The stable helper ISO is
+`/home/nixos/Downloads/windows-helper.iso`. To update it, build a new file,
+eject `sdb`, move the new file over the stable path, then insert it again.
+Do not overwrite an ISO while it is attached.
+
+Verify from the host:
+
+```bash
+virsh -c qemu:///system domblklist win11-stock
+virsh -c qemu:///system dumpxml --inactive win11-stock | grep -A3 cdrom
+```
+
+`nixos` is in the `libvirtd` group, so `virsh -c qemu:///system` works without
+sudo. Plain `virsh` uses the per-user session and reports
+`failed to get domain 'win11-stock'`.
+
+In Windows: File Explorer → the CD volume **ISOIMAGE** → **F5** →
+double-click `helper.bat` → **Ja** on UAC → choose an action. The individual
+`.bat` launchers still work if you prefer one action at a time. If the drive
+does not appear, reboot the guest or use **Device Manager → Scan for hardware
+changes**.
 
 `trim-memory.bat` only reduces what Windows itself keeps resident. The host
-still holds the full VM allocation; use `scripts/vm-memory.sh` for that.  If `insert` reports
-`Cannot access storage file`, the ISO was not built (usually because the host
-did not have the scripts yet) — run `ls` in the directory and rebuild.
+still holds the full VM allocation; use `scripts/vm-memory.sh` for that. If
+`insert` reports `Cannot access storage file`, the ISO was not built or is not
+readable by QEMU — rebuild it and check `ls -l`.
 
-The virtio-win CD can be replaced once the guest tools are installed.
+`enable-rdp.bat` and the others need CRLF line endings; the repository enforces
+that through `.gitattributes`.
 
-Use a **new output filename** each time: an ISO that is inserted in a running
-domain is open, and `xorriso` cannot overwrite it. `enable-rdp.bat` and the
-others need CRLF line endings; the repository enforces that through
-`.gitattributes`.
-
-In Windows: File Explorer → the CD → F5 → double-click `helper.bat` → **Ja**
-on UAC → choose an action. The individual `.bat` launchers still work if you
-prefer one action at a time.
+See [`docs/windows-vm.md`](../../docs/windows-vm.md#helper-cd) for the full
+operational record, including RDP, SSH and the current guest layout.

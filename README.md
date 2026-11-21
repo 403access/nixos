@@ -209,6 +209,11 @@ English and German:
 - <https://403access.github.io/nixos/docs/guides/windows-11-slim-image>
 - <https://403access.github.io/nixos/de/docs/guides/windows-11-slim-image>
 
+For the installed VM — current CD layout, helper-CD mount/replace steps, RDP
+and SSH — see [`docs/windows-vm.md`](docs/windows-vm.md). For the scheduled-task
+inventory and safe-to-disable recommendations, see
+[`docs/windows-scheduled-tasks.md`](docs/windows-scheduled-tasks.md).
+
 See [`windows/README.md`](windows/README.md) for the short command reference and
 [`PLAN-windows-11-slim-image.md`](PLAN-windows-11-slim-image.md) for the design
 notes.
@@ -294,7 +299,8 @@ sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
 services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
-docs/windows-vm.md         Windows guest: install record, RDP from macOS
+docs/windows-vm.md         Windows guest: install record, helper CD, RDP/SSH
+docs/windows-scheduled-tasks.md  Task inventory and safe-to-disable analysis
 scripts/sandbox-smoke-test.sh  Agent microVM + Docker service verification
 scripts/vm-stats.sh        Host + guest resource summary (read-only)
 scripts/zfs-audit.sh       Read-only ZFS/NixOS audit
