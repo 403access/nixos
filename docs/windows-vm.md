@@ -334,7 +334,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\SetupComplete.ps1 -Profile
 ```
 
 It removes consumer AppX packages, disables telemetry services and scheduled
-tasks, and leaves Store, Defender and Windows Update working.
+tasks, and leaves Store, Defender and Windows Update working. For a full
+inventory of the guest's scheduled tasks, what each one does, and which are
+safe to disable, see [windows-scheduled-tasks.md](windows-scheduled-tasks.md).
 
 ## Verify the slim state
 
