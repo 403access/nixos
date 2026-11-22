@@ -19,7 +19,44 @@ snapshot; the applied state is recorded separately.
   `virsh setvcpus win11-stock 2 --config` and `--maximum`. The guest now reports
   **2 logical CPUs** (2 sockets × 1 core). No `<topology>` element was added:
   2 sockets are within the Windows 11 Pro limit, so no vCPU is hidden or
-  wasted. Host `dominfo` reports `CPU(s): 2`; memory is still 8 GiB.
+  wasted. Host `dominfo` reports `CPU(s): 2`; the 8 GiB allocation was reduced
+  to 4 GiB in the memory pass below.
+- **Host memory:** reduced the domain from 8 GiB to 4 GiB with the same
+  `setmaxmem`/`setmem --config` pair (guest shut down first). QEMU RSS fell from
+  **8.10 GiB to 4.10 GiB** before KSM, and to **~2.0 GiB at idle** once KSM
+  merged the guest's zero pages. The guest reports **4,076 MiB total, 2,819 MiB
+  free**. No balloon device is present, so 4 GiB is a hard cap; RSS rises toward
+  it as the guest actually uses memory.
+- **RDP session limits:** `MaxDisconnectionTime=300000` (5 min),
+  `MaxIdleTime=1800000` (30 min), `fResetBroken=1` and
+  `fSingleSessionPerUser=1` under
+  `HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services`. A closed RDP
+  client no longer leaves the full per-user session resident indefinitely.
+- **Update stack:** `DoSvc`, `UsoSvc` and `wuauserv` are Disabled. `DoSvc` is
+  `LaunchProtected=2`, so it could only be disabled offline (`Start=4` in the
+  `SYSTEM` hive); the others were disabled online. The guest is patched to
+  KB5132056/KB5132057 before this change. Re-enable for patch day.
+- **On-demand services:** `TokenBroker`, `camsvc` and `WinHttpAutoProxySvc` were
+  stopped; `TokenBroker` and `camsvc` are Disabled, and the per-user templates
+  `PimIndexMaintenanceSvc`, `UnistoreSvc` and `UserDataSvc` are `Start=4`.
+  `WinHttpAutoProxySvc` is ACL-protected and stays Manual/on-demand.
+- **Leftover cleanup:** removed the OneDrive per-user engine and
+  `OneDriveSetup.exe` (664 MB total), deleted the LocalService `OneDriveSetup`
+  Run value, removed the dead Edge auto-launch value and the stale Edge/Edge
+  Update uninstall keys, unregistered the duplicate
+  `\WindowsSlim\StartPowerToys` task (the PowerToys `Autorun` task remains), and
+  removed the per-user `SoftLanding` promo task. No OneDrive or Edge startup
+  entry is left.
+- **KSM:** enabled at runtime (`run=1`, `use_zero_pages=1`). A high-rate test
+  (2000 pages/10 ms) completed 74 scans and shared **26,790 non-zero pages**;
+  steady state is 500 pages/50 ms, where `pages_sharing` is **31,423 pages ≈
+  123 MiB**. Zero-page merging is larger but is **not counted** by
+  `pages_sharing`: QEMU RSS dropped from 4.10 GiB to **~2.0 GiB** at idle. The
+  setting is runtime-only until it is added to the host config; a host reboot
+  loses the zero-page win.
+- **Current idle snapshot:** **68 processes**, **1,509 MiB working set**,
+  **2,819 MiB free**, **100 services Disabled**. PowerToys Run was warm at
+  ~200 MiB during the audit and drops when its UI is idle.
 - **Consumer leftovers:** removed the per-user packages
   `MicrosoftWindows.CrossDevice`, `MicrosoftWindows.Client.WebExperience`
   (Widgets), `Microsoft.BingSearch` and `Microsoft.OneDrive.Photos`;
@@ -52,8 +89,10 @@ snapshot; the applied state is recorded separately.
 - **Launcher:** Everything was installed first but is a file search tool, not a
   Raycast-style command launcher. It was replaced with **PowerToys Run**
   (PowerToys 0.102.3101, per-user). Every other PowerToys module, including
-  CmdPal, is disabled; a `\WindowsSlim\StartPowerToys` logon task starts it
-  (10 s delay). **Alt+Space** opens it. It **idles as low as ~17 MiB** (8 MiB
+  CmdPal, is disabled; PowerToys’ own
+  `\PowerToys\Autorun for Windows-PC` logon task starts it (3 s delay), and the
+  duplicate `\WindowsSlim\StartPowerToys` task was removed. **Alt+Space** opens
+  it. It **idles as low as ~17 MiB** (8 MiB
   host + 8 MiB launcher) after a quiet period, typically **~80–105 MiB after
   use**, rises to ~190 MiB after the UI warms, and peaks around ~235 MiB.
   Everything’s service, Run value, shortcuts and folder were removed. See
@@ -138,49 +177,49 @@ snapshot; the applied state is recorded separately.
 
 ## Bottom line
 
-- **The guest is not short of memory; the host is paying for memory the guest
-  does not use.** Windows has 8 GiB assigned, 6.0 GiB free, and only **1.62 GiB
-  committed**. QEMU nevertheless holds **8.10 GiB RSS**, because the domain has
-  `memballoon model='none'`.
-- **The single largest win is host-side:** set the guest to 4 GiB. That removes
-  about **3.7 GiB** of host RSS after the guest restarts and still leaves
-  ~2.4 GiB of guest headroom over the measured commit charge.
-- **KSM is the second host-side lever.** It is currently off. On an idle Windows
-  guest, KSM can collapse the many identical zero pages that Windows keeps on
-  its free list. It can either reduce the cost of the 4 GiB guest further or let
-  you keep 8 GiB and still reclaim zero pages; measure
-  `/sys/kernel/mm/ksm/pages_sharing` after enabling it.
-- **Guest-side trims are real but smaller:** roughly **0.4–0.6 GiB** with
-  low-risk service and startup cleanup, plus **~1.0 GiB** while idle if
-  disconnected RDP sessions are logged off instead of kept forever.
-- The guest is already lean: **71 services disabled**, Defender, Search,
-  SysMain, telemetry, Spooler, Xbox and VBS off, startup folder empty, and only
-  **110 processes**. Do not expect another 2 GiB from process killing.
-- **6 vCPUs are configured but Windows only uses 2.** QEMU's default topology
-  exposes six single-core sockets; Windows 11 Pro is limited to two physical
-  sockets, so four vCPUs are invisible. Fix the topology (or set 2 vCPUs).
+- **The host was paying for memory the guest did not use — now capped at 4 GiB.**
+  QEMU RSS fell from **8.10 GiB to 4.10 GiB**; with KSM zero-page merging it is
+  **~2.0 GiB at idle**. The guest reports 4,076 MiB total, **2,819 MiB free**
+  and ~1.24 GiB used; 4 GiB leaves ~2.7 GiB for applications.
+- **KSM's zero-page mode is the second big win.** `use_zero_pages=1` lets KSM
+  map the guest's free zero pages to the shared zero page. QEMU RSS dropped by
+  ~2.1 GiB beyond the cap. The `pages_sharing` counter shows only ~123 MiB of
+  non-zero sharing; the zero pages are not counted. Runtime-only for now.
+- **Guest-side cleanup is ~110 MB:** update stack (`DoSvc`, `UsoSvc`,
+  `wuauserv`), `TokenBroker`, `camsvc`, and the Pim/Unistore/UserData templates
+  are disabled; OneDrive and stale Edge leftovers are gone.
+- **RDP limits are applied:** disconnected sessions log off after 5 minutes and
+  idle sessions after 30. A disconnected session previously stayed resident at
+  ~1 GiB; signing out or the timeout releases it.
+- The guest is lean: **100 services disabled**, Defender, Search, SysMain,
+  telemetry, Spooler, Xbox and VBS off, startup folder empty, and **68
+  processes** at idle. Do not expect another gigabyte from process killing.
+- **2 vCPUs are configured and used.** The earlier 6-vCPU topology exposed four
+  sockets Windows could not use; that is fixed.
 
 ### At a glance
 
-| Metric | Now | After the safe changes |
+| Metric | Baseline (2026-11-20) | Now (2026-11-22) |
 | --- | ---: | ---: |
-| Guest assigned RAM | 8 GiB | 4 GiB (or 4 GiB current / 8 GiB max with balloon) |
-| Guest committed | 1.62 GiB | ~1.2–1.5 GiB |
-| Guest working set | 2.81 GiB (2.35 GiB adjusted baseline) | ~1.9–2.1 GiB connected |
-| Host QEMU RSS | 8.10 GiB | ~4.4 GiB |
-| Host QEMU RSS with KSM | 8.10 GiB | measure; lower where duplicate/zero pages exist |
-| Processes | 110 | ~85–95 |
-| Disabled services | 71 | ~90–95 |
-| vCPUs configured | 6 (2 usable) | 2 (applied 2026-11-22) |
+| Guest assigned RAM | 8 GiB | **4 GiB** |
+| Guest used at idle | 1.62 GiB committed | ~1.24 GiB |
+| Guest working set | 2.81 GiB (2.35 GiB adjusted baseline) | ~1.51 GiB |
+| Host QEMU RSS | 8.10 GiB | **4.10 GiB**, or **~2.0 GiB at idle with KSM** |
+| Host QEMU RSS with KSM | 8.10 GiB | **~2.0 GiB** (zero pages merged; `pages_sharing` ~123 MiB) |
+| Processes | 110 | **68** |
+| Disabled services | 71 | **100** |
+| vCPUs configured | 6 (2 usable) | **2** |
 | Search UI (`SearchHost`) | up to ~120 MiB when started | removed (feature disabled + WMI kill guard) |
 | Start menu (`StartMenuExperienceHost`) | ~146 MiB | removed (renamed + WMI kill guard) |
-| Launcher | — | PowerToys Run, ~17–190 MiB depending on state (Alt+Space) |
+| Launcher | — | PowerToys Run, ~17–200 MiB depending on state (Alt+Space) |
+| RDP disconnected session | kept indefinitely | logged off after 5 min |
 
-As of 2026-11-22 the guest runs with 2 vCPUs, the Start/search hosts removed,
-**PowerToys Run** as the launcher, and `WSearch` disabled/stopped. It idles as
-low as ~17 MiB and is ~80–105 MiB after use; while the UI is warm it costs
-~43 MiB more than Start. The host allocation is still 8 GiB until the cap in
-section 1 is applied.
+Measured after the 4 GiB resize and the cleanup pass: **68 processes, 1,509 MiB
+working set, 2,819 MiB free**, with the Start/search hosts and AI packages gone.
+PowerToys Run idles as low as ~17 MiB, is ~80–105 MiB after use, and was ~200 MiB
+while the UI was warm during the audit. The host allocation is **4 GiB**; there
+is no balloon, so the guest cannot exceed it. At idle KSM holds QEMU RSS near
+**2.0 GiB**; it rises toward 4 GiB as the guest uses memory.
 
 The guest figures overlap: logging off RDP already frees the per-user services,
 so do not add every row in the savings table below.
@@ -472,7 +511,11 @@ Do not “optimise” these again; they are already in the lean state:
 Ordered by saved RAM per unit of risk. The *How* commands are for the NixOS
 host unless marked **guest**. Guest commands need an elevated PowerShell.
 
-### 1. Cut the host allocation from 8 GiB to 4 GiB — saves ~3.7 GiB
+### 1. Cut the host allocation from 8 GiB to 4 GiB — applied, saves ~3.7 GiB
+
+**Applied 2026-11-22.** `dominfo` reports 4,194,304 KiB maximum and current;
+QEMU RSS is **4.10 GiB before KSM** and **~2.0 GiB at idle with zero-page
+merging**, while the guest shows **4,076 MiB total / 2,819 MiB free**.
 
 **Why.** The guest commits 1.62 GiB and has 6.0 GiB free. The host is holding
 8.10 GiB RSS for that. This is the only change that saves multiple gigabytes
@@ -495,12 +538,14 @@ virsh -c qemu:///system dommemstat win11-stock
 ```
 
 `dommemstat` should report `rss` around 4.4–4.6 GiB. The guest will show ~4 GiB
-total and ~2.2 GiB free.
+total and ~2.2 GiB free. Measured here: **4.10 GiB RSS before KSM, ~2.0 GiB with
+zero-page merging, 2,819 MiB free**.
 
 **Trade-off.** 4 GiB is comfortable for RDP, Office, a browser with a moderate
 number of tabs, and SSH. It is not enough for heavy local builds or many
 browser profiles. Use 6 GiB as a compromise if that workload is expected, or
-the elastic variant below.
+the elastic variant below. The current guest uses ~1.24 GiB at idle, so 4 GiB
+leaves ~2.7 GiB for Chrome and FL Studio.
 
 > **Do not set `memory=8G` + `currentMemory=4G` without a balloon driver.**
 > libvirt boots the guest with the maximum and asks the balloon to reserve the
@@ -564,24 +609,48 @@ driver does not implement free-page reporting yet
 still open in 2026). The host can only reclaim memory that the guest balloon
 actually inflates.
 
-### 2. Enable KSM on the host — measure; an alternative to shrinking the guest
+### 2. Enable KSM on the host — applied at runtime, ~2.0 GiB idle RSS
 
-**Why.** KSM is off (`/sys/kernel/mm/ksm/run = 0`). Windows zeroes pages when it
-frees them, and an idle guest with 6 GiB free contains a large number of
-identical zero pages. KSM can map those to a single physical page, reducing
-host RSS without shrinking the guest or installing a driver. The domain has no
-`<nosharepages/>`, so QEMU marks the guest RAM mergeable. Test KSM before
-deciding between “4 GiB fixed” and “8 GiB + KSM”.
+**Measured 2026-11-22.** KSM was enabled with `run=1` and `use_zero_pages=1`.
+At the default 100 pages/20 ms it did not finish a scan in ten minutes. A
+high-rate test (2000 pages/10 ms) completed 74 scans; steady state is 500
+pages/50 ms with `pages_sharing` at **31,423 pages ≈ 123 MiB** of *non-zero*
+sharing. The zero-page mode is the larger effect: QEMU RSS fell from 4.10 GiB
+to **~2.0 GiB** at idle. These zero pages are not included in `pages_sharing`.
+The setting is runtime-only for now (see the host unit note below).
 
-**How.** In `configuration.nix`:
+**Why.** KSM was off (`/sys/kernel/mm/ksm/run = 0`). Windows zeroes pages when it
+frees them, and an idle guest contains many identical zero pages. KSM can map
+those to a single physical page, reducing host RSS without shrinking the guest
+or installing a driver. The domain has no `<nosharepages/>`, so QEMU marks the
+guest RAM mergeable.
 
-```nix
-hardware.ksm.enable = true;
-hardware.ksm.sleep = 50;   # ms between scans; higher = less CPU, slower merge
+**How (runtime only so far).**
+
+```bash
+sudo sh -c 'echo 1 > /sys/kernel/mm/ksm/run
+            echo 1 > /sys/kernel/mm/ksm/use_zero_pages
+            echo 500 > /sys/kernel/mm/ksm/pages_to_scan
+            echo 50 > /sys/kernel/mm/ksm/sleep_millisecs'
 ```
 
-Put the change in the host's active config (`/etc/nixos/configuration.nix`; this
-repository's copy is synced there), then:
+To persist it, add a unit to the host config and rebuild. `/etc/systemd/system`
+is read-only on NixOS, so an imperative unit does not survive:
+
+```nix
+systemd.services.ksm-zero-pages = {
+  description = "Enable KSM zero-page merging for the Windows VM";
+  wantedBy = [ "multi-user.target" ];
+  after = [ "local-fs.target" ];
+  serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+  script = ''
+    echo 1 > /sys/kernel/mm/ksm/run
+    echo 1 > /sys/kernel/mm/ksm/use_zero_pages
+    echo 500 > /sys/kernel/mm/ksm/pages_to_scan
+    echo 50 > /sys/kernel/mm/ksm/sleep_millisecs
+  '';
+};
+```
 
 ```bash
 sudo nixos-rebuild switch
@@ -593,31 +662,37 @@ Measure after a few minutes:
 cat /sys/kernel/mm/ksm/run
 grep -E 'pages_shared|pages_sharing|pages_unshared|pages_volatile' \
   /sys/kernel/mm/ksm/*
-# bytes saved = pages_sharing * 4096
+# non-zero bytes saved = (pages_sharing - pages_shared) * 4096
+# zero-page savings are not counted; compare host QEMU RSS instead
 ```
 
-**Trade-off.** KSM spends host CPU scanning; 50 ms sleep keeps it modest. It
-also has known side-channel considerations, acceptable for a single-user local
-VM. With 8 GiB assigned KSM has more free pages to merge; with 4 GiB its upside
-is smaller. Measure both configurations before choosing. KSM is not a
-replacement for the 4 GiB cap if the measurement shows little duplication.
+**Trade-off.** KSM spends host CPU scanning; 50 ms sleep keeps it modest
+(`ksmd` showed 0.0% average CPU). It also has known side-channel
+considerations, acceptable for a single-user local VM. With 4 GiB the win is
+mostly the zero-page merge (~2 GiB of host RSS at idle); non-zero sharing is
+only ~123 MiB.
 
-### 3. Log off disconnected RDP sessions — saves ~1.0 GiB while idle
+### 3. Log off disconnected RDP sessions — applied, saves ~1.0 GiB while idle
 
-**Why.** `MaxDisconnectionTime` and `MaxIdleTime` are both `0` (never). If the
-RDP client closes without signing out, session 1 — Explorer, Start menu, shell
-hosts, `dwm`, per-user services — stays resident indefinitely. That session is
-**1,082 MiB** in the snapshot.
-
-**How (guest, elevated):**
+**Applied 2026-11-22** via Group Policy values (5 min disconnected, 30 min
+idle, single session per user):
 
 ```powershell
-$k = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
-Set-ItemProperty $k -Name MaxDisconnectionTime -Value 600000 -Type DWord  # 10 min
+$k = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+Set-ItemProperty $k -Name MaxDisconnectionTime -Value 300000 -Type DWord  # 5 min
 Set-ItemProperty $k -Name MaxIdleTime          -Value 1800000 -Type DWord # 30 min
+Set-ItemProperty $k -Name fResetBroken         -Value 1 -Type DWord
+Set-ItemProperty $k -Name fSingleSessionPerUser -Value 1 -Type DWord
 ```
 
-Or use `tsconfig.msc` → RDP-Tcp → Sessions. Roll back with value `0`.
+The per-connection equivalent under
+`HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp`
+is still available via `tsconfig.msc`; roll back with `0`.
+
+**Why.** `MaxDisconnectionTime` and `MaxIdleTime` were both `0` (never). If the
+RDP client closes without signing out, session 1 — Explorer, Start menu, shell
+hosts, `dwm`, per-user services — stays resident indefinitely. That session was
+**1,082 MiB** in the snapshot.
 
 **Trade-off.** Unsaved work in the disconnected session is lost. Only enable
 this if the VM is a workstation, not a place where long-running apps must
@@ -980,8 +1055,10 @@ without BOM produced the intended single-module state.
 `launcher-log` records “PT Run is going to use default shortcut”; the Run settings
 file has `open_powerlauncher` set to Alt+Space. Simulated `SendKeys` does not
 trigger PowerToys’ low-level keyboard hook, so the final check is a physical
-Alt+Space keypress. The per-user build did not create a Run key/task from
-`startup=true`, so a logon task starts the host:
+Alt+Space keypress. The per-user build later exposed its own
+`\PowerToys\Autorun for Windows-PC` task (3 s delay, `PowerToys.exe`); that task
+is now the only launcher autostart, and the duplicate
+`\WindowsSlim\StartPowerToys` was removed. The original registration was:
 
 ```powershell
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User 'Windows-VM\Windows-PC'
@@ -1034,11 +1111,11 @@ warm it costs ~43 MiB more. Everything was lighter (~30–62 MiB) but was only a
 file search window. The all-modules PowerToys default was ~740 MiB; trimming to
 Run is the key.
 
-**Rollback.** Remove the logon task, uninstall PowerToys, remove the Start guard,
-and rename the Start host back:
+**Rollback.** Remove the PowerToys autorun task (or let the uninstall remove it),
+uninstall PowerToys, remove the Start guard, and rename the Start host back:
 
 ```powershell
-Unregister-ScheduledTask -TaskPath '\WindowsSlim\' -TaskName 'StartPowerToys' -Confirm:$false
+Unregister-ScheduledTask -TaskPath '\PowerToys\' -TaskName 'Autorun for Windows-PC' -Confirm:$false
 winget.exe uninstall --id Microsoft.PowerToys -e --silent
 $ns = 'root\subscription'
 Get-WmiObject -Namespace $ns -Class __FilterToConsumerBinding |
@@ -1052,32 +1129,30 @@ Rename-Item -LiteralPath 'C:\Windows\SystemApps\Microsoft.Windows.StartMenuExper
 
 ## Expected result
 
-These scenarios assume the 4 GiB host cap, the low-risk guest trims, and no
-shell replacement. They are estimates, not guarantees; measure with
-`vm-stats.sh` and `dommemstat`.
+These figures use the applied 4 GiB cap, the guest trims and PowerToys Run.
+Measured with `vm-stats.sh`, `dommemstat` and the guest counters on 2026-11-22.
 
-| Scenario | Guest working set | Guest commit | Host QEMU RSS |
+| Scenario | Guest working set | Guest used | Host QEMU RSS |
 | --- | ---: | ---: | ---: |
-| Now, RDP connected | 2.81 GiB | 1.62 GiB | 8.10 GiB |
-| After safe trims, RDP connected | ~2.0–2.2 GiB | ~1.4–1.5 GiB | ~4.4 GiB |
-| After safe trims, RDP logged off | ~1.3–1.5 GiB | ~1.2–1.3 GiB | ~4.4 GiB |
-| + KSM while idle | unchanged | unchanged | measure; depends on duplicate pages |
-| Appliance shell, connected | ~1.4–1.6 GiB | ~1.3 GiB | ~4.4 GiB |
+| Current, console session active | 1.51 GiB | ~1.23 GiB | **~2.0 GiB with KSM** (4.10 without) |
+| RDP disconnected, before the 5-min timeout | ~1.5 GiB | ~1.2 GiB | ~2.0 GiB |
+| After timeout/logoff (estimate) | ~1.0 GiB | ~1.0 GiB | ~2.0 GiB |
+| With KSM zero-page merging | unchanged | unchanged | ~2.0 GiB |
+| Heavy FL Studio/browser load | up to ~3.5 GiB | up to ~3 GiB | 4.10 GiB (hard cap) |
 
 Replacing Start with PowerToys Run removes **145.8 MiB** and adds **~17 MiB at
 idle** (net **~129 MiB saved**), **~80–105 MiB after use** (net **~40–65 MiB
-saved**), and ~190 MiB while warm (~43 MiB net cost). The table’s “safe trims”
-rows do not include that change.
-The biggest and most reliable step is still the **host cap**. Guest tuning alone
-cannot touch the 8.10 GiB RSS line; it only makes 4 GiB more comfortable.
+saved**), and ~200 MiB while warm (a net cost). The 4 GiB cap removed **~4.0 GiB**
+of host RSS, and KSM zero-page merging removed another **~2.1 GiB** at idle;
+guest tuning now only makes the remaining cap more comfortable.
 
 ## Proposed repository changes
 
 The running domain has drifted from the repository. `installation-mode.nix`
-still says `memory = 12288; vcpus = 6;`, while the live domain is 8 GiB. The
-installer also hard-codes `--memballoon none` and does not pass a requested
-topology. A future reinstall would therefore recreate a 12 GiB / 6-vCPU /
-balloon-less guest.
+still says `memory = 12288; vcpus = 6;`, while the live domain is **4 GiB with 2
+vCPUs**. The installer also hard-codes `--memballoon none` and does not pass a
+requested topology. A future reinstall would therefore recreate a 12 GiB /
+6-vCPU / balloon-less guest.
 
 1. **`installation-mode.nix`** — set `memory = 4096; vcpus = 2;` (or add
    `memoryMax = 8192` for the elastic variant) and update the comment that
@@ -1113,10 +1188,10 @@ balloon-less guest.
     that `WSearch` alone leaves `SearchHost.exe` free to start on demand and
     that feature removal plus renaming alone can be repaired by CBS.
 11. **`scripts/windows/powertoys-run.ps1`** — install PowerToys from winget,
-    write the Run-only `settings.json` without BOM, create the
-    `\WindowsSlim\StartPowerToys` logon task, and optionally rename/guard
-    `StartMenuExperienceHost.exe`. Add `-Restore` to remove the task, uninstall
-    PowerToys, and restore Start.
+    write the Run-only `settings.json` without BOM, enable one logon task
+    (`\PowerToys\Autorun` or `\WindowsSlim\StartPowerToys`), and optionally
+    rename/guard `StartMenuExperienceHost.exe`. Add `-Restore` to remove the
+    task, uninstall PowerToys, and restore Start.
 
 ## Verification checklist
 
@@ -1127,6 +1202,7 @@ virsh -c qemu:///system dominfo win11-stock | grep -E 'CPU\(s\)|Max memory|Used 
 virsh -c qemu:///system dommemstat win11-stock
 ./scripts/vm-stats.sh win11-stock
 cat /sys/kernel/mm/ksm/run
+cat /sys/kernel/mm/ksm/use_zero_pages
 grep -E 'pages_sharing|pages_shared' /sys/kernel/mm/ksm/*
 ```
 
@@ -1144,9 +1220,9 @@ Guest:
 | --- | --- |
 | 4 GiB allocation | `sudo ./scripts/vm-memory.sh 8 win11-stock` |
 | Balloon device | remove `<memballoon>` and the `currentMemory` line, shut down/start |
-| KSM | `hardware.ksm.enable = false;` + rebuild, or `echo 0 > /sys/kernel/mm/ksm/run` |
+| KSM | `echo 0 > /sys/kernel/mm/ksm/run`; if persisted, remove the `ksm-zero-pages` unit and rebuild |
 | RDP timeouts | set both values back to `0` |
-| Per-user / machine services | `Set-Service <name> -StartupType Automatic` (or `Manual` for `DoSvc`/`Wcmsvc`) |
+| Per-user / machine services | `Set-Service <name> -StartupType Automatic` (or `Manual` for `WinHttpAutoProxySvc`); `DoSvc` is `LaunchProtected`, so reverse it offline with `Start=2` in the `SYSTEM` hive |
 | Startup/package cleanup | re-enable the scheduled task, or reinstall the AppX package from the Store |
 | Search feature | `Enable-WindowsOptionalFeature -Online -FeatureName SearchEngine-Client-Package` + reboot; set `WSearch` back to Automatic if indexing is wanted |
 | Search WMI guard | remove the binding/filter/consumer and rename the `.disabled` files back (commands in section 11) |

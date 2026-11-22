@@ -11,7 +11,7 @@ installed, how the helper CD is attached, and how to reconnect.
 | libvirt domain | `win11-stock` |
 | Disk | `/var/lib/libvirt/images/win11-stock.raw` (raw, 120 GiB) |
 | Host storage | `/dev/nvme0n1p2` ext4, mounted at `/` (not `tank`) |
-| Resources | 6 vCPU, 8 GiB, `host-passthrough`, Hyper-V enlightenments |
+| Resources | 2 vCPU, 4 GiB, `host-passthrough`, Hyper-V enlightenments |
 | Devices | virtio-blk, virtio-net, vTPM 2.0, virtio-gpu, SATA CD |
 | Firmware | UEFI (OVMF), **Secure Boot off** — see the 2023 CA note |
 | Local account | `Windows-PC` (password kept out of this repo) |
@@ -71,46 +71,52 @@ gets its lease without manual steps.
 
 ## Memory
 
-The guest currently runs with **8 GiB** (reduced from 12 GiB). Windows 11 idle
-at ~2.6 GB is normal and already low after the `lean` debloat; Defender, the
-servicing stack and the driver set account for most of it. The number that
-matters on the host is the full allocation: an 8 GiB guest holds ~8 GiB RSS
-even when Windows touches only 2.6 GB.
+The guest currently runs with **4 GiB** (reduced from 12 GiB, then 8 GiB, then
+4 GiB on 2026-11-22). Windows uses ~1.24 GiB at idle and reports **2,819 MiB
+free**. Host QEMU RSS is **4.10 GiB** with the cap alone and **~2.0 GiB at idle
+with KSM zero-page merging**. Defender, the servicing stack and the driver set
+account for most of the idle footprint. 4 GiB is enough for RDP, Chrome, SSH and
+moderate FL Studio projects; use 6 GiB if you routinely load large sample
+libraries.
 
 Change the allocation from the NixOS host:
 
 ```bash
-sudo ./scripts/vm-memory.sh 8 win11-stock
+sudo ./scripts/vm-memory.sh 4 win11-stock
 ```
 
 It shuts the guest down gracefully, sets `maxMemory` and `currentMemory` to
-8 GiB, restarts it, and prints the result. Use 8 GiB for RDP/Office/browser
-work; 12 GiB is only useful for heavy local applications.
+4 GiB, restarts it, and prints the result.
 
 The live process inventory and the reduction plan are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md): the guest commits
-about 1.6 GiB while the host holds the full 8 GiB RSS, so the largest saving is
-lowering the allocation (or adding a balloon) rather than killing processes.
+about 1.2 GiB at idle, so the 4 GiB cap leaves ~2.7 GiB for applications.
+Host-side KSM with `use_zero_pages=1` holds QEMU RSS near 2.0 GiB at idle and
+is currently **runtime-only**; the persistent NixOS unit is documented under
+*Enable KSM* in [`windows-memory-analysis.md`](windows-memory-analysis.md) and
+needs a `nixos-rebuild switch`.
 
 Guest-side trims are optional and modest.  `trim-memory.bat` on the helper CD
 removes OneDrive startup, Widgets, Recall and background apps; the aggressive
 variant also disables Search indexing and SysMain.  For a full slim desktop,
 run `minimal.bat` instead: it adds best-performance visuals, AI/web-search
 removal, telemetry and background-task reduction, service trimming, Game DVR
-shutdown and cache cleanup.  Defender, Windows Update and VBS stay enabled.
+shutdown and cache cleanup.  The helper script leaves Defender, Windows Update
+and VBS enabled; on this guest Defender/VBS were later disabled, and the update
+services are disabled between patch days.
 
 ## Launcher (PowerToys Run)
 
 The Windows 11 Start-menu host is disabled on this guest: `Win` and `Ctrl+Esc`
 no longer open the tiles window.  Press **`Alt+Space`** to open PowerToys Run
-(no account, no cloud dependency).  PowerToys starts at logon through the
-`\WindowsSlim\StartPowerToys` task; every module except Run is disabled.
-Everything was measured first but was only a file search window, so it was
-removed.
+(no account, no cloud dependency).  PowerToys starts at logon through its own
+`\PowerToys\Autorun for Windows-PC` task; every module except Run is disabled.
+The duplicate `\WindowsSlim\StartPowerToys` task was removed.  Everything was
+measured first but was only a file search window, so it was removed.
 
 The Start button is inert; use `Ctrl+Alt+Del` or `Win+X` for power options.
 PowerToys Run idles as low as ~17 MiB (8 MiB host + 8 MiB launcher), typically
-80–105 MiB after use, rising to ~190 MiB after the UI warms. At idle it is far
+80–105 MiB after use, rising to ~200 MiB while the UI is warm. At idle it is far
 lighter than the Start menu it replaced; while warm it costs about 43 MiB more.  The exact install,
 module-trimming, WMI guard and rollback are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md#12-replace-the-start-menu-with-powertoys-run-applied-2026-11-22).
@@ -122,16 +128,24 @@ services and the `Printing-Foundation` / Print-to-PDF / Internet Printing
 features are off, and `PrintWorkflowUserSvc` is disabled.  Re-enable the Windows
 Features if printing is ever needed.  The second trim also disabled WorkFolders,
 WCF, SMB Direct and the guest-side RDP client (the RDP **server** is untouched),
-and brought the guest to **87 disabled services**.  Edge, FL Studio, audio and
-PowerToys were left alone.  Details and the next candidates are in
+and the guest now has **100 disabled services**, including the update stack
+(`DoSvc`, `UsoSvc`, `wuauserv`), `TokenBroker` and `camsvc`.  Edge, FL Studio,
+audio and PowerToys were left alone.  Details and the next candidates are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md#printer-features-services-and-apps-2026-11-22).
+
+OneDrive is fully removed: the per-user engine (578 MB), the 85.6 MB
+`OneDriveSetup.exe` stub, and the LocalService `OneDriveSetup` Run value are
+gone.  The empty `C:\Users\Windows-PC\OneDrive` folder remains but contains no
+data, and no sync client starts at logon.
 
 ## Browser
 
-Microsoft Edge was removed (executable, AppX, update services/tasks, shortcuts
+Microsoft Edge was removed (executable, AppX, update services/tasks, shortcuts,
 and live profile).  The profile is backed up at
 `C:\ProgramData\WindowsSlim\backup\Edge-UserData` (241.9 MB).  Chrome is
-installed/used instead.  The shared WebView2 runtime remains at
+installed/used instead.  The dead Edge auto-launch Run value and the stale
+Edge/Edge Update uninstall keys were also removed; only the WebView2 entry
+remains.  The shared WebView2 runtime stays at
 `C:\Program Files (x86)\Microsoft\EdgeWebView` because other applications may
 embed it.  Windows Update may offer Edge again; see
 [`windows-edge-removal.md`](windows-edge-removal.md).
@@ -158,6 +172,23 @@ are in `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` and on the host in
 `/root/ai-offline-backup-2026-11-22`.  Edge, Paint and Notepad AI controls are
 policy-disabled; restart those apps for the policies to take effect.  See
 [`windows-ai-removal.md`](windows-ai-removal.md).
+
+## RDP session limits
+
+The RDP **server** is kept, but stale sessions are now bounded:
+
+```powershell
+$k = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+Set-ItemProperty $k -Name MaxDisconnectionTime   -Value 300000  -Type DWord # 5 min
+Set-ItemProperty $k -Name MaxIdleTime            -Value 1800000 -Type DWord # 30 min
+Set-ItemProperty $k -Name fResetBroken           -Value 1       -Type DWord
+Set-ItemProperty $k -Name fSingleSessionPerUser  -Value 1       -Type DWord
+```
+
+Closing the client without signing out now logs the session off after five
+minutes, releasing the ~1 GiB per-user session.  Unsaved work in that session
+is lost, so sign out (or save) before disconnecting.  Set the values back to
+`0` to restore the old behaviour.
 
 ## Automatic logon
 
