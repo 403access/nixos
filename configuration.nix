@@ -10,7 +10,20 @@
   boot.supportedFilesystems = [ "zfs" ];
   #boot.kernelPackages = pkgs.linuxPackages_6_10;
   #boot.zfs.package = pkgs.zfsStable.compatibleLinuxPackages_6_10;
-  boot.kernelModules = [ "zfs" ];
+  boot.kernelModules = [ "zfs" "btusb" "hidp" "hid_apple" ];
+  # Bluetooth for the Apple keyboard and Logitech peripherals.  This host has
+  # no built-in adapter; a USB dongle or a wired Apple keyboard is required.
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = true;
+  };
+  # The stock unit refuses to start when no adapter exists and is only wanted
+  # by the passive bluetooth.target.  Start it at boot and reset the condition
+  # so a USB dongle is detected when plugged in later.
+  systemd.services.bluetooth = {
+    wantedBy = lib.mkForce [ "multi-user.target" ];
+    unitConfig.ConditionPathIsDirectory = lib.mkForce "";
+  };
   boot.initrd.supportedFilesystems = [ "zfs" ];
   boot.initrd.kernelModules = [ "zfs" ];
   # Ensure your machine has a stable hostId (4 bytes hex string)
@@ -260,11 +273,12 @@ systemd.sleep.extraConfig = ''
     users.users.nixos = {
       isNormalUser = true;
       password = "nixos";
-      extraGroups = [ "wheel" "networkmanager" ]; # Enable ‘sudo’ for the user.
+      extraGroups = [ "wheel" "networkmanager" "bluetooth" ]; # Enable ‘sudo’ for the user.
   #   packages = with pkgs; [
   #     tree
   #   ];
     };
+    users.groups.bluetooth = { };
 
   # programs.firefox.enable = true;
 
@@ -311,8 +325,9 @@ systemd.sleep.extraConfig = ''
       #wimtools
       wimlib ntfs3g gptfdisk util-linux parted
 
-      # Bluetooth, e.g. for Logitech Mouse
-      solaar    
+      # Bluetooth, e.g. for Logitech Mouse and Apple Keyboard
+      solaar
+      bluez
 
       vlc
 

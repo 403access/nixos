@@ -299,6 +299,7 @@ sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
 services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
+docs/apple-keyboard.md     Host Bluetooth support and Apple keyboard pairing
 docs/windows-vm.md         Windows guest: install record, helper CD, RDP/SSH
 docs/windows-scheduled-tasks.md  Task inventory and safe-to-disable analysis
 docs/windows-memory-analysis.md  Live process inventory and RAM reduction plan
