@@ -1,0 +1,21 @@
+{
+  "name": "image-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server and web UI for building, trimming and exporting NixOS and Windows images",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "image-studio": "./bin/image-studio.js",
+    "image-studio-mcp": "./src/mcp.js"
+  },
+  "scripts": {
+    "start": "node src/web.js",
+    "mcp": "node src/mcp.js",
+    "doctor": "node bin/image-studio.js doctor",
+    "test": "node --test test/*.test.js",
+    "check": "node --check src/util.js && node --check src/config.js && node --check src/runner.js && node --check src/profiles.js && node --check src/jobs.js && node --check src/offline.js && node --check src/live.js && node --check src/images.js && node --check src/bundle.js && node --check src/mcp.js && node --check src/web.js && node --check src/cli.js && node --check bin/image-studio.js"
+  }
+}

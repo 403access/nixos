@@ -218,6 +218,25 @@ See [`windows/README.md`](windows/README.md) for the short command reference and
 [`PLAN-windows-11-slim-image.md`](PLAN-windows-11-slim-image.md) for the design
 notes.
 
+## Image Studio (MCP server + web builder)
+
+`image-studio/` is a dependency-free Node app that exposes the Windows/NixOS
+operations as an **MCP stdio server** and a **local web app** for building
+custom NixOS and Windows 11 ISOs. It can also mount raw disks offline, edit
+registry hives, run trim recipes, export/import image bundles, and run the test
+suite.
+
+```bash
+cd image-studio
+node bin/image-studio.js web        # http://127.0.0.1:8788
+node src/mcp.js                     # MCP over stdio
+npm test
+```
+
+See [`image-studio/README.md`](image-studio/README.md) for the tool list,
+SSH/host setup, bundle format and NixOS module. The architecture and API summary
+is in [`docs/image-studio.md`](docs/image-studio.md).
+
 ## Installation layouts
 
 `install/install.sh` prepares a machine for one of three layouts:
@@ -300,6 +319,8 @@ services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
 docs/apple-keyboard.md     Host Bluetooth support and Apple keyboard pairing
+docs/image-studio.md       MCP server + web image builder architecture and API
+image-studio/README.md     NixOS/Windows image builder, MCP tools and bundles
 docs/windows-vm.md         Windows guest: install record, helper CD, RDP/SSH
 docs/windows-scheduled-tasks.md  Task inventory and safe-to-disable analysis
 docs/windows-memory-analysis.md  Live process inventory and RAM reduction plan

@@ -1,5 +1,9 @@
 # Windows 11 VM on nixos
 
+The live, offline-image and VM operations in this guide are also exposed by the
+[Image Studio MCP server](image-studio.md) (`image-studio/`). Use it for
+scripted trims, offline hive edits and image bundle export/import.
+
 Verified **2026-11-20** and updated **2026-11-21** on NixOS 25.05 with
 Windows 11 build 26300 (26H1). This is the operational record: what is
 installed, how the helper CD is attached, and how to reconnect.

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Image Studio</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">IS</div>
+      <div>
+        <h1>Image Studio</h1>
+        <p>Build, trim and export NixOS and Windows images</p>
+      </div>
+    </div>
+    <div class="status">
+      <span id="mode" class="pill">checking…</span>
+      <button id="refresh" class="ghost" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel builder">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-kind="nixos" type="button">NixOS</button>
+        <button class="tab" data-kind="windows" type="button">Windows 11</button>
+      </div>
+
+      <form id="nixos-form" class="form">
+        <div class="grid">
+          <label>Profile name <input name="name" value="nixos-minimal" required></label>
+          <label>Hostname <input name="hostName" value="nixos-image" required></label>
+          <label>User <input name="user" value="nixos" required></label>
+          <label>Desktop
+            <select name="desktop">
+              <option value="none">none (headless)</option>
+              <option value="xfce">XFCE</option>
+              <option value="rice">i3 rice</option>
+              <option value="plasma">KDE Plasma</option>
+              <option value="hyprland">Hyprland</option>
+              <option value="gnome">GNOME</option>
+            </select>
+          </label>
+          <label>Locale <input name="locale" value="en_US.UTF-8"></label>
+          <label>Timezone <input name="timezone" value="UTC"></label>
+          <label>ISO name <input name="imageName" value="nixos-image.iso"></label>
+          <label>State version <input name="stateVersion" value="25.05"></label>
+        </div>
+        <label class="wide">Packages (space/comma separated)
+          <input name="packages" value="git curl vim">
+        </label>
+        <div class="checks">
+          <label><input type="checkbox" name="ssh" checked> SSH server</label>
+          <label><input type="checkbox" name="libvirt"> libvirt / QEMU</label>
+          <label><input type="checkbox" name="bluetooth"> Bluetooth</label>
+          <label><input type="checkbox" name="ksm" checked> KSM zero-page merging</label>
+          <label><input type="checkbox" name="passwordlessSudo"> Passwordless sudo</label>
+        </div>
+        <label>Initial password <input name="initialPassword" value="nixos" autocomplete="new-password"></label>
+        <label class="wide">Extra Nix config (trusted, appended verbatim)
+          <textarea name="extraConfig" rows="3" placeholder="services.openssh.settings.PasswordAuthentication = false;"></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" class="primary">Build NixOS ISO</button>
+          <button type="button" class="ghost" data-validate="nixos">Validate</button>
+          <button type="button" class="ghost" data-reset="nixos">Reset</button>
+        </div>
+        <p class="hint">Runs <code>nix-build &lt;nixpkgs/nixos&gt; -A config.system.build.isoImage</code> on the build host.</p>
+      </form>
+
+      <form id="windows-form" class="form hidden">
+        <div class="grid">
+          <label>Profile name <input name="name" value="windows-lean" required></label>
+          <label>Source ISO (host path)
+            <input name="sourceIso" placeholder="/var/lib/libvirt/images/Win11.iso">
+          </label>
+          <label>Build profile
+            <select name="profile">
+              <option value="safe">safe</option>
+              <option value="lean" selected>lean</option>
+              <option value="micro">micro (experimental)</option>
+            </select>
+          </label>
+          <label>Locale <input name="locale" value="en-US"></label>
+          <label>User <input name="userName" value="Windows-PC"></label>
+          <label>Computer name <input name="computerName" value="WINDOWS-VM"></label>
+          <label>Output ISO <input name="outputName" value="Win11-lean.iso"></label>
+          <label>Memory for resulting VM (GiB) <input name="memoryGiB" type="number" min="4" max="64" value="4"></label>
+          <label>vCPUs for resulting VM <input name="vcpus" type="number" min="2" max="32" value="2"></label>
+        </div>
+        <label class="wide">Upload source ISO (optional; large files stream to the controller)
+          <input id="iso-file" type="file" accept=".iso">
+        </label>
+        <div class="checks">
+          <label><input type="checkbox" name="autologon" checked> Auto-logon</label>
+          <label><input type="checkbox" name="removeWinRE"> Remove WinRE</label>
+          <label><input type="checkbox" name="solid"> Solid WIM compression</label>
+        </div>
+        <fieldset>
+          <legend>Post-install recipe plan (stored in the bundle; apply via MCP)</legend>
+          <div class="checks">
+            <label><input type="checkbox" name="removeComponents" value="store"> Store</label>
+            <label><input type="checkbox" name="removeComponents" value="edge"> Edge</label>
+            <label><input type="checkbox" name="removeComponents" value="ai"> AI</label>
+            <label><input type="checkbox" name="removeComponents" value="onedrive" checked> OneDrive</label>
+            <label><input type="checkbox" name="removeComponents" value="printer"> Printer</label>
+            <label><input type="checkbox" name="removeComponents" value="xbox" checked> Xbox</label>
+            <label><input type="checkbox" name="removeComponents" value="search"> Search</label>
+            <label><input type="checkbox" name="removeComponents" value="telemetry" checked> Telemetry</label>
+          </div>
+        </fieldset>
+        <div class="grid">
+          <label>Themes (comma separated) <input name="themes" placeholder="catppuccin-niivu"></label>
+          <label>Default theme <input name="themeDefault" placeholder="Catppuccin Mocha"></label>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary">Build Windows ISO</button>
+          <button type="button" class="ghost" data-validate="windows">Validate</button>
+          <button type="button" class="ghost" data-reset="windows">Reset</button>
+        </div>
+        <p class="hint">Uses <code>windows/build-win11-docker.sh</code> (or native with <code>IMAGE_STUDIO_DOCKER=0</code>). The builder generates the account password and prints it once.</p>
+      </form>
+
+      <details class="advanced">
+        <summary>Advanced profile JSON</summary>
+        <textarea id="profile-json" rows="10" spellcheck="false"></textarea>
+        <div class="actions">
+          <button id="json-fill" type="button" class="ghost">Fill form from JSON</button>
+          <button id="json-save" type="button" class="ghost">Download JSON</button>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel jobs">
+      <div class="panel-head">
+        <h2>Build jobs</h2>
+        <span id="job-count" class="muted">0</span>
+      </div>
+      <div id="jobs" class="list"></div>
+
+      <div class="panel-head import-head">
+        <h2>Import bundle</h2>
+      </div>
+      <label id="drop" class="drop">
+        <input id="bundle-file" type="file" accept=".gz,.tgz,application/gzip">
+        <span>Drop or choose an Image Studio <code>.tar.gz</code> bundle</span>
+      </label>
+      <div id="bundles" class="list"></div>
+    </section>
+  </main>
+
+  <dialog id="log-dialog">
+    <div class="dialog-head">
+      <h2 id="log-title">Job log</h2>
+      <button id="log-close" class="ghost" type="button">Close</button>
+    </div>
+    <pre id="log-output"></pre>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "image-studio": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/nixos/image-studio/src/mcp.js"
+      ],
+      "env": {
+        "IMAGE_STUDIO_HOST": "nixos@192.168.178.5",
+        "IMAGE_STUDIO_WIN_HOST": "Windows-PC@192.168.122.50",
+        "IMAGE_STUDIO_DOMAIN": "win11-stock",
+        "IMAGE_STUDIO_DISK": "/var/lib/libvirt/images/win11-stock.raw",
+        "IMAGE_STUDIO_NIXOS_REPO": "/etc/nixos",
+        "IMAGE_STUDIO_DATA": "/var/lib/image-studio"
+      }
+    }
+  }
+}

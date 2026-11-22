@@ -1,0 +1,43 @@
+name: Image Studio
+
+on:
+  push:
+    paths:
+      - 'image-studio/**'
+      - '.github/workflows/image-studio.yml'
+  pull_request:
+    paths:
+      - 'image-studio/**'
+      - '.github/workflows/image-studio.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax check
+        working-directory: image-studio
+        run: npm run check
+
+      - name: Unit and API tests
+        working-directory: image-studio
+        run: npm test
+
+      - name: CLI smoke test
+        working-directory: image-studio
+        run: |
+          node bin/image-studio.js --version
+          IMAGE_STUDIO_DRY_RUN=1 IMAGE_STUDIO_DATA="$RUNNER_TEMP/image-studio" \
+            node bin/image-studio.js doctor >/dev/null
