@@ -43,15 +43,35 @@ snapshot; the applied state is recorded separately.
   was tested with a dummy `SearchHost.exe` and works. After 30 s: no search
   processes, `WSearch` Disabled/Stopped, feature Disabled. Search is fully
   non-functional.
+- **Start menu:** `StartMenuExperienceHost.exe` was opening the Win-key tiles
+  window at **145.8 MiB**. The binary was renamed to `.disabled` and a permanent
+  WMI process-start guard `WindowsSlim-StartMenu-Start` kills it if Windows
+  restores it. A Ctrl+Esc test from the RDP session produced no Start process;
+  `explorer`, `sihost` and `ShellExperienceHost` kept their original PIDs and
+  start times. The taskbar Start button is now inert.
+- **Launcher:** installed **Everything 1.4.1.1028** from the helper CD (already
+  listed in `scripts/windows/apps.json`) in the RDP session. **`Ctrl+Shift+E`**
+  toggles it; it opens with an empty search and focuses the box. It uses
+  **~30 MiB** tray-only (11 MiB service + ~18 MiB client) and **~62 MiB** with a
+  full C: index and the window open, versus 145.8 MiB for Start — a net saving of
+  about **85–115 MiB**. A desktop shortcut is at
+  `C:\Users\Windows-PC\Desktop\Everything.lnk`.
+- **Why Everything, not PowerToys/Raycast:** PowerToys Run pulls in the whole
+  PowerToys suite and .NET (hundreds of MiB); Raycast is not a lean Windows fit.
+  Everything is native, already bundled, and can launch the Start-menu shortcuts
+  it indexes. The `Ctrl+Alt+E` combination was rejected because it is AltGr+E
+  (`€`) on a German layout; `Ctrl+Shift+E` is conflict-free.
 - **Not removable per-user:** `Microsoft.Windows.PeopleExperienceHost` and
   `Microsoft.XboxGameCallableUI` are protected system apps; removal returns
   `0x80073CFA`. They are not running and consume no measurable RAM. Removing
   them requires an offline image edit.
 - **Post-change snapshots:** after the vCPU and leftover changes, 91 processes,
-  1,782 MiB working set, 6,893 MiB free. After the search removal (latest),
-  **84 processes, 1,477 MiB working set, 7,038 MiB free**, 2 logical CPUs,
-  8 GiB assigned. These are not directly comparable to the baseline because
-  Task Manager and the inventory/WMI processes are gone and the guest rebooted.
+  1,782 MiB working set, 6,893 MiB free. After the search removal, 84 processes,
+  1,477 MiB working set, 7,038 MiB free. After the Start-menu replacement the
+  Start host is gone and Everything uses 30–62 MiB; the exact free figure varies
+  with the active RDP session. These are not directly comparable to the baseline
+  because Task Manager and the inventory/WMI processes are gone and the guest
+  rebooted.
 
 ## Bottom line
 
@@ -90,11 +110,12 @@ snapshot; the applied state is recorded separately.
 | Disabled services | 71 | ~90–95 |
 | vCPUs configured | 6 (2 usable) | 2 (applied 2026-11-22) |
 | Search UI (`SearchHost`) | up to ~120 MiB when started | removed (feature disabled + WMI kill guard) |
+| Start menu (`StartMenuExperienceHost`) | ~146 MiB | removed (renamed + WMI kill guard) |
+| Launcher | — | Everything, ~30–62 MiB (Ctrl+Shift+E) |
 
-As of 2026-11-22 the guest runs with 2 vCPUs, **84 processes**, **1.48 GiB**
-working set and **7.0 GiB** free. The search feature is disabled and `WSearch`
-is disabled/stopped. The host allocation is still 8 GiB until the cap in
-section 1 is applied.
+As of 2026-11-22 the guest runs with 2 vCPUs, the Start/search hosts removed,
+Everything as the launcher, and `WSearch` disabled/stopped. The host allocation
+is still 8 GiB until the cap in section 1 is applied.
 
 The guest figures overlap: logging off RDP already frees the per-user services,
 so do not add every row in the savings table below.
@@ -839,6 +860,86 @@ Enable-WindowsOptionalFeature -Online -FeatureName SearchEngine-Client-Package
 Set-Service WSearch -StartupType Automatic
 ```
 
+### 12. Replace the Start menu with Everything (applied 2026-11-22)
+
+**Why.** `StartMenuExperienceHost.exe` (the Win-key tiles window) cost
+**145.8 MiB**. Everything is native, already in the helper CD’s `apps.json`, and
+uses about **30 MiB** tray-only (11 MiB service + 18 MiB client) and up to
+**~62 MiB** with a full C: index and the window open. PowerToys Run pulls in
+the full PowerToys suite and .NET; Raycast is not a lean Windows fit.
+
+**Install.** From the helper CD:
+
+```powershell
+Start-Process 'E:\apps\Everything-1.4.1.1028.x64-Setup.exe' -ArgumentList '/S' -Wait
+```
+
+The installer adds `"C:\Program Files\Everything\Everything.exe" -startup` to
+`HKLM\...\Run` and installs the Everything service.
+
+**Configure.** Stop Everything, edit
+`%APPDATA%\Everything\Everything.ini`, then restart it:
+
+```ini
+toggle_window_key=1349
+close_on_execute=1
+run_in_background=1
+home_search=1
+search=
+focus_search_on_activate=1
+hide_empty_search_results=1
+allow_multiple_windows=0
+```
+
+`1349` is `0x0545`: Control `0x01` + Shift `0x04`, virtual key `E` `0x45`.
+`Ctrl+Alt+E` was rejected because it is AltGr+E (`€`) on a German layout. Add a
+desktop shortcut if mouse access is wanted; the hotkey is the primary path.
+
+**Block Start.** Stop `StartMenuExperienceHost`, take ownership of its hardlink,
+and rename it:
+
+```powershell
+$exe = 'C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe'
+Get-Process StartMenuExperienceHost -ErrorAction SilentlyContinue | Stop-Process -Force
+takeown.exe /f $exe /a
+icacls.exe $exe /grant '*S-1-5-32-544:F' '*S-1-5-18:F'
+Rename-Item -LiteralPath $exe -NewName 'StartMenuExperienceHost.exe.disabled' -Force
+```
+
+Then add the same permanent WMI guard pattern as section 11, with
+`WindowsSlim-StartMenu-Start` / `WindowsSlim-StartMenu-Kill` and:
+
+```text
+SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'StartMenuExperienceHost.exe'
+```
+
+**Verification.** From the RDP session, Ctrl+Esc produced no
+`StartMenuExperienceHost` process; Explorer, `sihost` and
+`ShellExperienceHost` kept their original PIDs and start times. `Ctrl+Shift+E`
+opened Everything with an empty search box. Net saving: **~85–115 MiB**
+(145.8 − 30–62).
+
+**Caveats.** The taskbar Start button is now inert. Power and Settings are
+reachable via `Ctrl+Alt+Del`, `Win+X`, or commands; Everything launches the
+Start-menu shortcuts it indexes. Windows servicing may restore the renamed
+hardlink; the WMI guard kills it again. The missing Start host may make the
+Start button briefly do nothing rather than show an error — that is expected.
+
+**Rollback.** Remove the WMI binding/filter/consumer, rename the `.disabled`
+file back, then uninstall Everything or remove its `Run` entry and desktop
+shortcut:
+
+```powershell
+$ns = 'root\subscription'
+Get-WmiObject -Namespace $ns -Class __FilterToConsumerBinding |
+  Where-Object { $_.Filter -like '*WindowsSlim-StartMenu-Start*' } | ForEach-Object { $_.Delete() }
+Get-WmiObject -Namespace $ns -Class __EventFilter -Filter "Name='WindowsSlim-StartMenu-Start'" | ForEach-Object { $_.Delete() }
+Get-WmiObject -Namespace $ns -Class CommandLineEventConsumer -Filter "Name='WindowsSlim-StartMenu-Kill'" | ForEach-Object { $_.Delete() }
+Rename-Item -LiteralPath 'C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe.disabled' `
+  -NewName 'StartMenuExperienceHost.exe'
+& 'C:\Program Files\Everything\Everything.exe' -uninstall
+```
+
 ## Expected result
 
 These scenarios assume the 4 GiB host cap, the low-risk guest trims, and no
@@ -853,7 +954,9 @@ shell replacement. They are estimates, not guarantees; measure with
 | + KSM while idle | unchanged | unchanged | measure; depends on duplicate pages |
 | Appliance shell, connected | ~1.4–1.6 GiB | ~1.3 GiB | ~4.4 GiB |
 
-The biggest and most reliable step is the **host cap**. Guest tuning alone
+Replacing Start with Everything removes **145.8 MiB** and adds **30–62 MiB**
+(net **~85–115 MiB**); the table’s “safe trims” rows do not include that change.
+The biggest and most reliable step is still the **host cap**. Guest tuning alone
 cannot touch the 8.10 GiB RSS line; it only makes 4 GiB more comfortable.
 
 ## Proposed repository changes
@@ -897,6 +1000,11 @@ balloon-less guest.
     installs the tested `WindowsSlim-SearchHost-Start` WMI kill guard. Document
     that `WSearch` alone leaves `SearchHost.exe` free to start on demand and
     that feature removal plus renaming alone can be repaired by CBS.
+11. **`scripts/windows/replace-startmenu.ps1`** — install Everything from
+    `apps.json`, write the `Ctrl+Shift+E` INI keys, create the desktop shortcut,
+    rename `StartMenuExperienceHost.exe`, and install the
+    `WindowsSlim-StartMenu-Start` WMI guard. Add a `-Restore` switch and wire it
+    as an optional `-Launcher Everything` step in `minimal.ps1`.
 
 ## Verification checklist
 
