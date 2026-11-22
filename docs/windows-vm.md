@@ -87,6 +87,11 @@ It shuts the guest down gracefully, sets `maxMemory` and `currentMemory` to
 8 GiB, restarts it, and prints the result. Use 8 GiB for RDP/Office/browser
 work; 12 GiB is only useful for heavy local applications.
 
+The live process inventory and the reduction plan are in
+[`windows-memory-analysis.md`](windows-memory-analysis.md): the guest commits
+about 1.6 GiB while the host holds the full 8 GiB RSS, so the largest saving is
+lowering the allocation (or adding a balloon) rather than killing processes.
+
 Guest-side trims are optional and modest.  `trim-memory.bat` on the helper CD
 removes OneDrive startup, Widgets, Recall and background apps; the aggressive
 variant also disables Search indexing and SysMain.  For a full slim desktop,
@@ -375,6 +380,8 @@ for the individual files and the optional real-hive test.
 
 - [`windows-scheduled-tasks.md`](windows-scheduled-tasks.md) — scheduled-task
   inventory and which tasks are safe to disable
+- [`windows-memory-analysis.md`](windows-memory-analysis.md) — live process
+  inventory and the prioritized RAM reduction plan
 - [`../scripts/windows/README.md`](../scripts/windows/README.md) — helper
   scripts, profiles, apps and offline hardening
 - [`../install/README.md`](../install/README.md) — VM creation, Secure Boot
