@@ -195,6 +195,14 @@ replaced by a fresh one rather than leaving a login screen.  Unsaved work in the
 disconnected session is lost, so sign out (or save) before disconnecting.  Set
 the values back to `0` to restore the old behaviour.
 
+## Recovery removed
+
+WinRE, the 911 MB recovery partition, System Restore and shadow copies are
+removed; `C:` was extended to 119.79 GB. Recovery is by redeploying a clean VM
+and restoring data from the host, not by WinRE/Reset. See
+[`windows-recovery-removal.md`](windows-recovery-removal.md) for the exact
+state, GPT backup and the `install/windows-vm-create.sh` redeploy command.
+
 ## Automatic logon
 
 **Enabled 2026-11-22.** The console logs in as `Windows-VM\Windows-PC` at boot

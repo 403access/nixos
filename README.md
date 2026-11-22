@@ -18,6 +18,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
+- **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
 - **Tailscale or WireGuard** — the iPhone reaches the machine through the tailnet, or through the WireGuard VPN that already runs on your FRITZ!Box.
 
@@ -328,12 +329,14 @@ docs/windows-vm-inventory-commands.md  Host→guest process/service/app inventor
 docs/windows-ai-removal.md  Microsoft AI services, apps, tasks and policies removed
 docs/windows-edge-removal.md  Edge uninstall, profile backup and WebView2 note
 docs/windows-store-removal.md  Microsoft Store removal, winget retention and rollback
+docs/windows-recovery-removal.md  WinRE/recovery-partition removal and redeploy path
 scripts/sandbox-smoke-test.sh  Agent microVM + Docker service verification
 scripts/vm-stats.sh        Host + guest resource summary (read-only)
 scripts/zfs-audit.sh       Read-only ZFS/NixOS audit
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
+peripherals-ui/            Bun + React receiver dashboard
 windows/                   Windows 11 ISO build toolkit (Docker or Nix shell)
 website/                   Marketing site and documentation (Docusaurus, en/de)
 docs/screenshots/          App screenshots
