@@ -66,6 +66,13 @@ snapshot; the applied state is recorded separately.
   than the 145.8 MiB Start menu** (as low as ~17 MiB, 80–105 after use), though
   it costs ~43 MiB more while the UI is warm (~190 MiB). The all-modules default
   was ~740 MiB; trimming to Run is what makes it viable.
+- **AI components:** removed `MicrosoftWindows.Client.CoreAI` via the
+  per-user EndOfLife key; disabled `WSAIFabricSvc`; unregistered all six
+  `\Microsoft\Windows\WindowsAI\*` tasks; and set Copilot/Recall/Click-to-Do,
+  Paint, Notepad, Edge and Settings-page policies.  The
+  `Microsoft.AIFabric.CBS.1.6` framework is `NonRemovable` and remains on disk
+  but idle; only an offline image edit could remove it.  No AI process remains.
+  See [`windows-ai-removal.md`](windows-ai-removal.md).
 - **Not removable per-user:** `Microsoft.Windows.PeopleExperienceHost` and
   `Microsoft.XboxGameCallableUI` are protected system apps; removal returns
   `0x80073CFA`. They are not running and consume no measurable RAM. Removing
@@ -167,7 +174,9 @@ so do not add every row in the savings table below.
 
 ## Method and caveats
 
-Collected in one SSH session with read-only commands:
+Collected in one SSH session with read-only commands. The complete host→guest
+command reference, including the process/service/app/task queries, is in
+[`windows-vm-inventory-commands.md`](windows-vm-inventory-commands.md).
 
 ```powershell
 Get-CimInstance Win32_OperatingSystem

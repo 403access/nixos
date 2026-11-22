@@ -126,6 +126,16 @@ and brought the guest to **87 disabled services**.  Edge, FL Studio, audio and
 PowerToys were left alone.  Details and the next candidates are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md#printer-features-services-and-apps-2026-11-22).
 
+## AI components
+
+Copilot/Recall/Click-to-Do policies are off, the `WindowsAI` scheduled tasks
+were removed, `WSAIFabricSvc` is Disabled, and `MicrosoftWindows.Client.CoreAI`
+was removed.  The `Microsoft.AIFabric.CBS.1.6` framework is protected
+(`NonRemovable`) and remains on disk but idle; only an offline image edit could
+remove it.  Edge, Paint and Notepad AI controls are policy-disabled; restart
+those apps for the policies to take effect.  See
+[`windows-ai-removal.md`](windows-ai-removal.md).
+
 ## Automatic logon
 
 RDP does **not** require it: the client authenticates and creates its own
@@ -409,6 +419,10 @@ for the individual files and the optional real-hive test.
   inventory and which tasks are safe to disable
 - [`windows-memory-analysis.md`](windows-memory-analysis.md) — live process
   inventory and the prioritized RAM reduction plan
+- [`windows-vm-inventory-commands.md`](windows-vm-inventory-commands.md) —
+  host→guest commands for processes, services, apps, tasks and devices
+- [`windows-ai-removal.md`](windows-ai-removal.md) — removed Microsoft AI
+  services, apps, tasks and policies
 - [`../scripts/windows/README.md`](../scripts/windows/README.md) — helper
   scripts, profiles, apps and offline hardening
 - [`../install/README.md`](../install/README.md) — VM creation, Secure Boot
