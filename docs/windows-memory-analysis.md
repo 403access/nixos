@@ -49,13 +49,14 @@ snapshot; the applied state is recorded separately.
   `\WindowsSlim\StartPowerToys` task (the PowerToys `Autorun` task remains), and
   removed the per-user `SoftLanding` promo task. No OneDrive or Edge startup
   entry is left.
-- **KSM:** enabled at runtime (`run=1`, `use_zero_pages=1`). A high-rate test
+- **KSM:** enabled (`run=1`, `use_zero_pages=1`). A high-rate test
   (2000 pages/10 ms) completed 74 scans and shared **26,790 non-zero pages**;
   steady state is 500 pages/50 ms, where `pages_sharing` is **31,423 pages ≈
   123 MiB**. Zero-page merging is larger but is **not counted** by
-  `pages_sharing`: QEMU RSS dropped from 4.10 GiB to **~2.0 GiB** at idle. The
-  setting is runtime-only until it is added to the host config; a host reboot
-  loses the zero-page win.
+  `pages_sharing`: QEMU RSS dropped from 4.10 GiB to **~2.0 GiB** at idle. It is
+  now declarative as `systemd.services.ksm-zero-pages` in
+  `/etc/nixos/configuration.nix` (enabled and active, generation 74); the
+  pre-change config is at `/root/configuration.nix.bak-ksm-2026-11-22`.
 - **Current idle snapshot:** **68 processes**, **1,509 MiB working set**,
   **2,819 MiB free**, **99 services Disabled**. PowerToys Run was warm at
   ~200 MiB during the audit and drops when its UI is idle.
@@ -186,7 +187,8 @@ snapshot; the applied state is recorded separately.
 - **KSM's zero-page mode is the second big win.** `use_zero_pages=1` lets KSM
   map the guest's free zero pages to the shared zero page. QEMU RSS dropped by
   ~2.1 GiB beyond the cap. The `pages_sharing` counter shows only ~123 MiB of
-  non-zero sharing; the zero pages are not counted. Runtime-only for now.
+  non-zero sharing; the zero pages are not counted. Persisted by the
+  `ksm-zero-pages` unit in the host configuration.
 - **Guest-side cleanup is ~100 MB:** update stack (`DoSvc`, `UsoSvc`,
   `wuauserv`), `TokenBroker`, and the Pim/Unistore/UserData templates are
   disabled; OneDrive and stale Edge leftovers are gone. `camsvc` stays enabled
@@ -612,15 +614,16 @@ driver does not implement free-page reporting yet
 still open in 2026). The host can only reclaim memory that the guest balloon
 actually inflates.
 
-### 2. Enable KSM on the host — applied at runtime, ~2.0 GiB idle RSS
+### 2. Enable KSM on the host — applied and persistent, ~2.0 GiB idle RSS
 
-**Measured 2026-11-22.** KSM was enabled with `run=1` and `use_zero_pages=1`.
-At the default 100 pages/20 ms it did not finish a scan in ten minutes. A
-high-rate test (2000 pages/10 ms) completed 74 scans; steady state is 500
-pages/50 ms with `pages_sharing` at **31,423 pages ≈ 123 MiB** of *non-zero*
-sharing. The zero-page mode is the larger effect: QEMU RSS fell from 4.10 GiB
-to **~2.0 GiB** at idle. These zero pages are not included in `pages_sharing`.
-The setting is runtime-only for now (see the host unit note below).
+**Measured and applied 2026-11-22.** KSM was enabled with `run=1` and
+`use_zero_pages=1`. At the default 100 pages/20 ms it did not finish a scan in
+ten minutes. A high-rate test (2000 pages/10 ms) completed 74 scans; steady
+state is 500 pages/50 ms with `pages_sharing` at **31,423 pages ≈ 123 MiB** of
+*non-zero* sharing. The zero-page mode is the larger effect: QEMU RSS fell from
+4.10 GiB to **~2.0 GiB** at idle. These zero pages are not included in
+`pages_sharing`. The unit is installed in the host configuration and active in
+generation 74.
 
 **Why.** KSM was off (`/sys/kernel/mm/ksm/run = 0`). Windows zeroes pages when it
 frees them, and an idle guest contains many identical zero pages. KSM can map
@@ -628,7 +631,9 @@ those to a single physical page, reducing host RSS without shrinking the guest
 or installing a driver. The domain has no `<nosharepages/>`, so QEMU marks the
 guest RAM mergeable.
 
-**How (runtime only so far).**
+**How (applied).** The unit below is in `/etc/nixos/configuration.nix` and was
+activated with `nixos-rebuild switch` (generation 74). The one-off runtime form
+is still useful for a temporary test:
 
 ```bash
 sudo sh -c 'echo 1 > /sys/kernel/mm/ksm/run
@@ -637,14 +642,14 @@ sudo sh -c 'echo 1 > /sys/kernel/mm/ksm/run
             echo 50 > /sys/kernel/mm/ksm/sleep_millisecs'
 ```
 
-To persist it, add a unit to the host config and rebuild. `/etc/systemd/system`
-is read-only on NixOS, so an imperative unit does not survive:
+`/etc/systemd/system` is read-only on NixOS, so the unit must be declarative:
 
 ```nix
 systemd.services.ksm-zero-pages = {
   description = "Enable KSM zero-page merging for the Windows VM";
   wantedBy = [ "multi-user.target" ];
   after = [ "local-fs.target" ];
+  unitConfig.ConditionPathExists = "/sys/kernel/mm/ksm/run";
   serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
   script = ''
     echo 1 > /sys/kernel/mm/ksm/run
@@ -657,6 +662,8 @@ systemd.services.ksm-zero-pages = {
 
 ```bash
 sudo nixos-rebuild switch
+systemctl is-enabled ksm-zero-pages.service
+systemctl is-active ksm-zero-pages.service
 ```
 
 Measure after a few minutes:
@@ -1206,6 +1213,7 @@ virsh -c qemu:///system dommemstat win11-stock
 ./scripts/vm-stats.sh win11-stock
 cat /sys/kernel/mm/ksm/run
 cat /sys/kernel/mm/ksm/use_zero_pages
+systemctl is-enabled ksm-zero-pages.service
 grep -E 'pages_sharing|pages_shared' /sys/kernel/mm/ksm/*
 ```
 
@@ -1223,7 +1231,7 @@ Guest:
 | --- | --- |
 | 4 GiB allocation | `sudo ./scripts/vm-memory.sh 8 win11-stock` |
 | Balloon device | remove `<memballoon>` and the `currentMemory` line, shut down/start |
-| KSM | `echo 0 > /sys/kernel/mm/ksm/run`; if persisted, remove the `ksm-zero-pages` unit and rebuild |
+| KSM | `echo 0 > /sys/kernel/mm/ksm/run`; to persist the rollback, remove `systemd.services.ksm-zero-pages` from `/etc/nixos/configuration.nix` and rebuild (pre-change backup at `/root/configuration.nix.bak-ksm-2026-11-22`) |
 | RDP timeouts | set both values back to `0` |
 | Per-user / machine services | `Set-Service <name> -StartupType Automatic` (or `Manual` for `WinHttpAutoProxySvc`); `DoSvc` is `LaunchProtected`, so reverse it offline with `Start=2` in the `SYSTEM` hive |
 | Startup/package cleanup | re-enable the scheduled task, or reinstall the AppX package from the Store |

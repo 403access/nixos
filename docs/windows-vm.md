@@ -91,10 +91,10 @@ It shuts the guest down gracefully, sets `maxMemory` and `currentMemory` to
 The live process inventory and the reduction plan are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md): the guest commits
 about 1.2 GiB at idle, so the 4 GiB cap leaves ~2.7 GiB for applications.
-Host-side KSM with `use_zero_pages=1` holds QEMU RSS near 2.0 GiB at idle and
-is currently **runtime-only**; the persistent NixOS unit is documented under
-*Enable KSM* in [`windows-memory-analysis.md`](windows-memory-analysis.md) and
-needs a `nixos-rebuild switch`.
+Host-side KSM with `use_zero_pages=1` holds QEMU RSS near 2.0 GiB at idle. It
+is persisted by the `ksm-zero-pages` unit in the host's
+`/etc/nixos/configuration.nix`; the pre-change config is at
+`/root/configuration.nix.bak-ksm-2026-11-22`.
 
 Guest-side trims are optional and modest.  `trim-memory.bat` on the helper CD
 removes OneDrive startup, Widgets, Recall and background apps; the aggressive

@@ -369,6 +369,26 @@ services.openssh = {
   };
 };
 
+  # KSM zero-page merging for the Windows VM.  `hardware.ksm` only flips
+  # /sys/kernel/mm/ksm/run, so set use_zero_pages and the scan rate explicitly.
+  # This keeps QEMU RSS near 2 GiB for the 4 GiB guest at idle.
+  systemd.services.ksm-zero-pages = {
+    description = "Enable KSM with zero-page merging for the Windows VM";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" ];
+    unitConfig.ConditionPathExists = "/sys/kernel/mm/ksm/run";
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      echo 1 > /sys/kernel/mm/ksm/run
+      echo 1 > /sys/kernel/mm/ksm/use_zero_pages
+      echo 500 > /sys/kernel/mm/ksm/pages_to_scan
+      echo 50 > /sys/kernel/mm/ksm/sleep_millisecs
+    '';
+  };
+
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
