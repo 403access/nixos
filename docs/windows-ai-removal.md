@@ -12,7 +12,7 @@ inventory commands are in
 | --- | --- |
 | `WSAIFabricSvc` (“Host für Windows KI-Komponenten”) | Stopped, **Disabled** (already from the earlier trim) |
 | `MicrosoftWindows.Client.CoreAI` | Installed, **NonRemovable=True**, `SignatureKind=System` |
-| `Microsoft.AIFabric.CBS.1.6` | Installed, **IsFramework=True**, **NonRemovable=True**, System |
+| `Microsoft.AIFabric.CBS.1.6` | Installed, **IsFramework=True**, **NonRemovable=True**, System; removed with EndOfLife + backup |
 | Microsoft Copilot app | **Not installed** |
 | Copilot/Recall/Click-to-Do/AIFabric processes | **None** |
 | `Recall` optional feature | **DisabledWithPayloadRemoved** |
@@ -118,13 +118,30 @@ Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers
 `Remove-AppxPackage -AllUsers` returned **REMOVED** for CoreAI.  Verify it is
 gone with `Get-AppxPackage MicrosoftWindows.Client.CoreAI` (empty).
 
-### 5. AIFabric framework (protected)
+### 5. AIFabric framework (removed with backup)
 
-`Microsoft.AIFabric.CBS.1.6` is a **framework** and `NonRemovable=True`, so it
-cannot be uninstalled per-user; removal returns `0x80073CFA`.  It remains on
-disk but has **no service, task or process** and `WSAIFabricSvc` is Disabled.
-Removing it would require an offline image edit and risks the CBS/shell
-dependency graph.  It is therefore left installed but inert.
+`Microsoft.AIFabric.CBS.1.6` is a **framework** with `NonRemovable=True`, but
+the same per-user EndOfLife method that removed CoreAI also worked for it.  A
+local backup was taken first (8.6 MB package plus the AppX registry key):
+
+```powershell
+$pkg = Get-AppxPackage Microsoft.AIFabric.CBS.1.6
+$backup = 'C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6'
+New-Item -Path $backup -ItemType Directory -Force | Out-Null
+robocopy $pkg.InstallLocation $backup /E /COPYALL /R:1 /W:1
+reg.exe export "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\InboxApplications\$($pkg.PackageFullName)" `
+  'C:\ProgramData\WindowsSlim\backup\AIFabric-InboxApplications.reg' /y
+
+$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$eol = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife\$sid\$($pkg.PackageFullName)"
+New-Item -Path $eol -Force | Out-Null
+Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers
+```
+
+`Remove-AppxPackage -AllUsers` returned **REMOVED**; `Get-AppxPackage` now
+reports **no AI packages**.  The backup is at
+`C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` with
+`AIFabric-InboxApplications.reg` beside it.  No offline disk edit was needed.
 
 ## Verification
 
@@ -148,7 +165,7 @@ Observed after the change:
 - AI task list: **empty**.
 - AI processes: **none**.
 - `WSAIFabricSvc`: **Stopped / Disabled**.
-- AI packages: only `Microsoft.AIFabric.CBS.1.6` remains (protected framework).
+- AI packages: **none remain**.
 - `Recall`: **DisabledWithPayloadRemoved**.
 - Notepad `DisableAIFeatures=1`; Paint policies all `1`; Edge Copilot policies
   all `0`; `SettingsPageVisibility=hide:aicomponents`.
@@ -159,14 +176,34 @@ Observed after the change:
 - Edge, Paint and Notepad read their policies at process start.  **Restart
   Edge/Paint/Notepad** (or sign out) for the controls to take effect; Edge was
   running during the change.
-- The AIFabric framework remains on disk.  It is not running and its service is
-  disabled.  Physical removal requires an offline image edit.
+- CoreAI and AIFabric were both removed online via EndOfLife.  A rollback backup
+  of AIFabric is at `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` with
+  `AIFabric-InboxApplications.reg`; no offline disk edit was needed.
 - Windows updates can add new AI tasks/components; re-run the AI inventory after
   servicing.
 - This change is about privacy and removing AI surfaces, not RAM: the AI
   components were already idle, so the working-set change is negligible.
 - Recall’s optional feature was already `DisabledWithPayloadRemoved`; no
   additional feature removal was needed.
+
+## Offline fallback (not used)
+
+If a future build restores a NonRemovable AI package and the online EndOfLife
+removal fails, the offline fallback is deliberately conservative:
+
+1. Shut the guest down and back up the raw disk (`/var/lib/libvirt/images/win11-stock.raw`)
+   or take a libvirt snapshot before any write.
+2. Inspect read-only first with `qemu-nbd --read-only`, mount the NTFS volume,
+   and copy the package folder plus the `SOFTWARE` hive aside.
+3. Only with a verified backup, remove the package under
+   `C:\Windows\SystemApps\<package>` and the matching
+   `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore`
+   `Applications`/`InboxApplications` keys.
+4. The `StateRepository-*.srd` database is not safely edited by hand; leave it
+   for Windows to reconcile.  CBS may repair the package on the next servicing.
+5. Boot and verify; restore the backup if the shell or CBS reports corruption.
+
+This path is higher risk than the online method and was not needed for 26H1.
 
 ## Rollback
 
@@ -186,12 +223,19 @@ Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Ex
 Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name ShowCopilotButton -Value 1 -Type DWord
 Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name ShowCopilotButton -Value 1 -Type DWord
 
-# Allow CoreAI to be reinstalled: remove the EndOfLife key, then repair/reinstall
-# through Windows Update or the Store.
+# Allow CoreAI/AIFabric to be reinstalled: remove both EndOfLife keys.
 Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\EndOfLife' -Recurse |
-  Where-Object { $_.PSChildName -like 'MicrosoftWindows.Client.CoreAI*' } |
+  Where-Object { $_.PSChildName -like 'MicrosoftWindows.Client.CoreAI*' -or
+                 $_.PSChildName -like 'Microsoft.AIFabric.CBS.1.6*' } |
   Remove-Item -Recurse -Force
+
+# Restore AIFabric from the local backup, then import its AppX registration.
+$backup = 'C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6'
+reg.exe import 'C:\ProgramData\WindowsSlim\backup\AIFabric-InboxApplications.reg'
+Add-AppxPackage -Register "$backup\AppxManifest.xml" -DisableDevelopmentMode
 ```
 
-AI scheduled tasks are normally recreated by Windows servicing; they can be
-re-registered by the relevant Windows component if its feature is re-enabled.
+CoreAI has no local backup; restore it through Windows Update/Store or an
+in-place repair.  AI scheduled tasks are normally recreated by Windows
+servicing; they can be re-registered by the relevant Windows component if its
+feature is re-enabled.

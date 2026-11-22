@@ -66,13 +66,13 @@ snapshot; the applied state is recorded separately.
   than the 145.8 MiB Start menu** (as low as ~17 MiB, 80–105 after use), though
   it costs ~43 MiB more while the UI is warm (~190 MiB). The all-modules default
   was ~740 MiB; trimming to Run is what makes it viable.
-- **AI components:** removed `MicrosoftWindows.Client.CoreAI` via the
-  per-user EndOfLife key; disabled `WSAIFabricSvc`; unregistered all six
+- **AI components:** removed `MicrosoftWindows.Client.CoreAI` and the
+  `Microsoft.AIFabric.CBS.1.6` framework via the per-user EndOfLife method
+  (AIFabric backed up at `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6`);
+  disabled `WSAIFabricSvc`; unregistered all six
   `\Microsoft\Windows\WindowsAI\*` tasks; and set Copilot/Recall/Click-to-Do,
-  Paint, Notepad, Edge and Settings-page policies.  The
-  `Microsoft.AIFabric.CBS.1.6` framework is `NonRemovable` and remains on disk
-  but idle; only an offline image edit could remove it.  No AI process remains.
-  See [`windows-ai-removal.md`](windows-ai-removal.md).
+  Paint, Notepad, Edge and Settings-page policies.  No AI package, task or
+  process remains.  See [`windows-ai-removal.md`](windows-ai-removal.md).
 - **Not removable per-user:** `Microsoft.Windows.PeopleExperienceHost` and
   `Microsoft.XboxGameCallableUI` are protected system apps; removal returns
   `0x80073CFA`. They are not running and consume no measurable RAM. Removing

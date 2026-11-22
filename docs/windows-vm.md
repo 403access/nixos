@@ -129,11 +129,12 @@ PowerToys were left alone.  Details and the next candidates are in
 ## AI components
 
 Copilot/Recall/Click-to-Do policies are off, the `WindowsAI` scheduled tasks
-were removed, `WSAIFabricSvc` is Disabled, and `MicrosoftWindows.Client.CoreAI`
-was removed.  The `Microsoft.AIFabric.CBS.1.6` framework is protected
-(`NonRemovable`) and remains on disk but idle; only an offline image edit could
-remove it.  Edge, Paint and Notepad AI controls are policy-disabled; restart
-those apps for the policies to take effect.  See
+were removed, and `WSAIFabricSvc` is Disabled.  Both
+`MicrosoftWindows.Client.CoreAI` and `Microsoft.AIFabric.CBS.1.6` were removed
+online via the per-user EndOfLife method; the AIFabric package has a rollback
+backup at `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6`.  No AI package,
+task or process remains.  Edge, Paint and Notepad AI controls are
+policy-disabled; restart those apps for the policies to take effect.  See
 [`windows-ai-removal.md`](windows-ai-removal.md).
 
 ## Automatic logon
