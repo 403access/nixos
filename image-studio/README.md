@@ -206,8 +206,12 @@ it. Keep it on loopback or put it behind Tailscale Serve, and use a token.
 
 ```bash
 cd image-studio
-npm test
+npm test          # -> npm run test:unit
+npm run check     # runs every check:<file> sub-script
 ```
+
+`test` delegates to `test:unit`; `check` delegates to one `check:<file>`
+sub-script per source file, so no script chains multiple commands directly.
 
 33 tests cover profile validation/rendering, Windows/PowerShell command
 generation, offline mount/hive safety, bundle checksum/traversal rejection, MCP
