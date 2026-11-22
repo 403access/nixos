@@ -99,19 +99,21 @@ run `minimal.bat` instead: it adds best-performance visuals, AI/web-search
 removal, telemetry and background-task reduction, service trimming, Game DVR
 shutdown and cache cleanup.  Defender, Windows Update and VBS stay enabled.
 
-## Launcher (Everything)
+## Launcher (PowerToys Run)
 
 The Windows 11 Start-menu host is disabled on this guest: `Win` and `Ctrl+Esc`
-no longer open the tiles window.  Use **`Ctrl+Shift+E`** to toggle Everything,
-or double-click the `Everything` shortcut on the desktop.  Everything starts at
-logon, opens with an empty search box, and closes after launching an item.
-`Ctrl+Alt+E` was deliberately not used because it is AltGr+E (`€`) on a German
-layout.
+no longer open the tiles window.  Press **`Alt+Space`** to open PowerToys Run
+(no account, no cloud dependency).  PowerToys starts at logon through the
+`\WindowsSlim\StartPowerToys` task; every module except Run is disabled.
+Everything was measured first but was only a file search window, so it was
+removed.
 
 The Start button is inert; use `Ctrl+Alt+Del` or `Win+X` for power options.
-Everything is installed from the helper CD’s `apps.json`.  The exact commands,
-WMI guard, and rollback are in
-[`windows-memory-analysis.md`](windows-memory-analysis.md#12-replace-the-start-menu-with-everything-applied-2026-11-22).
+PowerToys Run idles at roughly 80–105 MiB (10–13 MiB host + 68–95 MiB
+launcher), rising to ~190 MiB after the UI warms. At idle it is lighter than the
+Start menu it replaced; while warm it costs about 43 MiB more.  The exact install,
+module-trimming, WMI guard and rollback are in
+[`windows-memory-analysis.md`](windows-memory-analysis.md#12-replace-the-start-menu-with-powertoys-run-applied-2026-11-22).
 
 ## Automatic logon
 

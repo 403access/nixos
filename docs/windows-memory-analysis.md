@@ -49,18 +49,22 @@ snapshot; the applied state is recorded separately.
   restores it. A Ctrl+Esc test from the RDP session produced no Start process;
   `explorer`, `sihost` and `ShellExperienceHost` kept their original PIDs and
   start times. The taskbar Start button is now inert.
-- **Launcher:** installed **Everything 1.4.1.1028** from the helper CD (already
-  listed in `scripts/windows/apps.json`) in the RDP session. **`Ctrl+Shift+E`**
-  toggles it; it opens with an empty search and focuses the box. It uses
-  **~30 MiB** tray-only (11 MiB service + ~18 MiB client) and **~62 MiB** with a
-  full C: index and the window open, versus 145.8 MiB for Start — a net saving of
-  about **85–115 MiB**. A desktop shortcut is at
-  `C:\Users\Windows-PC\Desktop\Everything.lnk`.
-- **Why Everything, not PowerToys/Raycast:** PowerToys Run pulls in the whole
-  PowerToys suite and .NET (hundreds of MiB); Raycast is not a lean Windows fit.
-  Everything is native, already bundled, and can launch the Start-menu shortcuts
-  it indexes. The `Ctrl+Alt+E` combination was rejected because it is AltGr+E
-  (`€`) on a German layout; `Ctrl+Shift+E` is conflict-free.
+- **Launcher:** Everything was installed first but is a file search tool, not a
+  Raycast-style command launcher. It was replaced with **PowerToys Run**
+  (PowerToys 0.102.3101, per-user). Every other PowerToys module, including
+  CmdPal, is disabled; a `\WindowsSlim\StartPowerToys` logon task starts it
+  (10 s delay). **Alt+Space** opens it. It **idles at ~80–105 MiB**
+  (10–13 MiB host + 68–95 MiB launcher), rises to ~190 MiB after the UI warms,
+  and peaks around ~235 MiB. Everything’s
+  service, Run value, shortcuts and folder were removed. See section 12.
+- **Why PowerToys Run, not Everything/Raycast/CmdPal:** Everything is a search
+  window, not a command launcher. Raycast for Windows exists but is
+  account/cloud-centric and heavier; CmdPal (PowerToys’ newer successor) was
+  measured at 176 MiB plus the 46 MiB host and is less mature. PowerToys Run is
+  local, Microsoft-signed, stable, and extensible. At idle it is **lighter than
+  the 145.8 MiB Start menu** (~80–105 MiB), though it costs ~43 MiB more while
+  the UI is warm (~190 MiB). The all-modules default was ~740 MiB; trimming to
+  Run is what makes it viable.
 - **Not removable per-user:** `Microsoft.Windows.PeopleExperienceHost` and
   `Microsoft.XboxGameCallableUI` are protected system apps; removal returns
   `0x80073CFA`. They are not running and consume no measurable RAM. Removing
@@ -68,10 +72,10 @@ snapshot; the applied state is recorded separately.
 - **Post-change snapshots:** after the vCPU and leftover changes, 91 processes,
   1,782 MiB working set, 6,893 MiB free. After the search removal, 84 processes,
   1,477 MiB working set, 7,038 MiB free. After the Start-menu replacement the
-  Start host is gone and Everything uses 30–62 MiB; the exact free figure varies
-  with the active RDP session. These are not directly comparable to the baseline
-  because Task Manager and the inventory/WMI processes are gone and the guest
-  rebooted.
+  Start host is gone and PowerToys Run idles at ~80–105 MiB; the exact free figure
+  varies with the active RDP session. These are not directly comparable to the
+  baseline because Task Manager and the inventory/WMI processes are gone and the
+  guest rebooted.
 
 ## Bottom line
 
@@ -111,11 +115,13 @@ snapshot; the applied state is recorded separately.
 | vCPUs configured | 6 (2 usable) | 2 (applied 2026-11-22) |
 | Search UI (`SearchHost`) | up to ~120 MiB when started | removed (feature disabled + WMI kill guard) |
 | Start menu (`StartMenuExperienceHost`) | ~146 MiB | removed (renamed + WMI kill guard) |
-| Launcher | — | Everything, ~30–62 MiB (Ctrl+Shift+E) |
+| Launcher | — | PowerToys Run, ~80–190 MiB depending on state (Alt+Space) |
 
 As of 2026-11-22 the guest runs with 2 vCPUs, the Start/search hosts removed,
-Everything as the launcher, and `WSearch` disabled/stopped. The host allocation
-is still 8 GiB until the cap in section 1 is applied.
+**PowerToys Run** as the launcher, and `WSearch` disabled/stopped. At idle the
+launcher is **~40–65 MiB lighter than the Start menu** it replaced; while the UI
+is warm it costs ~43 MiB more. The host allocation is still 8 GiB until the cap
+in section 1 is applied.
 
 The guest figures overlap: logging off RDP already frees the per-user services,
 so do not add every row in the savings table below.
@@ -860,43 +866,85 @@ Enable-WindowsOptionalFeature -Online -FeatureName SearchEngine-Client-Package
 Set-Service WSearch -StartupType Automatic
 ```
 
-### 12. Replace the Start menu with Everything (applied 2026-11-22)
+### 12. Replace the Start menu with PowerToys Run (applied 2026-11-22)
 
 **Why.** `StartMenuExperienceHost.exe` (the Win-key tiles window) cost
-**145.8 MiB**. Everything is native, already in the helper CD’s `apps.json`, and
-uses about **30 MiB** tray-only (11 MiB service + 18 MiB client) and up to
-**~62 MiB** with a full C: index and the window open. PowerToys Run pulls in
-the full PowerToys suite and .NET; Raycast is not a lean Windows fit.
+**145.8 MiB**. Everything was installed first but is a **file search window**,
+not a Raycast-style command launcher. PowerToys Run is local, Microsoft-signed,
+stable and extensible. Raycast for Windows exists but is account/cloud-centric
+and heavier; CmdPal (PowerToys' newer successor) measured 176 MiB plus the 46 MiB
+host and is less mature. PowerToys Run **idles at ~80–105 MiB** (10–13 MiB host
++ 68–95 MiB launcher), rises to ~190 MiB after the UI warms, and peaks around
+~235 MiB. That is **lighter than the 145.8 MiB Start menu at idle** (~40–65 MiB
+saved), but ~43 MiB heavier while the UI is warm — the cost of the functionality.
 
-**Install.** From the helper CD:
+**Install.** The per-user package installs with winget:
 
 ```powershell
-Start-Process 'E:\apps\Everything-1.4.1.1028.x64-Setup.exe' -ArgumentList '/S' -Wait
+winget.exe install --id Microsoft.PowerToys -e --silent `
+  --accept-package-agreements --accept-source-agreements --disable-interactivity
 ```
 
-The installer adds `"C:\Program Files\Everything\Everything.exe" -startup` to
-`HKLM\...\Run` and installs the Everything service.
+That installed PowerToys 0.102.3101 at
+`C:\Users\Windows-PC\AppData\Local\PowerToys\PowerToys.exe`.
 
-**Configure.** Stop Everything, edit
-`%APPDATA%\Everything\Everything.ini`, then restart it:
+**Trim to Run only.** With every module enabled, PowerToys used about **740 MiB**
+(`ColorPickerUI`, `Settings`, `ShortcutGuide`, `Peek` and others all resident).
+Stop every PowerToys/CmdPal process, edit
+`%LOCALAPPDATA%\Microsoft\PowerToys\settings.json`, remove the stale
+`settings.json.cli-lock`, and restart:
 
-```ini
-toggle_window_key=1349
-close_on_execute=1
-run_in_background=1
-home_search=1
-search=
-focus_search_on_activate=1
-hide_empty_search_results=1
-allow_multiple_windows=0
+```powershell
+$main = "$env:LOCALAPPDATA\Microsoft\PowerToys\settings.json"
+Get-Process PowerToys*,Microsoft.CmdPal* | Stop-Process -Force
+Start-Sleep -Seconds 3
+$j = Get-Content $main -Raw | ConvertFrom-Json
+foreach ($p in $j.enabled.PSObject.Properties) { $p.Value = $false }
+$j.enabled.'PowerToys Run' = $true
+$j.startup = $true
+$j.show_tray_icon = $true
+$j.enable_quick_access = $false
+$j.download_updates_automatically = $false
+[IO.File]::WriteAllText($main, ($j | ConvertTo-Json -Depth 10),
+  (New-Object Text.UTF8Encoding($false)))   # no BOM
+Remove-Item "$env:LOCALAPPDATA\Microsoft\PowerToys\settings.json.cli-lock" -Force -ErrorAction SilentlyContinue
 ```
 
-`1349` is `0x0545`: Control `0x01` + Shift `0x04`, virtual key `E` `0x45`.
-`Ctrl+Alt+E` was rejected because it is AltGr+E (`€`) on a German layout. Add a
-desktop shortcut if mouse access is wanted; the hotkey is the primary path.
+The **BOM matters**: the first write used `Set-Content -Encoding UTF8` (with a
+BOM), which PowerToys ignored; it fell back to “all modules on.” Writing UTF-8
+without BOM produced the intended single-module state.
 
-**Block Start.** Stop `StartMenuExperienceHost`, take ownership of its hardlink,
-and rename it:
+**Hotkey and auto-start.** PowerToys Run uses **Alt+Space** by default. Its
+`launcher-log` records “PT Run is going to use default shortcut”; the Run settings
+file has `open_powerlauncher` set to Alt+Space. Simulated `SendKeys` does not
+trigger PowerToys’ low-level keyboard hook, so the final check is a physical
+Alt+Space keypress. The per-user build did not create a Run key/task from
+`startup=true`, so a logon task starts the host:
+
+```powershell
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User 'Windows-VM\Windows-PC'
+$trigger.Delay = 'PT10S'
+$action = New-ScheduledTaskAction -Execute 'C:\Users\Windows-PC\AppData\Local\PowerToys\PowerToys.exe'
+$principal = New-ScheduledTaskPrincipal -UserId 'Windows-VM\Windows-PC' -LogonType Interactive -RunLevel Limited
+Register-ScheduledTask -TaskPath '\WindowsSlim\' -TaskName 'StartPowerToys' `
+  -Trigger $trigger -Action $action -Principal $principal -Force
+```
+
+**Remove Everything.** Everything’s service, HKLM Run value, shortcuts and folder
+were removed so only one launcher remains:
+
+```powershell
+Get-Process Everything | Stop-Process -Force
+Stop-Service Everything -Force
+& 'C:\Program Files\Everything\Everything.exe' -uninstall
+Remove-Item 'C:\Program Files\Everything' -Recurse -Force
+Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name Everything
+Remove-Item "$env:USERPROFILE\Desktop\Everything.lnk" -Force
+```
+
+**Block Start.** Stop the Start host, take ownership of its hardlink, and rename
+it; add the permanent WMI guard with the query below (same pattern as section
+11):
 
 ```powershell
 $exe = 'C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe'
@@ -906,30 +954,30 @@ icacls.exe $exe /grant '*S-1-5-32-544:F' '*S-1-5-18:F'
 Rename-Item -LiteralPath $exe -NewName 'StartMenuExperienceHost.exe.disabled' -Force
 ```
 
-Then add the same permanent WMI guard pattern as section 11, with
-`WindowsSlim-StartMenu-Start` / `WindowsSlim-StartMenu-Kill` and:
-
 ```text
-SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'StartMenuExperienceHost.exe'
+Filter:  WindowsSlim-StartMenu-Start
+Query:   SELECT * FROM Win32_ProcessStartTrace WHERE ProcessName = 'StartMenuExperienceHost.exe'
+Consumer: WindowsSlim-StartMenu-Kill -> taskkill /PID %ProcessID% /F
 ```
 
-**Verification.** From the RDP session, Ctrl+Esc produced no
-`StartMenuExperienceHost` process; Explorer, `sihost` and
-`ShellExperienceHost` kept their original PIDs and start times. `Ctrl+Shift+E`
-opened Everything with an empty search box. Net saving: **~85–115 MiB**
-(145.8 − 30–62).
+**Verification.** The Start host is absent; Ctrl+Esc produces no process and
+Explorer/`sihost`/`ShellExperienceHost` stay up. PowerToys host + Run are the only
+PowerToys processes; no Everything service or process remains. Press Alt+Space to
+verify the launcher physically.
 
-**Caveats.** The taskbar Start button is now inert. Power and Settings are
-reachable via `Ctrl+Alt+Del`, `Win+X`, or commands; Everything launches the
-Start-menu shortcuts it indexes. Windows servicing may restore the renamed
-hardlink; the WMI guard kills it again. The missing Start host may make the
-Start button briefly do nothing rather than show an error — that is expected.
+**Memory.** PowerToys **idles at ~80–105 MiB** (10–13 MiB host + 68–95 MiB
+launcher), rises to ~190 MiB after the UI warms, and peaks around ~235 MiB. At
+idle it is **~40–65 MiB lighter than the 145.8 MiB Start menu**; while warm it
+costs ~43 MiB more. Everything was lighter (~30–62 MiB) but was only a file
+search window. The all-modules PowerToys default was ~740 MiB; trimming to Run
+is the key.
 
-**Rollback.** Remove the WMI binding/filter/consumer, rename the `.disabled`
-file back, then uninstall Everything or remove its `Run` entry and desktop
-shortcut:
+**Rollback.** Remove the logon task, uninstall PowerToys, remove the Start guard,
+and rename the Start host back:
 
 ```powershell
+Unregister-ScheduledTask -TaskPath '\WindowsSlim\' -TaskName 'StartPowerToys' -Confirm:$false
+winget.exe uninstall --id Microsoft.PowerToys -e --silent
 $ns = 'root\subscription'
 Get-WmiObject -Namespace $ns -Class __FilterToConsumerBinding |
   Where-Object { $_.Filter -like '*WindowsSlim-StartMenu-Start*' } | ForEach-Object { $_.Delete() }
@@ -937,8 +985,8 @@ Get-WmiObject -Namespace $ns -Class __EventFilter -Filter "Name='WindowsSlim-Sta
 Get-WmiObject -Namespace $ns -Class CommandLineEventConsumer -Filter "Name='WindowsSlim-StartMenu-Kill'" | ForEach-Object { $_.Delete() }
 Rename-Item -LiteralPath 'C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe.disabled' `
   -NewName 'StartMenuExperienceHost.exe'
-& 'C:\Program Files\Everything\Everything.exe' -uninstall
 ```
+
 
 ## Expected result
 
@@ -954,8 +1002,9 @@ shell replacement. They are estimates, not guarantees; measure with
 | + KSM while idle | unchanged | unchanged | measure; depends on duplicate pages |
 | Appliance shell, connected | ~1.4–1.6 GiB | ~1.3 GiB | ~4.4 GiB |
 
-Replacing Start with Everything removes **145.8 MiB** and adds **30–62 MiB**
-(net **~85–115 MiB**); the table’s “safe trims” rows do not include that change.
+Replacing Start with PowerToys Run removes **145.8 MiB** and adds **~80–105 MiB
+at idle** (net **~40–65 MiB saved**), rising to ~190 MiB while the UI is warm
+(~43 MiB net cost). The table’s “safe trims” rows do not include that change.
 The biggest and most reliable step is still the **host cap**. Guest tuning alone
 cannot touch the 8.10 GiB RSS line; it only makes 4 GiB more comfortable.
 
@@ -1000,11 +1049,11 @@ balloon-less guest.
     installs the tested `WindowsSlim-SearchHost-Start` WMI kill guard. Document
     that `WSearch` alone leaves `SearchHost.exe` free to start on demand and
     that feature removal plus renaming alone can be repaired by CBS.
-11. **`scripts/windows/replace-startmenu.ps1`** — install Everything from
-    `apps.json`, write the `Ctrl+Shift+E` INI keys, create the desktop shortcut,
-    rename `StartMenuExperienceHost.exe`, and install the
-    `WindowsSlim-StartMenu-Start` WMI guard. Add a `-Restore` switch and wire it
-    as an optional `-Launcher Everything` step in `minimal.ps1`.
+11. **`scripts/windows/powertoys-run.ps1`** — install PowerToys from winget,
+    write the Run-only `settings.json` without BOM, create the
+    `\WindowsSlim\StartPowerToys` logon task, and optionally rename/guard
+    `StartMenuExperienceHost.exe`. Add `-Restore` to remove the task, uninstall
+    PowerToys, and restore Start.
 
 ## Verification checklist
 
