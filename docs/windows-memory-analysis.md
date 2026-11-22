@@ -66,15 +66,17 @@ snapshot; the applied state is recorded separately.
   than the 145.8 MiB Start menu** (as low as ~17 MiB, 80–105 after use), though
   it costs ~43 MiB more while the UI is warm (~190 MiB). The all-modules default
   was ~740 MiB; trimming to Run is what makes it viable.
-- **AI components:** removed `MicrosoftWindows.Client.CoreAI` and the
-  `Microsoft.AIFabric.CBS.1.6` framework online (AIFabric backed up at
-  `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6`); disabled
-  `WSAIFabricSvc`; unregistered all six
-  `\Microsoft\Windows\WindowsAI\*` tasks; and set Copilot/Recall/Click-to-Do,
-  Paint, Notepad, Edge and Settings-page policies.  CBS restored the two
-  packages on the next boot, so a `\WindowsSlim\RemoveAIComponents` AtLogOn task
-  re-removes them; no AI process/task/service is active, but permanent physical
-  removal needs the offline edit.  See
+- **AI components:** `MicrosoftWindows.Client.CoreAI` and the
+  `Microsoft.AIFabric.CBS.1.6` framework were removed online, but CBS restored
+  both on the next boot.  A second pass removed them **offline** (package
+  folders, five WinSxS components, `WindowsAI` task folder and both
+  `InboxApplications` keys), which survived the reboot and passed
+  `DISM /CheckHealth`.  `WSAIFabricSvc` is Disabled; all six
+  `\Microsoft\Windows\WindowsAI\*` tasks are gone; Copilot/Recall/Click-to-Do,
+  Paint, Notepad, Edge and Settings-page policies are set.  No AI
+  process/task/service/package remains.  Backups are in
+  `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` and, on the host,
+  `/root/ai-offline-backup-2026-11-22`.  See
   [`windows-ai-removal.md`](windows-ai-removal.md).
 - **Not removable per-user:** `Microsoft.Windows.PeopleExperienceHost` and
   `Microsoft.XboxGameCallableUI` are protected system apps; removal returns

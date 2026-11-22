@@ -150,13 +150,14 @@ re-offer Store on a feature update; see
 
 Copilot/Recall/Click-to-Do policies are off, the `WindowsAI` scheduled tasks
 were removed, and `WSAIFabricSvc` is Disabled.  `MicrosoftWindows.Client.CoreAI`
-and `Microsoft.AIFabric.CBS.1.6` were removed online, but CBS restored the two
-packages on the next boot; a `\WindowsSlim\RemoveAIComponents` AtLogOn task now
-re-removes them (and any restored AI tasks).  No AI process, task or service is
-active; only the package files can reappear between boot and logon.  Permanent
-physical removal needs the offline image edit.  Edge, Paint and Notepad AI
-controls are policy-disabled; restart those apps for the policies to take
-effect.  See [`windows-ai-removal.md`](windows-ai-removal.md).
+and `Microsoft.AIFabric.CBS.1.6` were removed online, but CBS restored them on
+the next boot; they were then removed **offline** (payloads, WinSxS components,
+task folder and AppX registration), which persisted and passed
+`DISM /CheckHealth`.  No AI package, process, task or service remains.  Backups
+are in `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` and on the host in
+`/root/ai-offline-backup-2026-11-22`.  Edge, Paint and Notepad AI controls are
+policy-disabled; restart those apps for the policies to take effect.  See
+[`windows-ai-removal.md`](windows-ai-removal.md).
 
 ## Automatic logon
 

@@ -171,59 +171,118 @@ Observed immediately after the change:
   all `0`; `SettingsPageVisibility=hide:aicomponents`.
 - Microsoft Copilot app: not installed, so no app to remove.
 
-## Persistence after reboot
+## Persistence after reboot (online method failed)
 
 Online removal is **not durable across a Windows servicing boot**.  After the
 first restart, CBS removed the EndOfLife keys and re-registered
 `MicrosoftWindows.Client.CoreAI` and `Microsoft.AIFabric.CBS.1.6`.  The AI
 tasks did not return, `WSAIFabricSvc` stayed Disabled, and all policies
-persisted — so no AI process or service runs, but the package files are present
+persisted — so no AI process or service runs, but the package files were present
 again.
 
-A `\WindowsSlim\RemoveAIComponents` **AtLogOn** task now runs as SYSTEM, waits
-45 seconds, and re-removes both packages plus any restored
-`\Microsoft\Windows\WindowsAI\*` tasks.  It only runs when a user logs on, so the
-packages can be present between boot and the first logon.  The task logs to
-`C:\ProgramData\WindowsSlim\remove-ai.log`.
+An **AtLogOn** re-cleanup task was tried as a stopgap.  It worked only in an
+interactive session and logged `0x80073CFA` (“part of Windows, cannot be
+removed”) when the packages were already present at boot, so it was **removed**
+after the offline edit succeeded.  The offline method below is the durable fix.
 
-For **permanent physical absence**, use the offline fallback below; the online
-method is a re-cleanup, not a durable uninstall on this build.
+## Offline removal (applied 2026-11-22)
+
+The guest was shut down and the raw disk edited directly.  This is the durable
+method on build 26300.
+
+### Backup
+
+`/root/ai-offline-backup-2026-11-22` on the NixOS host (158 MB) contains:
+
+- `SOFTWARE.bak` (90 MB) and `SYSTEM.bak` (16 MB) — full registry hives,
+- `SystemApps/` — both package folders,
+- `WinSxS/` — all five component folders,
+- `Tasks/WindowsAI/` — the (already empty) task folder.
+
+The pre-existing online backup at
+`C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` is still inside the guest.
+
+### Procedure
+
+```bash
+# host, as root — guest shut off
+modprobe nbd max_part=16
+qemu-nbd -f raw -c /dev/nbd0 /var/lib/libvirt/images/win11-stock.raw
+ntfs-3g /dev/nbd0p3 /mnt/win
+```
+
+Remove the package payloads and their component-store folders:
+
+```bash
+rm -rf /mnt/win/Windows/SystemApps/Microsoft.AIFabric.CBS.1.6_8wekyb3d8bbwe
+rm -rf /mnt/win/Windows/SystemApps/MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy
+rm -rf /mnt/win/Windows/WinSxS/amd64_microsoft-aifabric-cbs-1-6_*
+rm -rf /mnt/win/Windows/WinSxS/amd64_userexperience-coreai_*
+rm -rf /mnt/win/Windows/System32/Tasks/Microsoft/Windows/WindowsAI
+```
+
+Delete both `InboxApplications` keys with `hivexsh` (plain `del` does not take
+an argument; `cd` into the key first, then `del`):
+
+```bash
+hivexsh -w /mnt/win/Windows/System32/config/SOFTWARE <<'EOF'
+cd \Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\InboxApplications\Microsoft.AIFabric.CBS.1.6_1.6.955.100_x64__8wekyb3d8bbwe
+del
+cd \Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore\InboxApplications\MicrosoftWindows.Client.CoreAI_1000.26100.10068.0_x64__cw5n1h2txyewy
+del
+commit
+quit
+EOF
+sync
+umount /mnt/win
+qemu-nbd -d /dev/nbd0
+```
+
+There is **no `hiberfil.sys`**, so no Fast Startup image can restore the old
+state.
+
+### Verification after boot
+
+- `Get-AppxPackage` filtered for `AIFabric|CoreAI|Copilot|WindowsAI`: **empty**.
+- `\Microsoft\Windows\WindowsAI\*` tasks: **none**.
+- `Get-Process` filtered for AI names: **none**; `WSAIFabricSvc` Stopped/Disabled.
+- `Test-Path C:\Windows\SystemApps\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy`
+  and the AIFabric folder: **False**.
+- `DISM /Online /Cleanup-Image /CheckHealth`: **no component-store
+  corruption**.
+- Shell, SSH, Start-menu/Search blocks and all other trims unaffected.
+- 77 processes, 6.76 GB free, 1.74 GB working set shortly after logon.
+
+### Caveats
+
+- This bypasses CBS.  The `COMPONENTS` hive can still reference the deleted
+  components, so a future cumulative update or in-place upgrade may try to
+  service them, report a missing payload, or re-add the packages.  Re-check
+  after servicing and repeat the offline edit if needed.
+- Windows Update cannot repair the deleted components from the local store;
+  keep the host backup above until the next feature update is validated.
+- The `StateRepository-*.srd` database is left to Windows to reconcile; do not
+  hand-edit it.
 
 ## Behaviour and caveats
 
 - Edge, Paint and Notepad read their policies at process start.  **Restart
   Edge/Paint/Notepad** (or sign out) for the controls to take effect; Edge was
   running during the change.
-- CoreAI and AIFabric were removed online; after the restart CBS restored them.
-  The logon task re-removes them; the package files may exist before logon.
-- A rollback backup of AIFabric is at
+- CoreAI and AIFabric were removed **offline** after the online method failed to
+  survive a reboot; both package folders, all five WinSxS components, the
+  `WindowsAI` task folder and both `InboxApplications` keys are gone.  No logon
+  cleanup task remains.
+- A rollback copy of AIFabric is at
   `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` with
-  `AIFabric-InboxApplications.reg`.
+  `AIFabric-InboxApplications.reg`; full package, WinSxS and hive backups are on
+  the host under `/root/ai-offline-backup-2026-11-22`.
 - Windows updates can add new AI tasks/components; re-run the AI inventory after
   servicing.
 - This change is about privacy and removing AI surfaces, not RAM: the AI
   components were already idle, so the working-set change is negligible.
 - Recall’s optional feature was already `DisabledWithPayloadRemoved`; no
   additional feature removal was needed.
-
-## Offline fallback (not used)
-
-If a future build restores a NonRemovable AI package and the online EndOfLife
-removal fails, the offline fallback is deliberately conservative:
-
-1. Shut the guest down and back up the raw disk (`/var/lib/libvirt/images/win11-stock.raw`)
-   or take a libvirt snapshot before any write.
-2. Inspect read-only first with `qemu-nbd --read-only`, mount the NTFS volume,
-   and copy the package folder plus the `SOFTWARE` hive aside.
-3. Only with a verified backup, remove the package under
-   `C:\Windows\SystemApps\<package>` and the matching
-   `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Appx\AppxAllUserStore`
-   `Applications`/`InboxApplications` keys.
-4. The `StateRepository-*.srd` database is not safely edited by hand; leave it
-   for Windows to reconcile.  CBS may repair the package on the next servicing.
-5. Boot and verify; restore the backup if the shell or CBS reports corruption.
-
-This path is higher risk than the online method and was not needed for 26H1.
 
 ## Rollback
 
@@ -255,7 +314,34 @@ reg.exe import 'C:\ProgramData\WindowsSlim\backup\AIFabric-InboxApplications.reg
 Add-AppxPackage -Register "$backup\AppxManifest.xml" -DisableDevelopmentMode
 ```
 
-CoreAI has no local backup; restore it through Windows Update/Store or an
-in-place repair.  AI scheduled tasks are normally recreated by Windows
-servicing; they can be re-registered by the relevant Windows component if its
-feature is re-enabled.
+### Restoring the offline-removed packages
+
+The offline edit deleted the payloads and their AppX registration, so the
+online rollback above alone is not enough.  With the guest shut off, copy the
+payloads and the pre-edit `SOFTWARE` hive back from the host backup:
+
+```bash
+# host, as root — guest shut off
+qemu-nbd -f raw -c /dev/nbd0 /var/lib/libvirt/images/win11-stock.raw
+ntfs-3g /dev/nbd0p3 /mnt/win
+cp -a /root/ai-offline-backup-2026-11-22/SystemApps/* /mnt/win/Windows/SystemApps/
+cp -a /root/ai-offline-backup-2026-11-22/WinSxS/*      /mnt/win/Windows/WinSxS/
+cp -a /root/ai-offline-backup-2026-11-22/Tasks/WindowsAI \
+      /mnt/win/Windows/System32/Tasks/Microsoft/Windows/
+cp -a /root/ai-offline-backup-2026-11-22/SOFTWARE.bak \
+      /mnt/win/Windows/System32/config/SOFTWARE
+sync; umount /mnt/win; qemu-nbd -d /dev/nbd0
+```
+
+Restoring `SOFTWARE.bak` re-adds both `InboxApplications` keys but also reverts
+any `SOFTWARE` changes made after the backup was taken (it was captured moments
+before the edit).  On the next boot, register the packages:
+
+```powershell
+Add-AppxPackage -Register 'C:\Windows\SystemApps\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy\AppxManifest.xml' -DisableDevelopmentMode
+Add-AppxPackage -Register 'C:\Windows\SystemApps\Microsoft.AIFabric.CBS.1.6_8wekyb3d8bbwe\AppxManifest.xml' -DisableDevelopmentMode
+```
+
+CoreAI has no in-guest backup; the host backup above is its only copy.  AI
+scheduled tasks are normally recreated by Windows servicing; they can be
+re-registered by the relevant Windows component if its feature is re-enabled.
