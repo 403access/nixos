@@ -31,7 +31,8 @@ snapshot; the applied state is recorded separately.
   `MaxIdleTime=1800000` (30 min), `fResetBroken=1` and
   `fSingleSessionPerUser=1` under
   `HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services`. A closed RDP
-  client no longer leaves the full per-user session resident indefinitely.
+  client no longer leaves the full per-user session resident indefinitely;
+  `ForceAutoLogon=1` then re-logs the console user in.
 - **Update stack:** `DoSvc`, `UsoSvc` and `wuauserv` are Disabled. `DoSvc` is
   `LaunchProtected=2`, so it could only be disabled offline (`Start=4` in the
   `SYSTEM` hive); the others were disabled online. The guest is patched to
@@ -194,8 +195,8 @@ snapshot; the applied state is recorded separately.
   disabled; OneDrive and stale Edge leftovers are gone. `camsvc` stays enabled
   for microphone/camera access.
 - **RDP limits are applied:** disconnected sessions log off after 5 minutes and
-  idle sessions after 30. A disconnected session previously stayed resident at
-  ~1 GiB; signing out or the timeout releases it.
+  idle sessions after 30. `ForceAutoLogon=1` then logs the console user back in,
+  so the stale session is replaced by a fresh one rather than a lock screen.
 - The guest is lean: **99 services disabled**, Defender, Search, SysMain,
   telemetry, Spooler, Xbox and VBS off, startup folder empty, and **68
   processes** at idle. Do not expect another gigabyte from process killing.
@@ -682,7 +683,7 @@ considerations, acceptable for a single-user local VM. With 4 GiB the win is
 mostly the zero-page merge (~2 GiB of host RSS at idle); non-zero sharing is
 only ~123 MiB.
 
-### 3. Log off disconnected RDP sessions — applied, saves ~1.0 GiB while idle
+### 3. Bound disconnected RDP sessions — applied
 
 **Applied 2026-11-22** via Group Policy values (5 min disconnected, 30 min
 idle, single session per user):
@@ -706,8 +707,11 @@ hosts, `dwm`, per-user services — stays resident indefinitely. That session wa
 
 **Trade-off.** Unsaved work in the disconnected session is lost. Only enable
 this if the VM is a workstation, not a place where long-running apps must
-survive a disconnect. When logged off, the console lock screen (~191 MiB)
-remains.
+survive a disconnect. `ForceAutoLogon=1` (see
+[`windows-vm.md`](windows-vm.md#automatic-logon)) then logs the console user
+back in, so the stale session is replaced by a fresh one instead of leaving a
+lock screen. That preserves the auto-login requirement but reduces the RAM win
+compared with a bare logoff.
 
 ### 4. Close Task Manager and do not leave it open — saves ~123 MiB
 

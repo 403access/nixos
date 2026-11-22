@@ -185,16 +185,31 @@ Set-ItemProperty $k -Name fResetBroken           -Value 1       -Type DWord
 Set-ItemProperty $k -Name fSingleSessionPerUser  -Value 1       -Type DWord
 ```
 
-Closing the client without signing out now logs the session off after five
-minutes, releasing the ~1 GiB per-user session.  Unsaved work in that session
-is lost, so sign out (or save) before disconnecting.  Set the values back to
-`0` to restore the old behaviour.
+Closing the client without signing out logs the session off after five minutes.
+`ForceAutoLogon=1` then re-logs the console user in, so the stale session is
+replaced by a fresh one rather than leaving a login screen.  Unsaved work in the
+disconnected session is lost, so sign out (or save) before disconnecting.  Set
+the values back to `0` to restore the old behaviour.
 
 ## Automatic logon
 
-RDP does **not** require it: the client authenticates and creates its own
-session, even when the console sits at the lock screen.  Automatic logon is
-only useful when programs inside Windows must start without anyone connecting.
+**Enabled 2026-11-22.** The console logs in as `Windows-VM\Windows-PC` at boot
+and again after a logoff. Current Winlogon values:
+
+| Value | State |
+| --- | --- |
+| `AutoAdminLogon` | `1` |
+| `DefaultUserName` | `Windows-PC` |
+| `DefaultDomainName` | `WINDOWS-VM` |
+| `ForceAutoLogon` | `1` |
+| `DefaultPassword` | present (value not recorded here) |
+
+`ForceAutoLogon` is what makes the account reappear after a logoff, including
+the RDP timeout above. Without it, Windows only auto-logs in at boot.
+
+RDP does not require auto-logon for authentication, but the VM does need a
+logged-in console session for PowerToys Run and for FL Studio or other work that
+should run without an RDP client attached.
 
 ### Windows guest
 
@@ -213,19 +228,38 @@ The equivalent registry form, for reference:
 
 ```powershell
 $k = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
-Set-ItemProperty $k -Name AutoAdminLogon -Value '1'
-Set-ItemProperty $k -Name DefaultUserName  -Value 'Windows-PC'
+Set-ItemProperty $k -Name AutoAdminLogon  -Value '1'
+Set-ItemProperty $k -Name DefaultUserName -Value 'Windows-PC'
 Set-ItemProperty $k -Name DefaultDomainName -Value $env:COMPUTERNAME
+Set-ItemProperty $k -Name ForceAutoLogon  -Value '1'
 # DefaultPassword stores the password in cleartext; prefer netplwiz or
 # Sysinternals Autologon, which keeps it in an LSA secret.
 ```
 
+Verify without printing the password:
+
+```powershell
+Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' |
+  Select-Object AutoAdminLogon,DefaultUserName,DefaultDomainName,ForceAutoLogon
+qwinsta
+```
+
 With autostart enabled, the chain becomes: host boots → libvirtd starts
 `win11-stock` → Windows logs in → RDP connects to an already unlocked session.
+After an RDP timeout or manual sign-out, `ForceAutoLogon` logs the console user
+back in automatically.
 
-Security: automatic logon removes the password prompt on the console.  Only
-use it with a strong account password, and keep the guest reachable only over
-loopback/SSH/Tailscale.
+To disable it, run `disable-autologon.bat` and also clear the forced value:
+
+```powershell
+Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' `
+  -Name AutoAdminLogon,DefaultPassword,ForceAutoLogon -ErrorAction SilentlyContinue
+```
+
+Security: automatic logon removes the password prompt on the console and stores
+the password recoverably. Only use it with a strong account password, and keep
+the guest reachable only over loopback/SSH/Tailscale. The password is not stored
+in this repository.
 
 ### NixOS host (if meant instead)
 
