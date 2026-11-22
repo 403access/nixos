@@ -1,4 +1,15 @@
-import type { HealthResponse, ProbeReport } from "./types";
+import type {
+  ActionResponse,
+  GenerationsResponse,
+  HealthResponse,
+  Job,
+  LogsResponse,
+  PoolStatusResponse,
+  ProbeReport,
+  ServiceUnit,
+  StorageSnapshot,
+  SystemStatus,
+} from "./types";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -14,11 +25,32 @@ function normalizeBase(serverUrl: string): string {
   return serverUrl.trim().replace(/\/+$/, "");
 }
 
-async function request<T>(serverUrl: string, token: string, path: string): Promise<T> {
+function withQuery(
+  path: string,
+  query: Record<string, string | number | undefined>,
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      params.set(key, String(value));
+    }
+  }
+  const suffix = params.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
+async function request<T>(
+  serverUrl: string,
+  token: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const response = await fetch(`${normalizeBase(serverUrl)}${path}`, {
+    ...init,
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
+      ...(init?.headers ?? {}),
     },
   });
 
@@ -38,13 +70,167 @@ async function request<T>(serverUrl: string, token: string, path: string): Promi
   return (await response.json()) as T;
 }
 
-export function checkHealth(serverUrl: string, token: string): Promise<HealthResponse> {
+function postJson(value: unknown): RequestInit {
+  return {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(value),
+  };
+}
+
+export function checkHealth(
+  serverUrl: string,
+  token: string,
+): Promise<HealthResponse> {
   return request<HealthResponse>(serverUrl, token, "/api/health");
 }
 
-export function fetchPeripherals(serverUrl: string, token: string): Promise<ProbeReport> {
+export function getStatus(
+  serverUrl: string,
+  token: string,
+): Promise<SystemStatus> {
+  return request<SystemStatus>(serverUrl, token, "/api/status");
+}
+
+export function getServices(
+  serverUrl: string,
+  token: string,
+): Promise<ServiceUnit[]> {
+  return request<ServiceUnit[]>(serverUrl, token, "/api/services");
+}
+
+export function serviceAction(
+  serverUrl: string,
+  token: string,
+  unit: string,
+  action: string,
+): Promise<ActionResponse> {
+  return request<ActionResponse>(
+    serverUrl,
+    token,
+    `/api/services/${encodeURIComponent(unit)}/${action}`,
+    { method: "POST" },
+  );
+}
+
+export function getServiceLogs(
+  serverUrl: string,
+  token: string,
+  unit: string,
+  lines: number,
+): Promise<LogsResponse> {
+  return request<LogsResponse>(
+    serverUrl,
+    token,
+    withQuery(`/api/services/${encodeURIComponent(unit)}/logs`, { lines }),
+  );
+}
+
+export function getStorage(
+  serverUrl: string,
+  token: string,
+): Promise<StorageSnapshot> {
+  return request<StorageSnapshot>(serverUrl, token, "/api/storage");
+}
+
+export function getPoolStatus(
+  serverUrl: string,
+  token: string,
+  name: string,
+): Promise<PoolStatusResponse> {
+  return request<PoolStatusResponse>(
+    serverUrl,
+    token,
+    `/api/storage/pools/${encodeURIComponent(name)}`,
+  );
+}
+
+export function getGenerations(
+  serverUrl: string,
+  token: string,
+): Promise<GenerationsResponse> {
+  return request<GenerationsResponse>(
+    serverUrl,
+    token,
+    "/api/system/generations",
+  );
+}
+
+export function startRebuild(
+  serverUrl: string,
+  token: string,
+  action: string,
+): Promise<Job> {
+  return request<Job>(
+    serverUrl,
+    token,
+    "/api/system/rebuild",
+    postJson({ action }),
+  );
+}
+
+export function requestPower(
+  serverUrl: string,
+  token: string,
+  action: string,
+): Promise<ActionResponse> {
+  return request<ActionResponse>(
+    serverUrl,
+    token,
+    "/api/system/power",
+    postJson({ action }),
+  );
+}
+
+export function getJobs(serverUrl: string, token: string): Promise<Job[]> {
+  return request<Job[]>(serverUrl, token, "/api/jobs");
+}
+
+export function getJob(
+  serverUrl: string,
+  token: string,
+  id: string,
+): Promise<Job> {
+  return request<Job>(
+    serverUrl,
+    token,
+    `/api/jobs/${encodeURIComponent(id)}`,
+  );
+}
+
+export function cancelJob(
+  serverUrl: string,
+  token: string,
+  id: string,
+): Promise<Job> {
+  return request<Job>(
+    serverUrl,
+    token,
+    `/api/jobs/${encodeURIComponent(id)}/cancel`,
+    { method: "POST" },
+  );
+}
+
+export function getLogs(
+  serverUrl: string,
+  token: string,
+  lines: number,
+): Promise<LogsResponse> {
+  return request<LogsResponse>(
+    serverUrl,
+    token,
+    withQuery("/api/logs", { lines }),
+  );
+}
+
+export function getPeripherals(
+  serverUrl: string,
+  token: string,
+): Promise<ProbeReport> {
   return request<ProbeReport>(serverUrl, token, "/api/peripherals");
 }
+
+export const fetchPeripherals = getPeripherals;
 
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -52,7 +238,7 @@ export function errorMessage(error: unknown): string {
       return "Token rejected. Check the API token.";
     }
     if (error.status === 403) {
-      return "This token is not allowed to read peripherals.";
+      return error.message || "This action is disabled on the server.";
     }
     return error.message;
   }

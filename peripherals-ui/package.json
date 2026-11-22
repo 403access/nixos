@@ -1,11 +1,12 @@
 {
-  "name": "nixos-control-peripherals",
+  "name": "nixos-control-web",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "local": "bash start-local.sh",
     "preview": "vite preview",
     "start": "bun run server.ts",
     "typecheck": "tsc --noEmit"

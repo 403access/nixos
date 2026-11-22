@@ -87,6 +87,23 @@ Open **Dashboard → Peripherals** or **System → Peripherals**. The screen use
 same server URL and token as the rest of the app, and refreshes while it is
 visible.
 
+For LAN access without Tailscale, set the iOS server URL to
+`http://<LAN-IP>:3000` while the web dashboard is running. The Bun server
+proxies `/api` to the loopback Rust API.
+
+## macOS
+
+The same Bun app runs on a Mac. From `peripherals-ui/`:
+
+```bash
+./start-local.sh
+```
+
+It starts a local Rust API on `http://127.0.0.1:8787`, creates a token file, and
+starts Vite. With a receiver plugged into the Mac, the Peripherals view reads it
+locally. The system views are mostly empty on macOS because the Linux probes are
+unavailable.
+
 ## Troubleshooting
 
 | Symptom | Fix |

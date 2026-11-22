@@ -16,11 +16,11 @@ struct DashboardView: View {
 
                     if let status = app.status {
                         metrics(status)
+                        peripheralsLink
                         servicesCard(status)
                         poolsCard(status)
                         temperaturesCard(status)
                         networkCard(status)
-                        peripheralsLink
                     } else if app.connectionState == .connecting {
                         ProgressView("Connecting…")
                             .padding(.top, 40)

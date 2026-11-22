@@ -476,6 +476,8 @@ Tap **Save & Connect**.
 
 The app also has a **Peripherals** screen (**Dashboard → Peripherals** or **System → Peripherals**) for the Logitech receiver. It is read-only; see [`docs/peripherals.md`](docs/peripherals.md).
 
+For LAN access without Tailscale, use `http://<LAN-IP>:3000` while the web dashboard from `peripherals-ui/` is running; it proxies `/api` to the loopback API.
+
 ### WireGuard and LAN access
 
 The module already supports an existing FRITZ!Box WireGuard VPN; no WireGuard configuration is needed on the NixOS host. Set:
