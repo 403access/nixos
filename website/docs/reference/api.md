@@ -93,6 +93,24 @@ Content-Type: application/json
 
 Allowed actions: `reboot`, `shutdown`, `poweroff`.
 
+## Peripherals
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
+
+Returns the same report as `hidpp-probe --json`: receiver metadata, paired
+slots, device names, battery, signal and firmware. The route is read-only and
+never pairs, unpairs or writes firmware.
+
+`/api/health` and `/api/peripherals` allow CORS so the standalone
+`peripherals-ui` dashboard can read them; the other routes remain same-origin.
+A missing receiver or a hidraw permission error returns `503` with an `error`
+field.
+
+See [Peripherals](../guides/peripherals.md) for the CLI, web dashboard and iOS
+screen.
+
 ## Errors
 
 | Status | Meaning |
@@ -102,6 +120,6 @@ Allowed actions: `reboot`, `shutdown`, `poweroff`.
 | `403` | Action disabled by module configuration |
 | `404` | Unknown job or route |
 | `500` | Command or system error |
-| `503` | Token file is not available |
+| `503` | Token file, receiver, or hidraw access unavailable |
 
 Errors are returned as JSON with an `error` field.

@@ -41,6 +41,19 @@ TOKEN=$(sudo nixos-control-token)
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/api/health
 ```
 
+## Peripherals are empty or return 503
+
+- `404` on `/api/peripherals`: the running server is older than the endpoint.
+  Rebuild the configuration and restart `nixos-control`.
+- `503 ... Permission denied` on `/dev/hidraw2`: the server cannot open the
+  receiver. The systemd unit runs as root; check
+  `systemctl status nixos-control`.
+- `no Logitech receiver found`: run `sudo hidpp-probe --list` and check `lsusb`
+  and `/dev/hidraw*`.
+- The Apple keyboard is absent: expected; it is not a Logitech device.
+
+See [Peripherals](./peripherals.md).
+
 ## WireGuard connection fails
 
 ```bash

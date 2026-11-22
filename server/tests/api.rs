@@ -12,6 +12,9 @@ use nixos_control::models::{
     CpuInfo, DatasetInfo, FilesystemInfo, Generation, PoolInfo, ServiceUnit, Status,
     StorageSnapshot,
 };
+use nixos_control::peripherals::{
+    BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
+};
 use nixos_control::system::SystemProbe;
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -78,6 +81,105 @@ impl JobLauncher for FakeJobs {
 
     fn list(&self) -> Vec<Job> {
         self.jobs.lock().unwrap().clone()
+    }
+}
+
+#[derive(Clone)]
+struct MockPeripherals {
+    report: Option<ProbeReport>,
+    error: Option<String>,
+}
+
+impl MockPeripherals {
+    fn report() -> Self {
+        Self {
+            report: Some(sample_peripherals()),
+            error: None,
+        }
+    }
+
+    fn error(message: &str) -> Self {
+        Self {
+            report: None,
+            error: Some(message.to_string()),
+        }
+    }
+}
+
+impl PeripheralProbe for MockPeripherals {
+    fn snapshot(&self) -> Result<ProbeReport, String> {
+        match (&self.report, &self.error) {
+            (_, Some(error)) => Err(error.clone()),
+            (Some(report), None) => Ok(report.clone()),
+            (None, None) => Err("no receiver".to_string()),
+        }
+    }
+}
+
+fn sample_peripherals() -> ProbeReport {
+    ProbeReport {
+        receiver: ReceiverInfo {
+            product: Some("USB Receiver".to_string()),
+            manufacturer: Some("Logitech".to_string()),
+            vendor_id: 0x046D,
+            product_id: 0xC52B,
+            path: "/dev/hidraw2".to_string(),
+            serial: Some("A1B2C3D4".to_string()),
+            kind: "unifying".to_string(),
+            max_devices: 6,
+            paired_devices: 2,
+            remaining_pairings: Some(4),
+            firmware: vec![FirmwareEntry {
+                kind: "firmware".to_string(),
+                name: String::new(),
+                version: "12.01.B0052".to_string(),
+            }],
+        },
+        devices: vec![
+            DeviceInfo {
+                slot: 1,
+                online: true,
+                kind: Some("keyboard".to_string()),
+                wpid: Some("2010".to_string()),
+                serial: Some("BD09F60A".to_string()),
+                name: Some("Logitech K800".to_string()),
+                firmware: vec![FirmwareEntry {
+                    kind: "firmware".to_string(),
+                    name: String::new(),
+                    version: "09.01.B0010".to_string(),
+                }],
+                battery: Some(BatteryInfo {
+                    percent: Some(80),
+                    next_percent: None,
+                    status: Some("discharging".to_string()),
+                    voltage_mv: None,
+                }),
+                signal: None,
+            },
+            DeviceInfo {
+                slot: 2,
+                online: true,
+                kind: Some("mouse".to_string()),
+                wpid: Some("4041".to_string()),
+                serial: Some("448F2E60".to_string()),
+                name: Some("MX Master".to_string()),
+                firmware: vec![FirmwareEntry {
+                    kind: "firmware".to_string(),
+                    name: "MPM".to_string(),
+                    version: "12.01.B0052".to_string(),
+                }],
+                battery: Some(BatteryInfo {
+                    percent: Some(55),
+                    next_percent: Some(50),
+                    status: Some("discharging".to_string()),
+                    voltage_mv: Some(3811),
+                }),
+                signal: Some(SignalInfo {
+                    raw: 90,
+                    percent: Some(90),
+                }),
+            },
+        ],
     }
 }
 
@@ -214,6 +316,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
 
     let system = MockSystem::default();
     let jobs = FakeJobs::default();
+    let peripherals = MockPeripherals::report();
     let mut config = AppConfig::new(token, None, true, true);
     configure(&mut config);
 
@@ -223,6 +326,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             config,
             system: Arc::new(system.clone()),
             jobs: Arc::new(jobs.clone()),
+            peripherals: Arc::new(peripherals),
             version: "test-version".to_string(),
         },
         system,
@@ -787,4 +891,64 @@ async fn response_bodies_are_json_with_a_trailing_newline() {
         "application/json; charset=utf-8"
     );
     assert!(body.ends_with('\n'));
+}
+
+#[tokio::test]
+async fn peripherals_returns_the_receiver_and_devices() {
+    let fixture = fixture();
+    let (status, headers, body) = get(&fixture, "/api/peripherals").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        headers
+            .get("Access-Control-Allow-Origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("*")
+    );
+
+    let value = json(&body);
+    assert_eq!(value["receiver"]["product"], "USB Receiver");
+    assert_eq!(value["receiver"]["kind"], "unifying");
+    assert_eq!(value["receiver"]["max_devices"], 6);
+    assert_eq!(value["receiver"]["paired_devices"], 2);
+    assert_eq!(value["devices"].as_array().unwrap().len(), 2);
+    assert_eq!(value["devices"][0]["name"], "Logitech K800");
+    assert_eq!(value["devices"][1]["name"], "MX Master");
+    assert_eq!(value["devices"][1]["battery"]["percent"], 55);
+}
+
+#[tokio::test]
+async fn peripherals_reports_a_missing_receiver() {
+    let mut fixture = fixture();
+    fixture.state.peripherals = Arc::new(MockPeripherals::error("no Logitech receiver found"));
+
+    let (status, _, body) = get(&fixture, "/api/peripherals").await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(json(&body)["error"], "no Logitech receiver found");
+}
+
+#[tokio::test]
+async fn peripherals_allows_a_cors_preflight_without_a_token() {
+    let fixture = fixture();
+    let request = Request::builder()
+        .method(Method::OPTIONS)
+        .uri("/api/peripherals")
+        .header("Origin", "http://localhost:5173")
+        .header("Access-Control-Request-Method", "GET")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = build_router(fixture.state.clone())
+        .oneshot(request)
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        response
+            .headers()
+            .get("Access-Control-Allow-Origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("*")
+    );
 }

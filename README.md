@@ -320,6 +320,7 @@ services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
 docs/apple-keyboard.md     Host Bluetooth support and Apple keyboard pairing
+docs/peripherals.md        Logitech receiver, HID++ probe, API and UIs
 docs/image-studio.md       MCP server + web image builder architecture and API
 image-studio/README.md     NixOS/Windows image builder, MCP tools and bundles
 docs/windows-vm.md         Windows guest: install record, helper CD, RDP/SSH
@@ -473,6 +474,8 @@ Tap **Save & Connect**.
 
 > The app stores the token in the iOS Keychain. The URL and connection method are stored in `UserDefaults`. Bare IP addresses, single-label hostnames, `.local` names and `.fritz.box` hostnames default to `http://`.
 
+The app also has a **Peripherals** screen (**Dashboard → Peripherals** or **System → Peripherals**) for the Logitech receiver. It is read-only; see [`docs/peripherals.md`](docs/peripherals.md).
+
 ### WireGuard and LAN access
 
 The module already supports an existing FRITZ!Box WireGuard VPN; no WireGuard configuration is needed on the NixOS host. Set:
@@ -547,6 +550,7 @@ Authorization: Bearer <token>
 | --- | --- | --- |
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
+| `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
 | `GET` | `/api/services` | systemd service units |
 | `POST` | `/api/services/{unit}/{action}` | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `reset-failed`, … |
 | `GET` | `/api/services/{unit}/logs?lines=200` | Service journal |
@@ -558,6 +562,10 @@ Authorization: Bearer <token>
 | `POST` | `/api/jobs/{id}/cancel` | Cancel a rebuild |
 | `POST` | `/api/system/power` | `{"action":"reboot"\|"shutdown"\|"poweroff"}` |
 | `GET` | `/api/logs?lines=300` | System journal |
+
+`GET /api/peripherals` is read-only. It and `/api/health` allow CORS so the
+standalone `peripherals-ui` dashboard can read them; the other routes remain
+same-origin. See [`docs/peripherals.md`](docs/peripherals.md).
 
 ### Rotate the token
 
@@ -575,6 +583,7 @@ Update the token in the app afterwards.
 - The server **never listens on a public interface** by default. Tailscale Serve terminates TLS and forwards to `127.0.0.1:8787`.
 - In WireGuard/LAN mode the server listens on `0.0.0.0:8787` behind the firewall. Do not forward that port from the internet; the FRITZ!Box VPN is the only outside path. `openFirewall` opens the port on all interfaces, so bind to a LAN address and scope the rule per interface if the host has a public IPv6 address or joins untrusted networks.
 - The token is 32 random bytes (hex-encoded), compared in constant time, with a small delay on failures.
+- `/api/health` and `/api/peripherals` are CORS-readable; the bearer token is still required. The optional web dashboard stores the token in `localStorage`, so use a trusted browser profile.
 - The unit runs as root because it talks to systemd, reads the journal, manages ZFS, and invokes `nixos-rebuild`. It is token-protected; **a leaked token is effectively root access to the machine**.
 - Restrict access with Tailscale ACLs so only your phone can reach this machine on port 443.
 - Keep `allowRebuild`/`allowPower` disabled if you do not need them.
@@ -598,6 +607,26 @@ cargo run -- \
 The server is a Rust crate with a locked dependency set (`Cargo.lock`). It is built by NixOS with `buildRustPackage`. The original Go implementation is kept under `archive/server-go/` as a reference and still passes `go test ./...`.
 
 Running it on macOS is enough for API and app work, but `/proc`, `systemctl`, `journalctl`, and `zpool` are Linux-only, so the dashboard and system endpoints stay empty.
+
+The same crate builds the read-only receiver probe:
+
+```bash
+cargo run --bin hidpp-probe
+```
+
+It needs Linux `/dev/hidraw*` access; on macOS it reports that no receiver is found.
+
+### Peripherals UI
+
+```bash
+cd peripherals-ui
+bun install
+API_TARGET=http://127.0.0.1:8787 bun run dev
+```
+
+Open <http://localhost:5173> and paste the API token in Settings. See
+[`docs/peripherals.md`](docs/peripherals.md) for the endpoint, deployment and
+troubleshooting.
 
 ### Local NixOS VM
 

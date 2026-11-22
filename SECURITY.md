@@ -69,6 +69,20 @@ desktop account is still brute-forceable.
 services.openssh.settings.PasswordAuthentication = false;
 ```
 
+### Peripherals API is CORS-readable and the web UI stores its token
+
+`GET /api/peripherals` and `/api/health` send
+`Access-Control-Allow-Origin: *` so the standalone `peripherals-ui` dashboard
+can read them from any desktop. Both routes still require the bearer token.
+
+The dashboard stores that token in the browser's `localStorage`, so use a
+trusted browser profile and serve the dashboard from a trusted origin. The
+route is read-only: it cannot send input, pair devices or write firmware.
+
+**Decision:** accepted. The alternative is to serve the dashboard from the same
+origin as the API or put it behind a reverse proxy; use that if the browser
+profile is shared. See [`docs/peripherals.md`](docs/peripherals.md).
+
 ### xrdp and the firewall
 
 `xrdp` listens on `*:3389`, and `networking.firewall.allowedTCPPorts` includes

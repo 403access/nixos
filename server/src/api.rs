@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use axum::body::{Body, Bytes};
 use axum::extract::{DefaultBodyLimit, Path, Query, Request, State};
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::routing::{get, post};
@@ -14,6 +14,7 @@ use tower_http::catch_panic::CatchPanicLayer;
 
 use crate::config::AppConfig;
 use crate::jobs::JobLauncher;
+use crate::peripherals::PeripheralProbe;
 use crate::system::SystemProbe;
 use crate::util::{parse_lines_param, valid_pool_name, valid_token, valid_unit_name};
 
@@ -22,6 +23,7 @@ pub struct AppState {
     pub config: AppConfig,
     pub system: Arc<dyn SystemProbe>,
     pub jobs: Arc<dyn JobLauncher>,
+    pub peripherals: Arc<dyn PeripheralProbe>,
     pub version: String,
 }
 
@@ -29,6 +31,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/status", get(status))
+        .route("/api/peripherals", get(peripherals))
         .route("/api/services", get(service_units))
         .route("/api/services/{unit}/{action}", post(service_action))
         .route("/api/services/{unit}/logs", get(service_logs))
@@ -46,6 +49,7 @@ pub fn build_router(state: AppState) -> Router {
         .layer(DefaultBodyLimit::max(1024 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .layer(middleware::from_fn(security_headers))
+        .layer(middleware::from_fn(cors_peripherals))
         .layer(middleware::from_fn(log_requests))
         .layer(CatchPanicLayer::custom(handle_panic))
 }
@@ -62,7 +66,47 @@ async fn security_headers(request: Request, next: Next) -> Response {
     response
 }
 
+async fn cors_peripherals(request: Request, next: Next) -> Response {
+    let is_readonly =
+        request.uri().path() == "/api/peripherals" || request.uri().path() == "/api/health";
+    if is_readonly && request.method() == Method::OPTIONS {
+        return Response::builder()
+            .status(StatusCode::NO_CONTENT)
+            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+            .header(
+                header::ACCESS_CONTROL_ALLOW_HEADERS,
+                "Authorization, Content-Type",
+            )
+            .header(header::ACCESS_CONTROL_ALLOW_METHODS, "GET, OPTIONS")
+            .header(header::ACCESS_CONTROL_MAX_AGE, "600")
+            .body(Body::empty())
+            .expect("valid response");
+    }
+
+    let mut response = next.run(request).await;
+    if is_readonly {
+        let headers = response.headers_mut();
+        headers.insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+        );
+        headers.insert(
+            header::ACCESS_CONTROL_ALLOW_HEADERS,
+            HeaderValue::from_static("Authorization, Content-Type"),
+        );
+        headers.insert(
+            header::ACCESS_CONTROL_ALLOW_METHODS,
+            HeaderValue::from_static("GET, OPTIONS"),
+        );
+    }
+    response
+}
+
 async fn require_auth(State(state): State<AppState>, request: Request, next: Next) -> Response {
+    if request.method() == Method::OPTIONS {
+        return next.run(request).await;
+    }
+
     let expected = match std::fs::read_to_string(&state.config.token_file) {
         Ok(value) => value.trim().to_string(),
         Err(_) => {
@@ -171,6 +215,15 @@ async fn status(State(state): State<AppState>) -> Response {
     let system = state.system.clone();
     match blocking(move || system.collect_status()).await {
         Ok(status) => json_response(StatusCode::OK, &status),
+        Err(()) => internal_error(),
+    }
+}
+
+async fn peripherals(State(state): State<AppState>) -> Response {
+    let peripherals = state.peripherals.clone();
+    match blocking(move || peripherals.snapshot()).await {
+        Ok(Ok(report)) => json_response(StatusCode::OK, &report),
+        Ok(Err(message)) => error_response(StatusCode::SERVICE_UNAVAILABLE, message),
         Err(()) => internal_error(),
     }
 }

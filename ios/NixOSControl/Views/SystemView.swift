@@ -54,6 +54,7 @@ struct SystemView: View {
                     }
 
                     generationsCard
+                    peripheralsLink
                     journalLink
                 }
                 .padding(16)
@@ -305,6 +306,30 @@ struct SystemView: View {
                 }
             }
         }
+    }
+
+    private var peripheralsLink: some View {
+        NavigationLink {
+            PeripheralsView()
+        } label: {
+            HStack {
+                Label("Peripherals", systemImage: "keyboard")
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+            }
+            .padding(16)
+            .background(
+                Theme.cardGradient,
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(Theme.border, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var journalLink: some View {

@@ -3,6 +3,7 @@ pub mod commands;
 pub mod config;
 pub mod jobs;
 pub mod models;
+pub mod peripherals;
 pub mod system;
 pub mod util;
 

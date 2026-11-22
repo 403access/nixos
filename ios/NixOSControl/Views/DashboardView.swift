@@ -20,6 +20,7 @@ struct DashboardView: View {
                         poolsCard(status)
                         temperaturesCard(status)
                         networkCard(status)
+                        peripheralsLink
                     } else if app.connectionState == .connecting {
                         ProgressView("Connecting…")
                             .padding(.top, 40)
@@ -291,6 +292,30 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private var peripheralsLink: some View {
+        NavigationLink {
+            PeripheralsView()
+        } label: {
+            Card("Peripherals", systemImage: "keyboard") {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Logitech receiver")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Paired devices, battery and firmware")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder

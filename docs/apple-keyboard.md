@@ -11,6 +11,23 @@ The host has **no Bluetooth radio**:
 - No PCIe wireless/Bluetooth controller.
 - `rfkill` reports no Bluetooth device.
 
+### Why not the Logitech receiver?
+
+The receiver is a 2.4 GHz Logitech endpoint, not a Bluetooth adapter. It only
+accepts Logitech devices that completed Logitech pairing and hold the receiver's
+AES keys. HID++ has pairing commands, but they put the receiver into Logitech
+pairing mode; they cannot enroll a standard Bluetooth HID keyboard. An app on
+the host cannot bridge the two radios.
+
+If the receiver is a Bolt (BLE radio), replacing its firmware with a BLE HID
+host would theoretically work, but that is a firmware project, not an app, and
+it would stop the dongle being a Logitech receiver. A USB Bluetooth dongle is
+the practical fix.
+
+The receiver can still be inspected with `hidpp-probe`, the web dashboard or the
+iOS Peripherals screen; see [`peripherals.md`](peripherals.md) and
+[`server/README.md`](../server/README.md#logitech-receiver-probe).
+
 The software stack is now ready, but an Apple **wireless** keyboard cannot pair
 until a Bluetooth adapter is added. There are two usable paths:
 

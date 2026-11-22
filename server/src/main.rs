@@ -6,6 +6,7 @@ use clap::{ArgAction, Parser};
 use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
 use nixos_control::jobs::JobManager;
+use nixos_control::peripherals::LocalPeripherals;
 use nixos_control::system::LocalSystem;
 use nixos_control::VERSION;
 
@@ -56,10 +57,12 @@ async fn main() {
 
     let system = Arc::new(LocalSystem::new(&config, VERSION));
     let jobs = Arc::new(JobManager::new());
+    let peripherals = Arc::new(LocalPeripherals::new());
     let state = AppState {
         config,
         system,
         jobs,
+        peripherals,
         version: VERSION.to_string(),
     };
     let app = build_router(state);

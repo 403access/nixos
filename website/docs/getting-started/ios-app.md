@@ -61,6 +61,16 @@ Tap **Save & Connect**.
 The app stores the token in the iOS Keychain. The URL is stored in
 `UserDefaults`.
 
+## Peripherals
+
+Open **Dashboard → Peripherals** or **System → Peripherals** to read the Logitech
+receiver, its paired devices, battery, signal and firmware. The screen uses the
+same server URL and token as the rest of the app and is read-only.
+
+The Apple Magic Keyboard does not appear there: it is not a Logitech device and
+the receiver cannot enroll it. See
+[Peripherals](../guides/peripherals.md) for details.
+
 ## Other LAN access
 
 WireGuard mode uses the same server settings as direct LAN access. Enable them

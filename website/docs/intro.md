@@ -45,6 +45,8 @@ panel to the internet.
   filesystem usage.
 - **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job
   output and cancellation, reboot, and shutdown.
+- **Peripherals** — read the Logitech receiver and paired devices over HID++:
+  names, battery, signal strength and firmware.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every
   request with a 256-bit bearer token, and can be exposed over Tailscale Serve
   with automatic HTTPS. No router ports are opened.

@@ -6,13 +6,15 @@ description: Components, trust boundaries and data flow.
 
 # Architecture
 
-NixOS Control has three parts:
+NixOS Control has four parts:
 
 1. **iOS app** — a SwiftUI client with five tabs. It stores the server URL in
    `UserDefaults` and the bearer token in the Keychain.
-2. **API server** — a small Rust program that runs on the NixOS host and
+2. **Web dashboard (optional)** — a Bun + TypeScript + React client in
+   `peripherals-ui/` for the Logitech receiver.
+3. **API server** — a small Rust program that runs on the NixOS host and
    shells out to system tools.
-3. **NixOS module** — builds the server, manages the token file, and runs the
+4. **NixOS module** — builds the server, manages the token file, and runs the
    API plus an optional Tailscale Serve proxy.
 
 ## Data flow
@@ -26,11 +28,19 @@ iPhone ──HTTPS──► tailscale serve :443 ──HTTP──► nixos-contr
                                                         └── nixos-rebuild
 ```
 
+The optional web dashboard reads the same API:
+
+```text
+Browser ──HTTP/HTTPS──► nixos-control ── HID++ ──► /dev/hidraw*
+```
+
 - The phone talks to the machine over the tailnet using its MagicDNS HTTPS name.
 - Tailscale terminates TLS and forwards to loopback.
 - The server authenticates the bearer token, then invokes system commands
   with argument arrays (no shell interpolation of user input).
 - Results are returned as JSON.
+- The optional web dashboard reads `/api/peripherals` directly (the route is
+  CORS-enabled) or through its Bun proxy. The probe is read-only.
 
 With a FRITZ!Box WireGuard VPN, the path is different but the server is the
 same:
@@ -51,6 +61,7 @@ the API.
 | Phone → FRITZ!Box (WireGuard) | WireGuard keys, router firewall |
 | FRITZ!Box → host | Home LAN, 256-bit bearer token |
 | HTTP → API | 256-bit bearer token, constant-time comparison |
+| Browser → API (peripherals) | 256-bit bearer token, read-only CORS |
 | API → system | root-owned unit, fixed command allowlist |
 | Tailnet → port 443 | Tailscale ACLs |
 
@@ -63,6 +74,8 @@ perform every action the module allows.
   original Go implementation is archived under `archive/server-go/`.
 - Rebuild jobs run asynchronously and are kept in memory. Restarting the server
   loses job history.
+- The peripherals probe reads HID++ from `/dev/hidraw*` in a blocking worker and
+  is read-only.
 - Status and logs are polled by the app; there is no streaming endpoint.
 - Single-host only.
 
@@ -74,6 +87,7 @@ nixos-control.nix          NixOS module: packages and runs the server
 server/                    Rust API server (Cargo crate)
 archive/server-go/         Original Go implementation, kept for reference
 ios/                       SwiftUI app and XcodeGen project
+peripherals-ui/            Bun + React receiver dashboard
 website/                   Marketing site and documentation (Docusaurus)
 docs/screenshots/          App screenshots used in the README
 ```

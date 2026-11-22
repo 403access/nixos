@@ -26,6 +26,9 @@ final class AppState: ObservableObject {
     @Published private(set) var services: [ServiceUnit] = []
     @Published private(set) var storage: StorageSnapshot?
     @Published private(set) var generations: [Generation] = []
+    @Published private(set) var peripherals: PeripheralsReport?
+    @Published private(set) var isLoadingPeripherals = false
+    @Published private(set) var peripheralsError: String?
     @Published private(set) var activeJob: Job?
     @Published private(set) var serverVersion: String?
     @Published private(set) var connectionState: ConnectionState = .unknown
@@ -138,6 +141,8 @@ final class AppState: ObservableObject {
             serverVersion = health.version
             connectionState = .online
             lastError = nil
+            peripherals = nil
+            peripheralsError = nil
             await refreshStatus()
             return nil
         } catch {
@@ -157,6 +162,9 @@ final class AppState: ObservableObject {
         services = []
         storage = nil
         generations = []
+        peripherals = nil
+        isLoadingPeripherals = false
+        peripheralsError = nil
         activeJob = nil
         serverVersion = nil
         connectionState = .unknown
@@ -225,6 +233,19 @@ final class AppState: ObservableObject {
             generations = response.generations
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    func loadPeripherals() async {
+        guard let client, !isLoadingPeripherals else { return }
+        isLoadingPeripherals = true
+        defer { isLoadingPeripherals = false }
+
+        do {
+            peripherals = try await client.get("/api/peripherals")
+            peripheralsError = nil
+        } catch {
+            peripheralsError = error.localizedDescription
         }
     }
 

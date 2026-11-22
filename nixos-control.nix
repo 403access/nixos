@@ -18,6 +18,10 @@ let
     };
     cargoLock.lockFile = ./server/Cargo.lock;
 
+    # hidapi's Linux hidraw backend talks to libudev.
+    nativeBuildInputs = [ pkgs.pkg-config ];
+    buildInputs = [ pkgs.udev ];
+
     # Embed the module version instead of the default "dev".
     env = {
       NIXOS_CONTROL_VERSION = version;

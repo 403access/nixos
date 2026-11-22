@@ -26,6 +26,15 @@ Running it on macOS is enough for API work, but `/proc`, `systemctl`,
 `journalctl` and `zpool` are Linux-only, so the dashboard and system endpoints
 stay empty.
 
+The same crate builds the read-only receiver probe:
+
+```bash
+cargo run --bin hidpp-probe
+```
+
+It needs Linux `/dev/hidraw*` access; on macOS it reports that no receiver is
+found.
+
 ## Local NixOS VM
 
 The module needs a real NixOS userspace. With [OrbStack](https://orbstack.dev):
@@ -90,6 +99,34 @@ xcodebuild -project NixOSControl.xcodeproj \
   -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   CODE_SIGNING_ALLOWED=NO build
+```
+
+## Web dashboard
+
+`peripherals-ui/` is a Bun + TypeScript + React dashboard for the Logitech
+receiver.
+
+```bash
+cd peripherals-ui
+bun install
+bun run dev
+```
+
+Point the Vite proxy at a running server:
+
+```bash
+API_TARGET=http://127.0.0.1:8787 bun run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) and paste the API token in Settings. See
+[Peripherals](./guides/peripherals.md) for the endpoint, deployment and
+troubleshooting.
+
+Production build:
+
+```bash
+bun run build
+API_TARGET=http://127.0.0.1:8787 bun run start
 ```
 
 ## Website
