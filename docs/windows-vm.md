@@ -126,6 +126,16 @@ and brought the guest to **87 disabled services**.  Edge, FL Studio, audio and
 PowerToys were left alone.  Details and the next candidates are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md#printer-features-services-and-apps-2026-11-22).
 
+## Browser
+
+Microsoft Edge was removed (executable, AppX, update services/tasks, shortcuts
+and live profile).  The profile is backed up at
+`C:\ProgramData\WindowsSlim\backup\Edge-UserData` (241.9 MB).  Chrome is
+installed/used instead.  The shared WebView2 runtime remains at
+`C:\Program Files (x86)\Microsoft\EdgeWebView` because other applications may
+embed it.  Windows Update may offer Edge again; see
+[`windows-edge-removal.md`](windows-edge-removal.md).
+
 ## AI components
 
 Copilot/Recall/Click-to-Do policies are off, the `WindowsAI` scheduled tasks
@@ -424,6 +434,8 @@ for the individual files and the optional real-hive test.
   host→guest commands for processes, services, apps, tasks and devices
 - [`windows-ai-removal.md`](windows-ai-removal.md) — removed Microsoft AI
   services, apps, tasks and policies
+- [`windows-edge-removal.md`](windows-edge-removal.md) — Edge uninstall,
+  profile backup and WebView2 note
 - [`../scripts/windows/README.md`](../scripts/windows/README.md) — helper
   scripts, profiles, apps and offline hardening
 - [`../install/README.md`](../install/README.md) — VM creation, Secure Boot

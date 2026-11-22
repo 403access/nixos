@@ -110,16 +110,20 @@ snapshot; the applied state is recorded separately.
 - **Apps removed:** Command Palette, Camera, Sticky Notes, Dev Home and Quick
   Assist. `NarratorQuickStart` and `ParentalControls` are protected system AppX
   packages and remain installed but idle.
-- **Left alone:** Edge (7 processes, ~480 MiB while in use), FL Studio,
-  SmartScreen (~24 MiB), audio (FL Studio) and PowerToys itself. Printing and
-  scanning are the only user-facing loss; the removed WCF/WorkFolders/RDP-client
-  features were unused.
+- **Browser:** Edge was removed (executable, AppX, update services/tasks,
+  shortcuts, live profile), freeing about **480 MiB**; the profile is backed up
+  at `C:\ProgramData\WindowsSlim\backup\Edge-UserData`. Chrome is now installed
+  and used instead, and the shared WebView2 runtime was retained. See
+  [`windows-edge-removal.md`](windows-edge-removal.md).
+- **Left alone:** Chrome, FL Studio, SmartScreen (~24 MiB), audio (FL Studio) and
+  PowerToys itself. Printing and scanning are the only user-facing loss; the
+  removed WCF/WorkFolders/RDP-client features were unused.
 - **Counts:** **87 services disabled**, 9 optional features disabled, 5 apps
   removed. The service trim is worth roughly **250–300 MiB** of working set
   (per-user ~100 MiB + machine ~150–200 MiB); the current free figure is masked
   by Edge/FL Studio activity.
-- **Next candidates:** Edge tabs/extensions or a lighter browser (now the largest
-  remaining consumer), media features if unused, `DoSvc`/`RmSvc` after reboot,
+- **Next candidates:** Chrome tabs/extensions, Task Manager if left open
+  (~136 MiB), media features if unused, `DoSvc`/`RmSvc` after reboot,
   `TokenBroker`/`UdkUserSvc`, and protected AppX only through an offline image.
   A reboot finalizes the feature payloads and per-user service templates.
 
