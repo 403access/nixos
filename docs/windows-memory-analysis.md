@@ -53,18 +53,19 @@ snapshot; the applied state is recorded separately.
   Raycast-style command launcher. It was replaced with **PowerToys Run**
   (PowerToys 0.102.3101, per-user). Every other PowerToys module, including
   CmdPal, is disabled; a `\WindowsSlim\StartPowerToys` logon task starts it
-  (10 s delay). **Alt+Space** opens it. It **idles at ~80–105 MiB**
-  (10–13 MiB host + 68–95 MiB launcher), rises to ~190 MiB after the UI warms,
-  and peaks around ~235 MiB. Everything’s
-  service, Run value, shortcuts and folder were removed. See section 12.
+  (10 s delay). **Alt+Space** opens it. It **idles as low as ~17 MiB** (8 MiB
+  host + 8 MiB launcher) after a quiet period, typically **~80–105 MiB after
+  use**, rises to ~190 MiB after the UI warms, and peaks around ~235 MiB.
+  Everything’s service, Run value, shortcuts and folder were removed. See
+  section 12.
 - **Why PowerToys Run, not Everything/Raycast/CmdPal:** Everything is a search
   window, not a command launcher. Raycast for Windows exists but is
   account/cloud-centric and heavier; CmdPal (PowerToys’ newer successor) was
   measured at 176 MiB plus the 46 MiB host and is less mature. PowerToys Run is
-  local, Microsoft-signed, stable, and extensible. At idle it is **lighter than
-  the 145.8 MiB Start menu** (~80–105 MiB), though it costs ~43 MiB more while
-  the UI is warm (~190 MiB). The all-modules default was ~740 MiB; trimming to
-  Run is what makes it viable.
+  local, Microsoft-signed, stable, and extensible. At idle it is **far lighter
+  than the 145.8 MiB Start menu** (as low as ~17 MiB, 80–105 after use), though
+  it costs ~43 MiB more while the UI is warm (~190 MiB). The all-modules default
+  was ~740 MiB; trimming to Run is what makes it viable.
 - **Not removable per-user:** `Microsoft.Windows.PeopleExperienceHost` and
   `Microsoft.XboxGameCallableUI` are protected system apps; removal returns
   `0x80073CFA`. They are not running and consume no measurable RAM. Removing
@@ -72,10 +73,48 @@ snapshot; the applied state is recorded separately.
 - **Post-change snapshots:** after the vCPU and leftover changes, 91 processes,
   1,782 MiB working set, 6,893 MiB free. After the search removal, 84 processes,
   1,477 MiB working set, 7,038 MiB free. After the Start-menu replacement the
-  Start host is gone and PowerToys Run idles at ~80–105 MiB; the exact free figure
+  Start host is gone and PowerToys Run idles as low as ~17 MiB (80–105 after use); the exact free figure
   varies with the active RDP session. These are not directly comparable to the
   baseline because Task Manager and the inventory/WMI processes are gone and the
   guest rebooted.
+
+### Printer, features, services and apps (2026-11-22)
+
+- **Printer:** no printers, drivers or ports remain. `Spooler`,
+  `PrintNotify`, `PrintScanBrokerService` and `PrintDeviceConfigurationService`
+  are Disabled; `Printing-Foundation-Features`,
+  `Printing-PrintToPDFServices-Features` and
+  `Printing-Foundation-InternetPrinting-Client` are Disabled;
+  `PrintWorkflowUserSvc` is template-disabled. `PrintQueueActionCenter` and
+  `Windows.PrintDialog` are protected system AppX packages and cannot be removed
+  per-user; they are not running.
+- **Optional features disabled:** `WorkFolders-Client`, `WCF-Services45`,
+  `WCF-TCP-PortSharing45`, `SmbDirect`, `MSRDC-Infrastructure` and
+  `Microsoft-RemoteDesktopConnection`. The RDP **server** (`TermService`) is
+  untouched; only the guest-side client is gone.
+- **Machine services disabled:** `whesvc`, `InventorySvc`, `DsSvc`, `PcaSvc`,
+  `NcdAutoSetup`, `DisplayEnhancementService`, `RmSvc`, `DusmSvc`, `TrkWks`,
+  `lmhosts`, `iphlpsvc`, `LanmanServer`, `CDPSvc`, `webthreatdefsvc`,
+  `ShellHWDetection` and `WSAIFabricSvc`. `RmSvc` is still running until the next
+  reboot; `DoSvc` was stopped but its start type is protected and remains Auto.
+- **Per-user services disabled:** templates for `WpnUserService`, `CDPUserSvc`,
+  `cbdhsvc` and `webthreatdefusersvc` are set to Start=4, and the live instances
+  are stopped. `UdkUserSvc` is left alone.
+- **Apps removed:** Command Palette, Camera, Sticky Notes, Dev Home and Quick
+  Assist. `NarratorQuickStart` and `ParentalControls` are protected system AppX
+  packages and remain installed but idle.
+- **Left alone:** Edge (7 processes, ~480 MiB while in use), FL Studio,
+  SmartScreen (~24 MiB), audio (FL Studio) and PowerToys itself. Printing and
+  scanning are the only user-facing loss; the removed WCF/WorkFolders/RDP-client
+  features were unused.
+- **Counts:** **87 services disabled**, 9 optional features disabled, 5 apps
+  removed. The service trim is worth roughly **250–300 MiB** of working set
+  (per-user ~100 MiB + machine ~150–200 MiB); the current free figure is masked
+  by Edge/FL Studio activity.
+- **Next candidates:** Edge tabs/extensions or a lighter browser (now the largest
+  remaining consumer), media features if unused, `DoSvc`/`RmSvc` after reboot,
+  `TokenBroker`/`UdkUserSvc`, and protected AppX only through an offline image.
+  A reboot finalizes the feature payloads and per-user service templates.
 
 ## Bottom line
 
@@ -115,13 +154,13 @@ snapshot; the applied state is recorded separately.
 | vCPUs configured | 6 (2 usable) | 2 (applied 2026-11-22) |
 | Search UI (`SearchHost`) | up to ~120 MiB when started | removed (feature disabled + WMI kill guard) |
 | Start menu (`StartMenuExperienceHost`) | ~146 MiB | removed (renamed + WMI kill guard) |
-| Launcher | — | PowerToys Run, ~80–190 MiB depending on state (Alt+Space) |
+| Launcher | — | PowerToys Run, ~17–190 MiB depending on state (Alt+Space) |
 
 As of 2026-11-22 the guest runs with 2 vCPUs, the Start/search hosts removed,
-**PowerToys Run** as the launcher, and `WSearch` disabled/stopped. At idle the
-launcher is **~40–65 MiB lighter than the Start menu** it replaced; while the UI
-is warm it costs ~43 MiB more. The host allocation is still 8 GiB until the cap
-in section 1 is applied.
+**PowerToys Run** as the launcher, and `WSearch` disabled/stopped. It idles as
+low as ~17 MiB and is ~80–105 MiB after use; while the UI is warm it costs
+~43 MiB more than Start. The host allocation is still 8 GiB until the cap in
+section 1 is applied.
 
 The guest figures overlap: logging off RDP already frees the per-user services,
 so do not add every row in the savings table below.
@@ -873,10 +912,11 @@ Set-Service WSearch -StartupType Automatic
 not a Raycast-style command launcher. PowerToys Run is local, Microsoft-signed,
 stable and extensible. Raycast for Windows exists but is account/cloud-centric
 and heavier; CmdPal (PowerToys' newer successor) measured 176 MiB plus the 46 MiB
-host and is less mature. PowerToys Run **idles at ~80–105 MiB** (10–13 MiB host
-+ 68–95 MiB launcher), rises to ~190 MiB after the UI warms, and peaks around
-~235 MiB. That is **lighter than the 145.8 MiB Start menu at idle** (~40–65 MiB
-saved), but ~43 MiB heavier while the UI is warm — the cost of the functionality.
+host and is less mature. PowerToys Run **idles as low as ~17 MiB** (8 MiB host
++ 8 MiB launcher), typically 80–105 MiB after use, rises to ~190 MiB after the
+UI warms, and peaks around ~235 MiB. That is **far lighter than the 145.8 MiB
+Start menu at idle**, but ~43 MiB heavier while the UI is warm — the cost of the
+functionality.
 
 **Install.** The per-user package installs with winget:
 
@@ -965,12 +1005,12 @@ Explorer/`sihost`/`ShellExperienceHost` stay up. PowerToys host + Run are the on
 PowerToys processes; no Everything service or process remains. Press Alt+Space to
 verify the launcher physically.
 
-**Memory.** PowerToys **idles at ~80–105 MiB** (10–13 MiB host + 68–95 MiB
-launcher), rises to ~190 MiB after the UI warms, and peaks around ~235 MiB. At
-idle it is **~40–65 MiB lighter than the 145.8 MiB Start menu**; while warm it
-costs ~43 MiB more. Everything was lighter (~30–62 MiB) but was only a file
-search window. The all-modules PowerToys default was ~740 MiB; trimming to Run
-is the key.
+**Memory.** PowerToys **idles as low as ~17 MiB** (8 MiB host + 8 MiB launcher),
+typically 80–105 MiB after use, rises to ~190 MiB after the UI warms, and peaks
+around ~235 MiB. At idle it is far lighter than the 145.8 MiB Start menu; while
+warm it costs ~43 MiB more. Everything was lighter (~30–62 MiB) but was only a
+file search window. The all-modules PowerToys default was ~740 MiB; trimming to
+Run is the key.
 
 **Rollback.** Remove the logon task, uninstall PowerToys, remove the Start guard,
 and rename the Start host back:
@@ -1002,9 +1042,10 @@ shell replacement. They are estimates, not guarantees; measure with
 | + KSM while idle | unchanged | unchanged | measure; depends on duplicate pages |
 | Appliance shell, connected | ~1.4–1.6 GiB | ~1.3 GiB | ~4.4 GiB |
 
-Replacing Start with PowerToys Run removes **145.8 MiB** and adds **~80–105 MiB
-at idle** (net **~40–65 MiB saved**), rising to ~190 MiB while the UI is warm
-(~43 MiB net cost). The table’s “safe trims” rows do not include that change.
+Replacing Start with PowerToys Run removes **145.8 MiB** and adds **~17 MiB at
+idle** (net **~129 MiB saved**), **~80–105 MiB after use** (net **~40–65 MiB
+saved**), and ~190 MiB while warm (~43 MiB net cost). The table’s “safe trims”
+rows do not include that change.
 The biggest and most reliable step is still the **host cap**. Guest tuning alone
 cannot touch the 8.10 GiB RSS line; it only makes 4 GiB more comfortable.
 

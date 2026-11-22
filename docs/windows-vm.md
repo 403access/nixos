@@ -109,11 +109,22 @@ Everything was measured first but was only a file search window, so it was
 removed.
 
 The Start button is inert; use `Ctrl+Alt+Del` or `Win+X` for power options.
-PowerToys Run idles at roughly 80–105 MiB (10–13 MiB host + 68–95 MiB
-launcher), rising to ~190 MiB after the UI warms. At idle it is lighter than the
-Start menu it replaced; while warm it costs about 43 MiB more.  The exact install,
+PowerToys Run idles as low as ~17 MiB (8 MiB host + 8 MiB launcher), typically
+80–105 MiB after use, rising to ~190 MiB after the UI warms. At idle it is far
+lighter than the Start menu it replaced; while warm it costs about 43 MiB more.  The exact install,
 module-trimming, WMI guard and rollback are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md#12-replace-the-start-menu-with-powertoys-run-applied-2026-11-22).
+
+## Printer and further trims
+
+Printing is fully disabled: no printers, drivers or ports remain, the print
+services and the `Printing-Foundation` / Print-to-PDF / Internet Printing
+features are off, and `PrintWorkflowUserSvc` is disabled.  Re-enable the Windows
+Features if printing is ever needed.  The second trim also disabled WorkFolders,
+WCF, SMB Direct and the guest-side RDP client (the RDP **server** is untouched),
+and brought the guest to **87 disabled services**.  Edge, FL Studio, audio and
+PowerToys were left alone.  Details and the next candidates are in
+[`windows-memory-analysis.md`](windows-memory-analysis.md#printer-features-services-and-apps-2026-11-22).
 
 ## Automatic logon
 
