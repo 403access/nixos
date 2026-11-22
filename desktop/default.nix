@@ -155,6 +155,74 @@ let
     if sddmSupportsAccent then "catppuccin-${cfg.flavour}-${cfg.accent}"
     else "catppuccin-${cfg.flavour}";
 
+  # An X server started by lightdm/SDDM/GDM before the monitor is attached
+  # keeps that output disabled (the kernel reports the connector as
+  # `connected`, but X leaves it `enabled=disabled` with DPMS off), so the
+  # screen stays black until someone runs xrandr by hand.  This helper runs
+  # on every DRM hotplug and enables the connected outputs, but only while
+  # X has no active output at all, so an existing multi-monitor layout is
+  # never rearranged.  It only uses the display manager's own server
+  # authority file, so xrdp displays and other per-user X servers are left
+  # alone.
+  xrandrHotplug = pkgs.writeShellApplication {
+    name = "desktop-xrandr-hotplug";
+    runtimeInputs = [ pkgs.xorg.xrandr pkgs.gawk pkgs.gnugrep pkgs.coreutils ];
+    text = ''
+      # udev emits a burst of change events while the connector settles.
+      sleep 1
+
+      sockets() {
+        for socket in /tmp/.X11-unix/X*; do
+          [ -S "$socket" ] || continue
+          printf '%s\n' "$socket"
+        done
+      }
+
+      # At boot the udev unit may start before the display manager has
+      # created its socket; give it a few seconds.
+      tries=0
+      while [ -z "$(sockets)" ] && [ "$tries" -lt 20 ]; do
+        sleep 0.5
+        tries=$((tries + 1))
+      done
+
+      sockets | while IFS= read -r socket; do
+        display=":''${socket##*/X}"
+
+        # The display manager's server-authority file.  Root can use it for
+        # the whole life of the display, including after a user logs in.
+        # xrdp's per-session authority is deliberately not in this list.
+        auth=""
+        for candidate in \
+          "/var/run/lightdm/root/$display" \
+          /run/sddm/xauth_* \
+          /run/gdm/.Xauthority \
+          /run/gdm/auth-for-gdm-*/database; do
+          if [ -f "$candidate" ]; then
+            auth="$candidate"
+            break
+          fi
+        done
+        [ -n "$auth" ] || continue
+
+        query=$(DISPLAY="$display" XAUTHORITY="$auth" xrandr --query 2>/dev/null) || continue
+
+        # An output with a mode looks like `HDMI-1 connected 1920x1080+0+0`.
+        # If any output is already active, the user has a working layout;
+        # only recover the "started with no output at all" case.
+        printf '%s\n' "$query" | grep -qE '[0-9]+x[0-9]+\+' && continue
+
+        printf '%s\n' "$query" \
+          | awk '/ connected/ && $0 !~ /[0-9]+x[0-9]+\+/ { print $1 }' \
+          | while IFS= read -r output; do
+              [ -n "$output" ] || continue
+              DISPLAY="$display" XAUTHORITY="$auth" \
+                xrandr --output "$output" --auto || true
+            done
+      done
+    '';
+  };
+
 in
 {
   imports = [
@@ -550,5 +618,30 @@ in
         };
         extraPackages = with pkgs.kdePackages; [ qtsvg ];
       };
+
+    # --- Recover monitors hot-plugged after the X server started ---------
+    # X does not reliably enable an output that appears after lightdm/SDDM/
+    # GDM has started, which leaves the physical screen black.  The kernel
+    # emits a DRM hotplug uevent; the unit started below then runs xrandr on
+    # the display manager's X display.  Wayland compositors handle hotplug
+    # themselves, so this only applies to X11 sessions.
+    systemd.services.desktop-xrandr-hotplug = lib.mkIf
+      (cfg.enableDisplayManager && cfg.sessionType == "x11")
+      {
+        description = "Enable X outputs connected after the X server started";
+        after = [ "display-manager.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = lib.getExe xrandrHotplug;
+        };
+      };
+
+    services.udev.extraRules = lib.mkIf
+      (cfg.enableDisplayManager && cfg.sessionType == "x11")
+      ''
+        # HOTPLUG=1 is set only for real connector hotplug events, not for
+        # unrelated DRM changes (backlight, etc.).
+        SUBSYSTEM=="drm", ACTION=="change", ENV{HOTPLUG}=="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="desktop-xrandr-hotplug.service"
+      '';
   };
 }

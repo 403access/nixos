@@ -82,6 +82,39 @@ The server reads the journal as root. Check for server-side errors:
 journalctl -u nixos-control -e
 ```
 
+## The monitor stays black after plugging it in
+
+The kernel detects the monitor (`/sys/class/drm/card*-*/status` reports
+`connected`), but an X server that lightdm or SDDM started before the monitor
+was attached can leave the output disabled (`enabled=disabled`, DPMS off), so
+nothing is sent to the screen.
+
+The `myDesktop` module installs `desktop-xrandr-hotplug`, a udev-triggered
+systemd unit that re-enables the connected outputs on a DRM hotplug whenever X
+has no active output at all (so an existing multi-monitor layout is left
+alone). On a running system that predates that rebuild, enable the output by
+hand:
+
+```bash
+# lightdm (xfce, gnome)
+sudo env DISPLAY=:0 XAUTHORITY=/var/run/lightdm/root/:0 \
+  xrandr --output HDMI-2 --auto --primary
+
+# SDDM (rice, plasma)
+sudo env DISPLAY=:0 XAUTHORITY="$(echo /run/sddm/xauth_*)" \
+  xrandr --output HDMI-2 --auto --primary
+```
+
+Replace `HDMI-2` with the connector name from `xrandr --query`. The automatic
+runs are logged in `journalctl -u desktop-xrandr-hotplug`.
+
+## The xrdp desktop does not appear on the monitor
+
+`xrdp` starts a separate X display (usually `:10`) for each remote login. It is
+not mirrored to the local console on `:0`, so the monitor shows the display
+manager greeter, or a separate local session after logging in there. Keep using
+the RDP client for the remote session; the monitor is the machine's own console.
+
 ## Check service status
 
 ```bash
