@@ -160,25 +160,45 @@ Get-ItemProperty 'HKLM:\SOFTWARE\Policies\WindowsNotepad' |
   Select-Object DisableAIFeatures
 ```
 
-Observed after the change:
+Observed immediately after the change:
 
 - AI task list: **empty**.
 - AI processes: **none**.
 - `WSAIFabricSvc`: **Stopped / Disabled**.
-- AI packages: **none remain**.
+- AI packages: **none remained** immediately after online removal.
 - `Recall`: **DisabledWithPayloadRemoved**.
 - Notepad `DisableAIFeatures=1`; Paint policies all `1`; Edge Copilot policies
   all `0`; `SettingsPageVisibility=hide:aicomponents`.
 - Microsoft Copilot app: not installed, so no app to remove.
+
+## Persistence after reboot
+
+Online removal is **not durable across a Windows servicing boot**.  After the
+first restart, CBS removed the EndOfLife keys and re-registered
+`MicrosoftWindows.Client.CoreAI` and `Microsoft.AIFabric.CBS.1.6`.  The AI
+tasks did not return, `WSAIFabricSvc` stayed Disabled, and all policies
+persisted — so no AI process or service runs, but the package files are present
+again.
+
+A `\WindowsSlim\RemoveAIComponents` **AtLogOn** task now runs as SYSTEM, waits
+45 seconds, and re-removes both packages plus any restored
+`\Microsoft\Windows\WindowsAI\*` tasks.  It only runs when a user logs on, so the
+packages can be present between boot and the first logon.  The task logs to
+`C:\ProgramData\WindowsSlim\remove-ai.log`.
+
+For **permanent physical absence**, use the offline fallback below; the online
+method is a re-cleanup, not a durable uninstall on this build.
 
 ## Behaviour and caveats
 
 - Edge, Paint and Notepad read their policies at process start.  **Restart
   Edge/Paint/Notepad** (or sign out) for the controls to take effect; Edge was
   running during the change.
-- CoreAI and AIFabric were both removed online via EndOfLife.  A rollback backup
-  of AIFabric is at `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` with
-  `AIFabric-InboxApplications.reg`; no offline disk edit was needed.
+- CoreAI and AIFabric were removed online; after the restart CBS restored them.
+  The logon task re-removes them; the package files may exist before logon.
+- A rollback backup of AIFabric is at
+  `C:\ProgramData\WindowsSlim\backup\AIFabric-CBS-1.6` with
+  `AIFabric-InboxApplications.reg`.
 - Windows updates can add new AI tasks/components; re-run the AI inventory after
   servicing.
 - This change is about privacy and removing AI surfaces, not RAM: the AI
