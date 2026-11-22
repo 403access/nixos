@@ -128,8 +128,8 @@ services and the `Printing-Foundation` / Print-to-PDF / Internet Printing
 features are off, and `PrintWorkflowUserSvc` is disabled.  Re-enable the Windows
 Features if printing is ever needed.  The second trim also disabled WorkFolders,
 WCF, SMB Direct and the guest-side RDP client (the RDP **server** is untouched),
-and the guest now has **100 disabled services**, including the update stack
-(`DoSvc`, `UsoSvc`, `wuauserv`), `TokenBroker` and `camsvc`.  Edge, FL Studio,
+and the guest now has **99 disabled services**, including the update stack
+(`DoSvc`, `UsoSvc`, `wuauserv`) and `TokenBroker`.  Edge, FL Studio,
 audio and PowerToys were left alone.  Details and the next candidates are in
 [`windows-memory-analysis.md`](windows-memory-analysis.md#printer-features-services-and-apps-2026-11-22).
 

@@ -35,10 +35,12 @@ snapshot; the applied state is recorded separately.
 - **Update stack:** `DoSvc`, `UsoSvc` and `wuauserv` are Disabled. `DoSvc` is
   `LaunchProtected=2`, so it could only be disabled offline (`Start=4` in the
   `SYSTEM` hive); the others were disabled online. The guest is patched to
-  KB5132056/KB5132057 before this change. Re-enable for patch day.
-- **On-demand services:** `TokenBroker`, `camsvc` and `WinHttpAutoProxySvc` were
-  stopped; `TokenBroker` and `camsvc` are Disabled, and the per-user templates
+  KB5132056/KB5132057 before this change. For patch day, set `wuauserv` to
+  Manual and `UsoSvc` to Automatic, then restore `DoSvc` `Start=2` offline.
+- **On-demand services:** `TokenBroker` is Disabled and the per-user templates
   `PimIndexMaintenanceSvc`, `UnistoreSvc` and `UserDataSvc` are `Start=4`.
+  `camsvc` was disabled briefly but **re-enabled** because it gates
+  microphone/camera access for desktop apps (FL Studio, Chrome).
   `WinHttpAutoProxySvc` is ACL-protected and stays Manual/on-demand.
 - **Leftover cleanup:** removed the OneDrive per-user engine and
   `OneDriveSetup.exe` (664 MB total), deleted the LocalService `OneDriveSetup`
@@ -55,7 +57,7 @@ snapshot; the applied state is recorded separately.
   setting is runtime-only until it is added to the host config; a host reboot
   loses the zero-page win.
 - **Current idle snapshot:** **68 processes**, **1,509 MiB working set**,
-  **2,819 MiB free**, **100 services Disabled**. PowerToys Run was warm at
+  **2,819 MiB free**, **99 services Disabled**. PowerToys Run was warm at
   ~200 MiB during the audit and drops when its UI is idle.
 - **Consumer leftovers:** removed the per-user packages
   `MicrosoftWindows.CrossDevice`, `MicrosoftWindows.Client.WebExperience`
@@ -185,13 +187,14 @@ snapshot; the applied state is recorded separately.
   map the guest's free zero pages to the shared zero page. QEMU RSS dropped by
   ~2.1 GiB beyond the cap. The `pages_sharing` counter shows only ~123 MiB of
   non-zero sharing; the zero pages are not counted. Runtime-only for now.
-- **Guest-side cleanup is ~110 MB:** update stack (`DoSvc`, `UsoSvc`,
-  `wuauserv`), `TokenBroker`, `camsvc`, and the Pim/Unistore/UserData templates
-  are disabled; OneDrive and stale Edge leftovers are gone.
+- **Guest-side cleanup is ~100 MB:** update stack (`DoSvc`, `UsoSvc`,
+  `wuauserv`), `TokenBroker`, and the Pim/Unistore/UserData templates are
+  disabled; OneDrive and stale Edge leftovers are gone. `camsvc` stays enabled
+  for microphone/camera access.
 - **RDP limits are applied:** disconnected sessions log off after 5 minutes and
   idle sessions after 30. A disconnected session previously stayed resident at
   ~1 GiB; signing out or the timeout releases it.
-- The guest is lean: **100 services disabled**, Defender, Search, SysMain,
+- The guest is lean: **99 services disabled**, Defender, Search, SysMain,
   telemetry, Spooler, Xbox and VBS off, startup folder empty, and **68
   processes** at idle. Do not expect another gigabyte from process killing.
 - **2 vCPUs are configured and used.** The earlier 6-vCPU topology exposed four
@@ -207,7 +210,7 @@ snapshot; the applied state is recorded separately.
 | Host QEMU RSS | 8.10 GiB | **4.10 GiB**, or **~2.0 GiB at idle with KSM** |
 | Host QEMU RSS with KSM | 8.10 GiB | **~2.0 GiB** (zero pages merged; `pages_sharing` ~123 MiB) |
 | Processes | 110 | **68** |
-| Disabled services | 71 | **100** |
+| Disabled services | 71 | **99** |
 | vCPUs configured | 6 (2 usable) | **2** |
 | Search UI (`SearchHost`) | up to ~120 MiB when started | removed (feature disabled + WMI kill guard) |
 | Start menu (`StartMenuExperienceHost`) | ~146 MiB | removed (renamed + WMI kill guard) |
