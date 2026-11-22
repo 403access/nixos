@@ -28,11 +28,11 @@ snapshot; the applied state is recorded separately.
   free**. No balloon device is present, so 4 GiB is a hard cap; RSS rises toward
   it as the guest actually uses memory.
 - **RDP session limits:** `MaxDisconnectionTime=300000` (5 min),
-  `MaxIdleTime=1800000` (30 min), `fResetBroken=1` and
-  `fSingleSessionPerUser=1` under
+  `MaxIdleTime=1800000` (30 min), `fResetBroken=0` and
+  `fSingleSessionPerUser=0` under
   `HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services`. A closed RDP
-  client no longer leaves the full per-user session resident indefinitely;
-  `ForceAutoLogon=1` then re-logs the console user in.
+  client no longer leaves the full per-user session resident indefinitely. The
+  console is not force-relogged while RDP is in use; that avoids session churn.
 - **Update stack:** `DoSvc`, `UsoSvc` and `wuauserv` are Disabled. `DoSvc` is
   `LaunchProtected=2`, so it could only be disabled offline (`Start=4` in the
   `SYSTEM` hive); the others were disabled online. The guest is patched to
@@ -195,8 +195,8 @@ snapshot; the applied state is recorded separately.
   disabled; OneDrive and stale Edge leftovers are gone. `camsvc` stays enabled
   for microphone/camera access.
 - **RDP limits are applied:** disconnected sessions log off after 5 minutes and
-  idle sessions after 30. `ForceAutoLogon=1` then logs the console user back in,
-  so the stale session is replaced by a fresh one rather than a lock screen.
+  idle sessions after 30. The console is not force-relogged; RDP reconnects
+  normally, or a reboot restores the boot auto-logon.
 - The guest is lean: **99 services disabled**, Defender, Search, SysMain,
   telemetry, Spooler, Xbox and VBS off, startup folder empty, and **68
   processes** at idle. Do not expect another gigabyte from process killing.
@@ -692,8 +692,8 @@ idle, single session per user):
 $k = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
 Set-ItemProperty $k -Name MaxDisconnectionTime -Value 300000 -Type DWord  # 5 min
 Set-ItemProperty $k -Name MaxIdleTime          -Value 1800000 -Type DWord # 30 min
-Set-ItemProperty $k -Name fResetBroken         -Value 1 -Type DWord
-Set-ItemProperty $k -Name fSingleSessionPerUser -Value 1 -Type DWord
+Set-ItemProperty $k -Name fResetBroken         -Value 0 -Type DWord
+Set-ItemProperty $k -Name fSingleSessionPerUser -Value 0 -Type DWord
 ```
 
 The per-connection equivalent under
@@ -707,11 +707,9 @@ hosts, `dwm`, per-user services — stays resident indefinitely. That session wa
 
 **Trade-off.** Unsaved work in the disconnected session is lost. Only enable
 this if the VM is a workstation, not a place where long-running apps must
-survive a disconnect. `ForceAutoLogon=1` (see
-[`windows-vm.md`](windows-vm.md#automatic-logon)) then logs the console user
-back in, so the stale session is replaced by a fresh one instead of leaving a
-lock screen. That preserves the auto-login requirement but reduces the RAM win
-compared with a bare logoff.
+survive a disconnect. Do **not** combine it with `ForceAutoLogon=1`; forcing a
+console logon races the RDP session and causes connect/disconnect churn.
+`AutoAdminLogon=1` still handles boot auto-logon.
 
 ### 4. Close Task Manager and do not leave it open — saves ~123 MiB
 

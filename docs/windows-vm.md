@@ -185,15 +185,16 @@ The RDP **server** is kept, but stale sessions are now bounded:
 $k = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
 Set-ItemProperty $k -Name MaxDisconnectionTime   -Value 300000  -Type DWord # 5 min
 Set-ItemProperty $k -Name MaxIdleTime            -Value 1800000 -Type DWord # 30 min
-Set-ItemProperty $k -Name fResetBroken           -Value 1       -Type DWord
-Set-ItemProperty $k -Name fSingleSessionPerUser  -Value 1       -Type DWord
+Set-ItemProperty $k -Name fResetBroken           -Value 0       -Type DWord
+Set-ItemProperty $k -Name fSingleSessionPerUser  -Value 0       -Type DWord
 ```
 
 Closing the client without signing out logs the session off after five minutes.
-`ForceAutoLogon=1` then re-logs the console user in, so the stale session is
-replaced by a fresh one rather than leaving a login screen.  Unsaved work in the
-disconnected session is lost, so sign out (or save) before disconnecting.  Set
-the values back to `0` to restore the old behaviour.
+The console is **not** forced to log back in while RDP is in use; that policy
+fights the RDP takeover and causes session churn. Reconnect with RDP, or reboot
+to get the boot auto-logon. Unsaved work in the disconnected session is lost, so
+sign out (or save) before disconnecting. Set the values back to `0` to restore
+the old behaviour.
 
 ## Recovery removed
 
@@ -217,11 +218,12 @@ and again after a logoff. Current Winlogon values:
 | `AutoAdminLogon` | `1` |
 | `DefaultUserName` | `Windows-PC` |
 | `DefaultDomainName` | `WINDOWS-VM` |
-| `ForceAutoLogon` | `1` |
+| `ForceAutoLogon` | unset/`0` |
 | `DefaultPassword` | present (value not recorded here) |
 
-`ForceAutoLogon` is what makes the account reappear after a logoff, including
-the RDP timeout above. Without it, Windows only auto-logs in at boot.
+`ForceAutoLogon` is deliberately **unset**. Setting it to `1` makes the console
+re-login after an RDP disconnect, which can immediately kick the RDP session.
+`AutoAdminLogon` still logs the console in at boot.
 
 RDP does not require auto-logon for authentication, but the VM does need a
 logged-in console session for PowerToys Run and for FL Studio or other work that
@@ -247,7 +249,7 @@ $k = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
 Set-ItemProperty $k -Name AutoAdminLogon  -Value '1'
 Set-ItemProperty $k -Name DefaultUserName -Value 'Windows-PC'
 Set-ItemProperty $k -Name DefaultDomainName -Value $env:COMPUTERNAME
-Set-ItemProperty $k -Name ForceAutoLogon  -Value '1'
+# Do not set ForceAutoLogon=1 if RDP is used; it races the RDP session.
 # DefaultPassword stores the password in cleartext; prefer netplwiz or
 # Sysinternals Autologon, which keeps it in an LSA secret.
 ```
@@ -262,8 +264,8 @@ qwinsta
 
 With autostart enabled, the chain becomes: host boots → libvirtd starts
 `win11-stock` → Windows logs in → RDP connects to an already unlocked session.
-After an RDP timeout or manual sign-out, `ForceAutoLogon` logs the console user
-back in automatically.
+After an RDP timeout or manual sign-out the console stays logged off; reconnect
+with RDP, or reboot to get the boot auto-logon.
 
 To disable it, run `disable-autologon.bat` and also clear the forced value:
 

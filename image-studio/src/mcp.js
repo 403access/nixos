@@ -160,7 +160,7 @@ export function createTools(context) {
       confirm: str('Must be RUN'),
     }, ['enabled', 'confirm']), async (args) => live.winAutologon(args)),
 
-    tool('win_rdp_limits', 'Set RDP disconnect/idle limits and single-session policy. Requires confirm=RUN.', schema({
+    tool('win_rdp_limits', 'Set RDP disconnect/idle limits and RDP-friendly multi-session policy. Requires confirm=RUN.', schema({
       disconnectMinutes: num('Disconnected-session logoff in minutes (0 = never)', 0, 1440, 5),
       idleMinutes: num('Idle-session limit in minutes (0 = never)', 0, 1440, 30),
       confirm: str('Must be RUN'),

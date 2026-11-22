@@ -246,7 +246,7 @@ try {
 Set-ItemProperty $k -Name AutoAdminLogon -Value '1' -Type String
 Set-ItemProperty $k -Name DefaultUserName -Value ${psQuote(user)} -Type String
 Set-ItemProperty $k -Name DefaultDomainName -Value ${psQuote(domain)} -Type String
-Set-ItemProperty $k -Name ForceAutoLogon -Value '1' -Type String
+Remove-ItemProperty $k -Name ForceAutoLogon -ErrorAction SilentlyContinue
 ${passwordLine}
 `
       : `
@@ -277,8 +277,8 @@ $k='${RDP_KEY}'
 if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }
 Set-ItemProperty $k -Name MaxDisconnectionTime -Value ${disconnect} -Type DWord
 Set-ItemProperty $k -Name MaxIdleTime -Value ${idle} -Type DWord
-Set-ItemProperty $k -Name fResetBroken -Value 1 -Type DWord
-Set-ItemProperty $k -Name fSingleSessionPerUser -Value 1 -Type DWord
+Set-ItemProperty $k -Name fResetBroken -Value 0 -Type DWord
+Set-ItemProperty $k -Name fSingleSessionPerUser -Value 0 -Type DWord
 $p=Get-ItemProperty $k
 [ordered]@{ maxDisconnectionTime=$p.MaxDisconnectionTime; maxIdleTime=$p.MaxIdleTime; fResetBroken=$p.fResetBroken; fSingleSessionPerUser=$p.fSingleSessionPerUser } | ConvertTo-Json -Compress
 `));
