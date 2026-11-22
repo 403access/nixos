@@ -199,9 +199,13 @@ the values back to `0` to restore the old behaviour.
 
 WinRE, the 911 MB recovery partition, System Restore and shadow copies are
 removed; `C:` was extended to 119.79 GB. Recovery is by redeploying a clean VM
-and restoring data from the host, not by WinRE/Reset. See
-[`windows-recovery-removal.md`](windows-recovery-removal.md) for the exact
-state, GPT backup and the `install/windows-vm-create.sh` redeploy command.
+and restoring data from the host, not by WinRE/Reset.
+
+The active `win11-stock` is a promoted clone of the cleaned disk (original
+UUID/MAC, 4 GiB, 2 vCPU); `win11-stock-old` is a cold fallback with autostart
+disabled. See [`windows-recovery-removal.md`](windows-recovery-removal.md) for
+the exact state, GPT backup, activation note and the
+`install/windows-vm-create.sh` deploy command.
 
 ## Automatic logon
 

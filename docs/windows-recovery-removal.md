@@ -35,6 +35,27 @@ it is inert without `Winre.wim`. WinRE setup/repair tasks are disabled.
 `ntfsresize` marked `C:` dirty after growing it; `chkdsk /f` ran on the next
 boot and cleared the flag (`fsutil dirty query C:` now reports not dirty).
 
+## Redeploy result
+
+The first redeploy kept both systems:
+
+```text
+win11-stock       running   promoted clone, autostart enabled
+win11-stock-old   shut off  original disk, cold fallback, autostart disabled
+```
+
+- The active `win11-stock` uses `/var/lib/libvirt/images/win11-stock.raw`
+  (the promoted clone), the original domain UUID and MAC, 4 GiB and 2 vCPU.
+- The fallback uses `/var/lib/libvirt/images/win11-stock-old.raw`, a new
+  UUID/MAC, and must be started manually if needed.
+- Both disks have the recovery partition/WinRE removed.
+- The clone retained FL Studio, FL Studio ASIO, Chrome, PowerToys, SSH and RDP.
+- Windows reports **notification mode** for activation. If the original was
+  activated with a digital licence, the clone may need reactivation; check
+  `slmgr /xpr`.
+- There is still **no shared folder** in the libvirt XML. Data is only on the
+  guest disk until a virtiofs/9p/Samba share is added.
+
 ## Trade-offs
 
 - **No Startup Repair, Reset this PC, System Restore, or WinRE Command Prompt.**
@@ -90,7 +111,11 @@ post-install trims:
      --memory 4096 --vcpus 2 --disk-size 120G --raw
    ```
    Add `--virtio-iso` if the virtio-win ISO is not auto-detected. The helper
-   uses UEFI/vTPM and starts the installer.
+   uses UEFI/vTPM and starts the installer. Direct invocation now falls back to
+   `/run/current-system/sw/bin` when `sudo` drops `virt-install` from `PATH`;
+   the installed `windows-vm-create` wrapper is equivalent.
+   An ISO built without `--password` has a generated password; pass a known one
+   or enable `--autologon`, otherwise the first logon needs console access.
 3. After first logon, apply the recorded profile/trims with Image Studio:
    `win_recipe`, `win_autologon`, `win_rdp_limits`, `win_service_set`, or the
    exported bundle's post-install recipe plan.

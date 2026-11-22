@@ -149,6 +149,14 @@ if [ "$(id -u)" -ne 0 ]; then
   die "run this as root, for example: sudo windows-vm-create --iso /path/to/Win11.iso"
 fi
 
+# A direct `sudo ./install/windows-vm-create.sh` can lose /run/current-system/sw/bin
+# from PATH depending on sudo's secure_path. The installed wrapper sets PATH, but
+# make the direct invocation work too.
+if ! command -v virt-install >/dev/null 2>&1 && [ -x /run/current-system/sw/bin/virt-install ]; then
+  PATH="/run/current-system/sw/bin:$PATH"
+  export PATH
+fi
+
 command -v virt-install >/dev/null 2>&1 \
   || die "virt-install is missing; rebuild with myInstall.mode = \"vm\""
 command -v virsh >/dev/null 2>&1 \
