@@ -88,7 +88,7 @@ same server URL and token as the rest of the app, and refreshes while it is
 visible.
 
 For LAN access without Tailscale, set the iOS server URL to
-`http://<LAN-IP>:3000` while the web dashboard is running. The Bun server
+`http://<LAN-IP>:3050` while the web dashboard is running. The Bun server
 proxies `/api` to the loopback Rust API.
 
 ## macOS

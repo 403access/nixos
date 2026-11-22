@@ -59,4 +59,4 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Peripherals UI: http://localhost:${server.port} (API ${target})`);
+console.log(`NixOS Control web: http://localhost:${server.port} (API ${target})`);

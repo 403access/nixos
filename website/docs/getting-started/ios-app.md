@@ -38,11 +38,11 @@ The setup screen lets you choose how the phone reaches the server:
 | --- | --- | --- |
 | **Tailscale** | `https://<machine>.<tailnet>.ts.net` | You use Tailscale Serve with automatic HTTPS |
 | **WireGuard** | `http://<LAN-IP>:8787` | Your FRITZ!Box already provides a WireGuard VPN |
-| **LAN proxy** | `http://<LAN-IP>:3000` | The web dashboard is running on the host and proxies `/api` to loopback |
+| **LAN proxy** | `http://<LAN-IP>:3050` | The web dashboard is running on the host and proxies `/api` to loopback |
 
 The LAN proxy option uses the Bun web dashboard as a reverse proxy, so the Rust
 API can stay on `127.0.0.1`. It requires the web dashboard from
-`peripherals-ui/` to be running on port `3000`; use the same bearer token.
+`peripherals-ui/` to be running on port `3050`; use the same bearer token.
 
 Both choices use the same bearer token and API. The selection is stored in
 `UserDefaults`; changing it later in **Settings** does not change the saved URL.

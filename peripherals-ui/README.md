@@ -31,13 +31,13 @@ API_TARGET=http://192.168.178.5:8787 bun run dev
 Open <http://localhost:5173>, leave the server URL empty in Settings, and paste
 the token from `sudo nixos-control-token`.
 
-For the NixOS-hosted build, the dashboard is served on port `3000` and proxies
-to the local API. Open <http://192.168.178.5:3000>.
+For the NixOS-hosted build, `nixos-control-web.service` serves the dashboard on
+port `3050` and proxies to the local API. Open <http://192.168.178.5:3050>.
 
 The iOS app can use the same proxy as its server URL:
 
 ```text
-http://192.168.178.5:3000
+http://192.168.178.5:3050
 ```
 
 That keeps the API on loopback while making every `/api/*` route reachable from

@@ -78,6 +78,10 @@ sudo systemctl restart nixos-control
 The explicit restart is required because the unit has
 `restartIfChanged = false`, so a rebuild does not restart the running server.
 
+The web dashboard is served by `nixos-control-web.service` on port `3050`
+from `/home/nixos/peripherals-ui`. After changing the UI, copy the built
+`dist/` and `server.ts`, then `sudo systemctl restart nixos-control-web`.
+
 Verify:
 
 ```bash
@@ -115,7 +119,7 @@ Open **Dashboard → Peripherals** or **System → Peripherals**. The screen use
 the same server URL and token as the rest of the app.
 
 For LAN access without Tailscale, set the iOS server URL to
-`http://<LAN-IP>:3000` while the web dashboard is running. The Bun server
+`http://<LAN-IP>:3050` while the web dashboard is running. The Bun server
 proxies `/api` to the loopback Rust API.
 
 ## macOS

@@ -314,6 +314,7 @@ configuration.nix          Existing NixOS config (now imports the module)
 installation-mode.nix      Layout chosen by install/install.sh (nixos|vm|dual)
 install/                   Interactive installer and layout module
 nixos-control.nix          NixOS module: packages and runs the server
+nixos-control-web.nix      Systemd web dashboard on port 3050
 desktop/                   Desktop profile selector, Catppuccin themes, wallpaper
 sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
 services/                  Isolated Docker project services (project-up/down)
@@ -476,7 +477,7 @@ Tap **Save & Connect**.
 
 The app also has a **Peripherals** screen (**Dashboard → Peripherals** or **System → Peripherals**) for the Logitech receiver. It is read-only; see [`docs/peripherals.md`](docs/peripherals.md).
 
-For LAN access without Tailscale, use `http://<LAN-IP>:3000` while the web dashboard from `peripherals-ui/` is running; it proxies `/api` to the loopback API.
+For LAN access without Tailscale, use `http://<LAN-IP>:3050` while the web dashboard from `peripherals-ui/` is running; it proxies `/api` to the loopback API.
 
 ### WireGuard and LAN access
 

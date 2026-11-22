@@ -91,14 +91,14 @@ export default function SettingsView({
               <input
                 value={serverUrl}
                 onChange={(event) => setServerUrl(event.target.value)}
-                placeholder="http://192.168.178.5:3000 or leave blank"
+                placeholder="http://192.168.178.5:3050 or leave blank"
                 autoComplete="url"
                 spellCheck={false}
               />
             </label>
             <p className="field-hint">
               Leave blank when the dashboard is served by the NixOS Bun proxy. Use{" "}
-              <code>http://192.168.178.5:3000</code> from the iOS app on the LAN.
+              <code>http://192.168.178.5:3050</code> from the iOS app on the LAN.
             </p>
 
             <label>

@@ -59,6 +59,7 @@
       ./installation-mode.nix
       ./install
       ./nixos-control.nix
+      ./nixos-control-web.nix
       ./jotta-cli.nix
       ./zfs.nix
       ./desktop
@@ -105,7 +106,7 @@
 
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ 3000 3389 ];
+    allowedTCPPorts = [ 3050 3389 ];
   }; 
 
   # Remote management API used by the iOS app. The server listens on
