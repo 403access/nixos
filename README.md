@@ -305,6 +305,7 @@ docs/windows-memory-analysis.md  Live process inventory and RAM reduction plan
 docs/windows-vm-inventory-commands.md  Host→guest process/service/app inventory commands
 docs/windows-ai-removal.md  Microsoft AI services, apps, tasks and policies removed
 docs/windows-edge-removal.md  Edge uninstall, profile backup and WebView2 note
+docs/windows-store-removal.md  Microsoft Store removal, winget retention and rollback
 scripts/sandbox-smoke-test.sh  Agent microVM + Docker service verification
 scripts/vm-stats.sh        Host + guest resource summary (read-only)
 scripts/zfs-audit.sh       Read-only ZFS/NixOS audit

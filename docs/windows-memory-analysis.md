@@ -115,6 +115,10 @@ snapshot; the applied state is recorded separately.
   at `C:\ProgramData\WindowsSlim\backup\Edge-UserData`. Chrome is now installed
   and used instead, and the shared WebView2 runtime was retained. See
   [`windows-edge-removal.md`](windows-edge-removal.md).
+- **Microsoft Store:** Store and Store Purchase were removed; `InstallService`
+  is Disabled with its six tasks; `RemoveWindowsStore=1` is set. Winget
+  (`DesktopAppInstaller`/`Winget.Source`) and `ClipSVC`/`LicenseManager` were
+  kept. See [`windows-store-removal.md`](windows-store-removal.md).
 - **Left alone:** Chrome, FL Studio, SmartScreen (~24 MiB), audio (FL Studio) and
   PowerToys itself. Printing and scanning are the only user-facing loss; the
   removed WCF/WorkFolders/RDP-client features were unused.

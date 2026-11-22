@@ -136,6 +136,16 @@ installed/used instead.  The shared WebView2 runtime remains at
 embed it.  Windows Update may offer Edge again; see
 [`windows-edge-removal.md`](windows-edge-removal.md).
 
+## Microsoft Store
+
+Microsoft Store and Store Purchase were removed; `InstallService` is Disabled
+and its six Store update tasks are Disabled.  The classic no-Store policy
+(`RemoveWindowsStore=1`) is set in HKLM and HKCU.  **Winget is retained**
+(`Microsoft.DesktopAppInstaller` and `Microsoft.Winget.Source`), and
+`ClipSVC`/`LicenseManager` remain for the other Store apps.  Windows Update may
+re-offer Store on a feature update; see
+[`windows-store-removal.md`](windows-store-removal.md).
+
 ## AI components
 
 Copilot/Recall/Click-to-Do policies are off, the `WindowsAI` scheduled tasks
@@ -436,6 +446,8 @@ for the individual files and the optional real-hive test.
   services, apps, tasks and policies
 - [`windows-edge-removal.md`](windows-edge-removal.md) — Edge uninstall,
   profile backup and WebView2 note
+- [`windows-store-removal.md`](windows-store-removal.md) — Store removal,
+  winget retention and rollback
 - [`../scripts/windows/README.md`](../scripts/windows/README.md) — helper
   scripts, profiles, apps and offline hardening
 - [`../install/README.md`](../install/README.md) — VM creation, Secure Boot
