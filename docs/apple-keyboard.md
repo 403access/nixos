@@ -112,6 +112,27 @@ bluetoothctl show
 `bluetoothctl list` should print a controller such as `hci0`. `bluetoothctl
 show` should report `Powered: yes` because `powerOnBoot` is enabled.
 
+## Bridge from the Mac (RDP)
+
+The host runs xrdp on port 3389. This is the no-hardware path: keep the Apple
+keyboard paired to the Mac and type into a NixOS desktop over RDP.
+
+1. On the Mac, open **Windows App** (Microsoft Remote Desktop).
+2. Add a PC: `192.168.178.5`, user `nixos`, port `3389`.
+3. Connect and enter the NixOS login password.
+
+The Mac's Apple keyboard then types into the NixOS xrdp session. A ready-made
+`.rdp` file with these values can be opened in Windows App; if it is not
+imported, use **Add PC** with the same values.
+
+This is a separate xrdp desktop, not the physical console. The Mac must stay on,
+and the NixOS host must keep xrdp running. If you need the physical display or
+seamless keyboard/mouse sharing instead, use Deskflow/Input Leap or add a USB
+Bluetooth dongle.
+
+The Peripherals app will not list the Apple keyboard: it is not on the Logitech
+receiver.
+
 ## Pair the Apple keyboard
 
 1. Put the keyboard in pairing mode: hold its power button until the LED starts
