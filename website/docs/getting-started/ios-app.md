@@ -112,10 +112,10 @@ and executable metadata. Open it from **System → Journal** or from a service's
 
 ## Themes
 
-**Dashboard → Themes** shows the desktop profile and GTK theme gallery with
-screenshots, descriptions and details. Applying a theme writes the selection and
-starts a NixOS rebuild; the job output is shown on the page. The previous
-generation remains available for rollback.
+**Dashboard → Themes** shows the desktop profile, GTK theme and wallpaper
+gallery with screenshots, descriptions and details. Applying a theme writes the
+selection and starts a NixOS rebuild; the job output is shown on the page. The
+previous generation remains available for rollback.
 
 ## Other LAN access
 

@@ -154,7 +154,7 @@ export function getThemes(
 export function applyTheme(
   serverUrl: string,
   token: string,
-  update: { profile?: string; gtkTheme?: string },
+  update: { profile?: string; gtkTheme?: string; wallpaper?: string },
 ): Promise<ThemeApplyResult> {
   return request<ThemeApplyResult>(
     serverUrl,

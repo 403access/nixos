@@ -165,6 +165,8 @@ let
     rsvg-convert -w 2560 -h 1600 -o "$out" ${./wallpaper.svg}
   '';
 
+  whitesurWallpaper = ./wallpaper-whitesur.jpg;
+
   # Catppuccin's SDDM theme.  25.11 (theme 1.1.x) added an `accent`
   # argument; 25.05 (1.0.x) only has a per-flavour theme.  Choose the
   # supported interface from the package version.
@@ -364,10 +366,24 @@ in
       };
     };
 
+    wallpaperPreset = lib.mkOption {
+      type = lib.types.enum [ "catppuccin" "whitesur" ];
+      default = if cfg.gtkTheme == "whitesur" then "whitesur" else "catppuccin";
+      description = ''
+        Built-in wallpaper.  `catppuccin` uses the NixOS aurora gradient;
+        `whitesur` uses the macOS-style wallpaper that matches the WhiteSur
+        GTK theme.  Defaults to the wallpaper matching `gtkTheme`; set
+        `wallpaper` directly for a custom image.
+      '';
+    };
+
     wallpaper = lib.mkOption {
       type = lib.types.path;
-      default = wallpaper;
-      defaultText = lib.literalExpression "desktop/wallpaper.svg (built to PNG)";
+      default = if cfg.wallpaperPreset == "whitesur" then whitesurWallpaper else wallpaper;
+      defaultText = lib.literalExpression ''
+        desktop/wallpaper.svg (built to PNG) or desktop/wallpaper-whitesur.jpg,
+        depending on myDesktop.wallpaperPreset
+      '';
       description = "Wallpaper used by the themed desktops and SDDM.";
     };
 
@@ -494,6 +510,7 @@ in
       flavour = cfg.flavour;
       accent = cfg.accent;
       gtkTheme = cfg.gtkTheme;
+      wallpaper = cfg.wallpaperPreset;
     };
 
     environment.etc."gtk-2.0/gtkrc".text = ''

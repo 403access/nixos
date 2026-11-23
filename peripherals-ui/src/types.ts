@@ -208,6 +208,7 @@ export interface CurrentTheme {
   flavour: string;
   accent: string;
   gtkTheme: string;
+  wallpaper: string;
 }
 
 export interface ThemeCard {
@@ -224,6 +225,7 @@ export interface ThemeCatalog {
   current: CurrentTheme;
   profiles: ThemeCard[];
   gtkThemes: ThemeCard[];
+  wallpapers: ThemeCard[];
 }
 
 export interface ThemeApplyResult {

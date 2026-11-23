@@ -294,11 +294,12 @@ search, follow-tail, repeat collapsing and expandable metadata.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/themes` | Theme catalog and current selection |
-| `POST` | `/api/themes/apply` | Select a profile or GTK theme |
+| `POST` | `/api/themes/apply` | Select a profile, GTK theme or wallpaper |
 
-`GET /api/themes` returns the current theme plus desktop profile and GTK theme
-cards with names, descriptions, details, accent colours, screenshot names and
-`current` flags.
+`GET /api/themes` returns the current theme plus desktop profile, GTK theme and
+wallpaper cards with names, descriptions, details, accent colours, screenshot
+names and `current` flags. The current selection includes a `wallpaper` preset
+(`catppuccin` or `whitesur`).
 
 ```http
 POST /api/themes/apply
@@ -308,10 +309,11 @@ Content-Type: application/json
 ```
 
 ```json
-{"profile": "plasma", "gtkTheme": "catppuccin"}
+{"profile": "plasma", "gtkTheme": "catppuccin", "wallpaper": "whitesur"}
 ```
 
-At least one field is required. The server writes
+At least one field is required. Selecting a GTK theme also selects its matching
+wallpaper unless `wallpaper` is given explicitly. The server writes
 `/etc/nixos/desktop/selected.nix` with `lib.mkForce` settings and starts a
 `nixos-rebuild switch` job. The response is `202 Accepted` with the target theme
 and the job; poll `/api/jobs/{id}` for output. Theme changes require

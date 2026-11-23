@@ -47,6 +47,20 @@ lib.mkIf (cfg.enable && cfg.profile == "gnome") {
     }
   ];
 
+  # Apply the selected wallpaper to new GNOME sessions as well.
+  programs.dconf.profiles.user.databases = [
+    {
+      settings = {
+        "org/gnome/desktop/background" = {
+          picture-uri = "file://${cfg.wallpaper}";
+          picture-uri-dark = "file://${cfg.wallpaper}";
+          picture-options = "zoom";
+          primary-color = "#11111b";
+        };
+      };
+    }
+  ];
+
   myDesktop.sessionCommand =
     "${pkgs.dbus}/bin/dbus-run-session ${pkgs.gnome-session}/bin/gnome-session";
   myDesktop.sessionType = "x11";

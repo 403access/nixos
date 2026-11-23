@@ -48,6 +48,7 @@ myDesktop = {
   flavour = "mocha";         # mocha | macchiato | frappe | latte
   accent = "blue";
   gtkTheme = "catppuccin";   # catppuccin | whitesur
+  wallpaperPreset = "catppuccin"; # catppuccin | whitesur (defaults to gtkTheme)
 };
 ```
 
@@ -102,8 +103,11 @@ dock, hide the lower XFCE panel as well.
 - The X11 rice lives in `desktop/rice/` — i3, polybar, picom, Rofi, dunst,
   xterm colours and the X resources file. The Hyprland setup lives in
   `desktop/hyprland/` — Hyprland, waybar, mako, hyprpaper and hypridle.
-- The wallpaper is `desktop/wallpaper.svg`; it is also used by SDDM and the
-  Plasma and Hyprland profiles.
+- The wallpaper follows `gtkTheme`: the Catppuccin aurora wallpaper for
+  `catppuccin` and `desktop/wallpaper-whitesur.jpg` for `whitesur`. Set
+  `myDesktop.wallpaperPreset = "catppuccin"` (or `"whitesur"`) to pin one, or
+  `myDesktop.wallpaper` to use a custom image. It is also used by SDDM, XFCE,
+  GNOME, Plasma and Hyprland.
 - Dotfiles are linked from the Nix store into `~/.config`. Edit the files in
   this repository and rebuild; they are read-only by design.
 - On hardware with a DRM device, the rice starts picom's GLX backend for blur

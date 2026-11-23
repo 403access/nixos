@@ -86,6 +86,7 @@ interface Store {
   applyTheme(update: {
     profile?: string;
     gtkTheme?: string;
+    wallpaper?: string;
   }): Promise<ThemeApplyResult | null>;
   loadServices(): Promise<void>;
   loadStorage(): Promise<void>;
@@ -224,7 +225,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
   }, [settings]);
 
   const applyTheme = useCallback(
-    async (update: { profile?: string; gtkTheme?: string }) => {
+    async (update: { profile?: string; gtkTheme?: string; wallpaper?: string }) => {
       if (!settings) {
         return null;
       }

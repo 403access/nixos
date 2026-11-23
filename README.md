@@ -19,7 +19,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
 - **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes, with time-series charts for the last hour.
 - **Logs** — parsed system and service journals with severity filters, search, follow-tail, repeat collapsing and expandable metadata.
-- **Themes** — desktop theme gallery with screenshots, details and one-click apply.
+- **Themes** — desktop profile, GTK theme and wallpaper gallery with screenshots, details and one-click apply.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
@@ -51,10 +51,11 @@ XFCE. The original setup remains the default; switch by changing one value.
 | `gnome` | GNOME Shell with the WhiteSur GNOME Shell theme, dash-to-dock and blur-my-shell for the macOS-style top bar. Uses GDM. |
 
 The web console and iOS app include a **Themes** page with screenshots and
-details for these profiles and the GTK theme family. Applying a theme writes
-`desktop/selected.nix` (with `lib.mkForce`) and runs `nixos-rebuild switch`
-through the API; `allowRebuild` must be enabled. The previous generation remains
-available for rollback.
+details for these profiles, the GTK theme family and the wallpapers. Applying a
+theme writes `desktop/selected.nix` (with `lib.mkForce`) and runs
+`nixos-rebuild switch` through the API; `allowRebuild` must be enabled. The
+previous generation remains available for rollback. Selecting a GTK theme also
+selects its matching wallpaper; a wallpaper can be pinned separately.
 
 ```nix
 myDesktop = {
@@ -64,6 +65,7 @@ myDesktop = {
   flavour = "mocha";         # mocha | macchiato | frappe | latte
   accent = "blue";
   gtkTheme = "catppuccin";   # catppuccin | whitesur
+  wallpaperPreset = "catppuccin"; # catppuccin | whitesur (defaults to gtkTheme)
 };
 ```
 
@@ -101,7 +103,9 @@ WhiteSur is installed from the `whitesur-gtk-theme`, `whitesur-icon-theme`
 and `whitesur-cursors` nixpkgs packages. The Catppuccin SDDM and Qt/Kvantum
 themes remain in place, so the login screen and Qt applications keep their
 Catppuccin styling. Rebuild to switch; setting `gtkTheme = "catppuccin"` (the
-default) restores the previous look.
+default) restores the previous look. The WhiteSur wallpaper is selected
+automatically with the GTK theme; set `wallpaperPreset = "catppuccin"` to keep
+the aurora wallpaper instead.
 
 `whiteSur.plank = true` installs Plank, autostarts it, and uses the WhiteSur
 dock theme. Hide the lower XFCE panel yourself if you want Plank to be the only
@@ -568,7 +572,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/resources` | CPU, memory and disk I/O per service, app and process |
 | `GET` | `/api/resources/history?kind=services&minutes=15&metric=cpu` | Per-entity time series |
 | `GET` | `/api/themes` | Desktop theme catalog and current selection |
-| `POST` | `/api/themes/apply` | Apply a profile or GTK theme (starts a rebuild) |
+| `POST` | `/api/themes/apply` | Apply a profile, GTK theme or wallpaper (starts a rebuild) |
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
 | `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
 | `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |

@@ -326,12 +326,20 @@ final class AppState: ObservableObject {
         }
     }
 
-    func applyTheme(profile: String? = nil, gtkTheme: String? = nil) async -> String? {
+    func applyTheme(
+        profile: String? = nil,
+        gtkTheme: String? = nil,
+        wallpaper: String? = nil
+    ) async -> String? {
         guard let client else { return "Not configured." }
         do {
             let response: ThemeApplyResponse = try await client.post(
                 "/api/themes/apply",
-                body: ThemeApplyRequest(profile: profile, gtkTheme: gtkTheme)
+                body: ThemeApplyRequest(
+                    profile: profile,
+                    gtkTheme: gtkTheme,
+                    wallpaper: wallpaper
+                )
             )
             activeJob = response.job
             jobPollTask?.cancel()
@@ -516,4 +524,5 @@ private struct PowerRequest: Encodable {
 private struct ThemeApplyRequest: Encodable {
     let profile: String?
     let gtkTheme: String?
+    let wallpaper: String?
 }

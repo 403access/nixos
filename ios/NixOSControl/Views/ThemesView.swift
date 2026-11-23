@@ -4,6 +4,7 @@ private struct ThemeSelection: Identifiable {
     enum Kind {
         case profile
         case gtk
+        case wallpaper
     }
 
     let id: String
@@ -41,6 +42,7 @@ struct ThemesView: View {
 
                     profileSection(catalog)
                     gtkSection(catalog)
+                    wallpaperSection(catalog)
 
                     if let job = app.activeJob {
                         jobCard(job)
@@ -121,6 +123,7 @@ struct ThemesView: View {
         Card("Current theme", systemImage: "paintpalette") {
             InfoRow(label: "Desktop", value: catalog.current.profile)
             InfoRow(label: "GTK theme", value: catalog.current.gtkTheme)
+            InfoRow(label: "Wallpaper", value: catalog.current.wallpaper)
             InfoRow(label: "Catppuccin flavour", value: catalog.current.flavour)
             InfoRow(label: "Accent", value: catalog.current.accent)
         }
@@ -156,6 +159,24 @@ struct ThemesView: View {
             ForEach(catalog.gtkThemes) { theme in
                 ThemeCardView(theme: theme, busy: app.activeJob?.isRunning == true) {
                     pending = ThemeSelection(id: theme.id, name: theme.name, kind: .gtk)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func wallpaperSection(_ catalog: ThemeCatalog) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Wallpaper")
+                .font(.headline)
+                .foregroundStyle(Theme.textPrimary)
+            Text("The wallpaper follows the GTK theme by default. Choose one here to pin it for the desktop and login screen.")
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
+
+            ForEach(catalog.wallpapers) { theme in
+                ThemeCardView(theme: theme, busy: app.activeJob?.isRunning == true) {
+                    pending = ThemeSelection(id: theme.id, name: theme.name, kind: .wallpaper)
                 }
             }
         }
@@ -205,7 +226,8 @@ struct ThemesView: View {
         notice = nil
         let error = await app.applyTheme(
             profile: selection.kind == .profile ? selection.id : nil,
-            gtkTheme: selection.kind == .gtk ? selection.id : nil
+            gtkTheme: selection.kind == .gtk ? selection.id : nil,
+            wallpaper: selection.kind == .wallpaper ? selection.id : nil
         )
         if let error {
             actionError = error

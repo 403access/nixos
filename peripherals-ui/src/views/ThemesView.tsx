@@ -60,7 +60,7 @@ export default function ThemesView() {
   }, [job?.id, job?.status, fetchJob, setActiveJob, reload]);
 
   async function apply(
-    update: { profile?: string; gtkTheme?: string },
+    update: { profile?: string; gtkTheme?: string; wallpaper?: string },
     label: string,
   ) {
     if (
@@ -116,6 +116,7 @@ export default function ThemesView() {
         <div className="detail-grid">
           <InfoRow label="Desktop" value={catalog.current.profile} />
           <InfoRow label="GTK theme" value={catalog.current.gtkTheme} />
+          <InfoRow label="Wallpaper" value={catalog.current.wallpaper} />
           <InfoRow label="Catppuccin flavour" value={catalog.current.flavour} />
           <InfoRow label="Accent" value={catalog.current.accent} />
         </div>
@@ -164,6 +165,7 @@ export default function ThemesView() {
         <h2 className="theme-section-title">GTK theme</h2>
         <p className="muted theme-section-note">
           The GTK, icon and cursor theme is independent of the desktop profile.
+          Switching it also selects the matching wallpaper.
         </p>
         <div className="theme-grid">
           {catalog.gtkThemes.map((theme) => (
@@ -172,6 +174,24 @@ export default function ThemesView() {
               theme={theme}
               busy={busy}
               onApply={() => void apply({ gtkTheme: theme.id }, theme.name)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="theme-section-title">Wallpaper</h2>
+        <p className="muted theme-section-note">
+          The wallpaper follows the GTK theme by default; choosing one here
+          pins it for the desktop and login screen.
+        </p>
+        <div className="theme-grid">
+          {catalog.wallpapers.map((theme) => (
+            <ThemeCardView
+              key={theme.id}
+              theme={theme}
+              busy={busy}
+              onApply={() => void apply({ wallpaper: theme.id }, theme.name)}
             />
           ))}
         </div>

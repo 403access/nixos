@@ -357,6 +357,7 @@ struct CurrentTheme: Decodable {
     let flavour: String
     let accent: String
     let gtkTheme: String
+    let wallpaper: String
 }
 
 struct ThemeCard: Decodable, Identifiable {
@@ -373,6 +374,7 @@ struct ThemeCatalog: Decodable {
     let current: CurrentTheme
     let profiles: [ThemeCard]
     let gtkThemes: [ThemeCard]
+    let wallpapers: [ThemeCard]
 }
 
 struct ThemeApplyResponse: Decodable {

@@ -6,6 +6,15 @@ use crate::config::AppConfig;
 
 pub const PROFILES: [&str; 5] = ["xfce", "rice", "plasma", "gnome", "hyprland"];
 pub const GTK_THEMES: [&str; 2] = ["catppuccin", "whitesur"];
+pub const WALLPAPERS: [&str; 2] = ["catppuccin", "whitesur"];
+
+fn matching_wallpaper(gtk_theme: &str) -> &'static str {
+    if gtk_theme == "whitesur" {
+        "whitesur"
+    } else {
+        "catppuccin"
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CurrentTheme {
@@ -14,6 +23,8 @@ pub struct CurrentTheme {
     pub accent: String,
     #[serde(rename = "gtkTheme")]
     pub gtk_theme: String,
+    #[serde(default)]
+    pub wallpaper: String,
 }
 
 impl CurrentTheme {
@@ -23,11 +34,22 @@ impl CurrentTheme {
             flavour: "mocha".to_string(),
             accent: "blue".to_string(),
             gtk_theme: "catppuccin".to_string(),
+            wallpaper: "catppuccin".to_string(),
         }
     }
 
     fn validated(self) -> Self {
         let defaults = Self::defaults();
+        let gtk_theme = if GTK_THEMES.contains(&self.gtk_theme.as_str()) {
+            self.gtk_theme
+        } else {
+            defaults.gtk_theme
+        };
+        let wallpaper = if WALLPAPERS.contains(&self.wallpaper.as_str()) {
+            self.wallpaper
+        } else {
+            matching_wallpaper(&gtk_theme).to_string()
+        };
         Self {
             profile: if PROFILES.contains(&self.profile.as_str()) {
                 self.profile
@@ -44,11 +66,8 @@ impl CurrentTheme {
             } else {
                 self.accent
             },
-            gtk_theme: if GTK_THEMES.contains(&self.gtk_theme.as_str()) {
-                self.gtk_theme
-            } else {
-                defaults.gtk_theme
-            },
+            gtk_theme,
+            wallpaper,
         }
     }
 }
@@ -71,6 +90,7 @@ pub struct ThemeCatalog {
     pub profiles: Vec<ThemeCard>,
     #[serde(rename = "gtkThemes")]
     pub gtk_themes: Vec<ThemeCard>,
+    pub wallpapers: Vec<ThemeCard>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -79,6 +99,7 @@ pub struct ThemeApplyRequest {
     pub profile: Option<String>,
     #[serde(rename = "gtkTheme")]
     pub gtk_theme: Option<String>,
+    pub wallpaper: Option<String>,
 }
 
 pub fn read_current(config: &AppConfig) -> CurrentTheme {
@@ -94,13 +115,14 @@ pub fn catalog(config: &AppConfig) -> ThemeCatalog {
     ThemeCatalog {
         profiles: profile_cards(&current),
         gtk_themes: gtk_cards(&current),
+        wallpapers: wallpaper_cards(&current),
         current,
     }
 }
 
 pub fn apply(config: &AppConfig, request: ThemeApplyRequest) -> Result<CurrentTheme, String> {
-    if request.profile.is_none() && request.gtk_theme.is_none() {
-        return Err("select a profile or GTK theme".to_string());
+    if request.profile.is_none() && request.gtk_theme.is_none() && request.wallpaper.is_none() {
+        return Err("select a profile, GTK theme or wallpaper".to_string());
     }
 
     let mut current = read_current(config);
@@ -114,7 +136,17 @@ pub fn apply(config: &AppConfig, request: ThemeApplyRequest) -> Result<CurrentTh
         if !GTK_THEMES.contains(&gtk_theme.as_str()) {
             return Err(format!("unknown GTK theme '{gtk_theme}'"));
         }
+        let changed = current.gtk_theme != gtk_theme;
         current.gtk_theme = gtk_theme;
+        if changed && request.wallpaper.is_none() {
+            current.wallpaper = matching_wallpaper(&current.gtk_theme).to_string();
+        }
+    }
+    if let Some(wallpaper) = request.wallpaper {
+        if !WALLPAPERS.contains(&wallpaper.as_str()) {
+            return Err(format!("unknown wallpaper '{wallpaper}'"));
+        }
+        current.wallpaper = wallpaper;
     }
 
     write_selection(config, &current)?;
@@ -140,8 +172,9 @@ fn write_selection(config: &AppConfig, theme: &CurrentTheme) -> Result<(), Strin
            myDesktop.flavour = lib.mkForce \"{}\";\n\
            myDesktop.accent = lib.mkForce \"{}\";\n\
            myDesktop.gtkTheme = lib.mkForce \"{}\";\n\
+           myDesktop.wallpaperPreset = lib.mkForce \"{}\";\n\
          }}\n",
-        theme.profile, theme.flavour, theme.accent, theme.gtk_theme
+        theme.profile, theme.flavour, theme.accent, theme.gtk_theme, theme.wallpaper
     );
     fs::write(&path, contents)
         .map_err(|error| format!("could not write {}: {error}", path.display()))
@@ -255,6 +288,39 @@ fn gtk_cards(current: &CurrentTheme) -> Vec<ThemeCard> {
     ]
 }
 
+fn wallpaper_cards(current: &CurrentTheme) -> Vec<ThemeCard> {
+    vec![
+        card(
+            "catppuccin",
+            "Catppuccin aurora",
+            "The Catppuccin gradient with a subtle snowflake, shared by the rice, Plasma and SDDM login screen.",
+            &[
+                "Dark Catppuccin palette",
+                "2560 x 1600 gradient",
+                "Used by the rice and Plasma profiles",
+                "Also used by the SDDM login theme",
+            ],
+            Some("wallpaper-catppuccin"),
+            "#89b4fa",
+            current.wallpaper == "catppuccin",
+        ),
+        card(
+            "whitesur",
+            "WhiteSur (macOS)",
+            "The deep macOS-style wallpaper that matches the WhiteSur GTK theme and dock.",
+            &[
+                "macOS-style dark gradient",
+                "Matches the WhiteSur GTK theme",
+                "Applied to XFCE and GNOME sessions",
+                "Used by the login screen",
+            ],
+            Some("wallpaper-whitesur"),
+            "#a8c7fa",
+            current.wallpaper == "whitesur",
+        ),
+    ]
+}
+
 #[allow(clippy::too_many_arguments)]
 fn card(
     id: &str,
@@ -294,9 +360,12 @@ mod tests {
         let config = config(directory.path());
         let catalog = catalog(&config);
         assert_eq!(catalog.current.profile, "xfce");
+        assert_eq!(catalog.current.wallpaper, "catppuccin");
         assert_eq!(catalog.profiles.len(), 5);
         assert_eq!(catalog.gtk_themes.len(), 2);
+        assert_eq!(catalog.wallpapers.len(), 2);
         assert!(catalog.profiles.iter().any(|theme| theme.current));
+        assert!(catalog.wallpapers.iter().any(|theme| theme.current));
         assert_eq!(
             catalog
                 .profiles
@@ -320,15 +389,63 @@ mod tests {
             ThemeApplyRequest {
                 profile: Some("plasma".to_string()),
                 gtk_theme: Some("whitesur".to_string()),
+                wallpaper: None,
             },
         )
         .unwrap();
         assert_eq!(current.profile, "plasma");
         assert_eq!(current.gtk_theme, "whitesur");
+        assert_eq!(current.wallpaper, "whitesur");
 
         let selected = fs::read_to_string(config.nixos_dir.join("desktop/selected.nix")).unwrap();
         assert!(selected.contains("myDesktop.profile = lib.mkForce \"plasma\";"));
         assert!(selected.contains("myDesktop.gtkTheme = lib.mkForce \"whitesur\";"));
+        assert!(selected.contains("myDesktop.wallpaperPreset = lib.mkForce \"whitesur\";"));
+    }
+
+    #[test]
+    fn explicit_wallpaper_overrides_the_gtk_default() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = config(directory.path());
+        fs::create_dir_all(&config.nixos_dir).unwrap();
+
+        let current = apply(
+            &config,
+            ThemeApplyRequest {
+                profile: None,
+                gtk_theme: Some("whitesur".to_string()),
+                wallpaper: Some("catppuccin".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(current.gtk_theme, "whitesur");
+        assert_eq!(current.wallpaper, "catppuccin");
+
+        let current = apply(
+            &config,
+            ThemeApplyRequest {
+                profile: None,
+                gtk_theme: None,
+                wallpaper: Some("whitesur".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(current.wallpaper, "whitesur");
+    }
+
+    #[test]
+    fn derives_wallpaper_for_older_theme_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = config(directory.path());
+        fs::create_dir_all(directory.path()).unwrap();
+        fs::write(
+            &config.theme_file,
+            r#"{"profile":"xfce","flavour":"mocha","accent":"blue","gtkTheme":"whitesur"}"#,
+        )
+        .unwrap();
+        let current = read_current(&config);
+        assert_eq!(current.gtk_theme, "whitesur");
+        assert_eq!(current.wallpaper, "whitesur");
     }
 
     #[test]
@@ -341,6 +458,7 @@ mod tests {
             ThemeApplyRequest {
                 profile: Some("windows".to_string()),
                 gtk_theme: None,
+                wallpaper: None,
             },
         )
         .unwrap_err();
