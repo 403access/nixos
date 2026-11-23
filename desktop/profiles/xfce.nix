@@ -15,7 +15,7 @@ let
         exit 0
       fi
 
-      wallpaper=${lib.escapeShellArg (toString cfg.wallpaper)}
+      wallpaper=${lib.escapeShellArg "${cfg.wallpaper}"}
 
       # xfdesktop creates the backdrop properties shortly after it starts.
       props=""
