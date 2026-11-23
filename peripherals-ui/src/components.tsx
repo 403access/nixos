@@ -40,15 +40,33 @@ export function MetricTile({
   caption,
   progress,
   tone = "accent",
+  onClick,
 }: {
   label: string;
   value: string;
   caption?: string;
   progress?: number;
   tone?: Tone;
+  onClick?: () => void;
 }) {
   return (
-    <div className="metric">
+    <div
+      className={`metric${onClick ? " clickable" : ""}`}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      title={onClick ? "Open history" : undefined}
+    >
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
       {caption ? <div className="metric-caption">{caption}</div> : null}

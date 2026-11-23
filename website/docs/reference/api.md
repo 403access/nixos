@@ -20,6 +20,7 @@ The server listens on `127.0.0.1:8787` by default and returns JSON.
 | --- | --- | --- |
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
+| `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
 | `GET` | `/api/logs?lines=300` | System journal |
 
 ### `GET /api/health`
@@ -33,6 +34,36 @@ The server listens on `127.0.0.1:8787` by default and returns JSON.
 Returns the capabilities reported to the app (rebuild and power availability)
 plus host metrics: NixOS and kernel versions, uptime, CPU, memory, load, root
 disk, ZFS pool health, temperatures, IP addresses, and Tailscale state.
+
+### `GET /api/status/history`
+
+Returns the samples the server keeps in memory for the dashboard charts. The
+sampler records one point every 10 seconds and keeps up to six hours.
+
+```http
+GET /api/status/history?minutes=60&limit=720
+```
+
+```json
+{
+  "samples": [
+    {
+      "at": "2026-11-23T03:50:10Z",
+      "cpu": {"model": "AMD Ryzen 7", "cores": 8, "usage_percent": 12.5},
+      "load": [0.52, 0.44, 0.31],
+      "memory": {"total": 33554432000, "used": 11274289152, "...": 0},
+      "root_disk": {"mount": "/", "total": 1000000000, "used": 400000000, "available": 600000000, "use_percent": 40.0},
+      "services": {"running": 120, "failed": 0, "total": 220},
+      "generation": 98,
+      "uptime_seconds": 7200,
+      "temperatures": [{"label": "CPU", "celsius": 41.0}],
+      "pools": []
+    }
+  ]
+}
+```
+
+History is not persisted across server restarts.
 
 ## Services
 

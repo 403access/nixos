@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct CpuInfo {
     pub model: String,
     pub cores: usize,
@@ -66,7 +66,7 @@ pub struct Capabilities {
     pub power: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct Status {
     pub server_version: String,
     pub hostname: String,
@@ -87,6 +87,21 @@ pub struct Status {
     pub tailscale: Option<TailscaleInfo>,
     pub services: ServiceCounts,
     pub capabilities: Capabilities,
+}
+
+/// One point in the server-side status history used by the dashboard charts.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct StatusSample {
+    pub at: String,
+    pub cpu: CpuInfo,
+    pub load: Vec<f64>,
+    pub memory: MemoryInfo,
+    pub root_disk: DiskUsage,
+    pub services: ServiceCounts,
+    pub generation: i32,
+    pub uptime_seconds: i64,
+    pub temperatures: Vec<Temperature>,
+    pub pools: Vec<PoolInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]

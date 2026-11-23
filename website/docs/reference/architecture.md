@@ -81,6 +81,9 @@ perform every action the module allows.
   `journalctl`. Interactive shell commands are recorded by an optional bash/zsh
   hook in each user's `~/.local/state/nixos-control/commands.jsonl` with timing
   and exit status.
+- The server samples host status every 10 seconds into an in-memory ring buffer
+  (up to six hours) for the dashboard charts. The history is not persisted
+  across restarts.
 - The peripherals probe reads HID++ from `/dev/hidraw*` in a blocking worker and
   is read-only.
 - Status and logs are polled by the app; there is no streaming endpoint.

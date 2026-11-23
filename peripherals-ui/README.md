@@ -10,7 +10,9 @@ view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
 ## Views
 
 - **Dashboard** — host, CPU, memory, load, root disk, services, ZFS pools,
-  temperatures, network, Tailscale and a peripherals summary.
+  temperatures, network, Tailscale and a peripherals summary. Click the CPU,
+  memory, load or root disk tile for charts and recent history in the side
+  panel.
 - **Services** — search, filter, start/stop/restart/reload/enable/disable and
   journal logs.
 - **Storage** — pools, datasets, filesystems and `zpool status`.

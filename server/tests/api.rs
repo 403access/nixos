@@ -8,6 +8,7 @@ use http_body_util::BodyExt;
 use nixos_control::activity::ActivityStore;
 use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
+use nixos_control::history::StatusHistory;
 use nixos_control::jobs::{Job, JobLauncher};
 use nixos_control::models::{
     CpuInfo, DatasetInfo, FilesystemInfo, Generation, GenerationDiff, GenerationDiffEntry,
@@ -405,6 +406,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             jobs: Arc::new(jobs.clone()),
             peripherals: Arc::new(peripherals),
             activity: Arc::new(ActivityStore::new(None)),
+            history: Arc::new(StatusHistory::new(10)),
             version: "test-version".to_string(),
         },
         system,
@@ -614,6 +616,41 @@ async fn status_returns_the_system_snapshot() {
     assert_eq!(value["generation"], 12);
     assert_eq!(value["capabilities"]["rebuild"], true);
     assert!(value.get("tailscale").is_none());
+}
+
+#[tokio::test]
+async fn status_history_returns_samples() {
+    let fixture = fixture();
+    fixture
+        .state
+        .history
+        .record(&fixture.system.collect_status());
+
+    let (status, _, body) = get(&fixture, "/api/status/history?minutes=60").await;
+    assert_eq!(status, StatusCode::OK);
+    let samples = json(&body)["samples"].as_array().unwrap().clone();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0]["generation"], 12);
+    assert!(samples[0]["at"].as_str().unwrap().contains('T'));
+    assert!(samples[0]["cpu"].is_object());
+    assert!(samples[0]["memory"].is_object());
+}
+
+#[tokio::test]
+async fn status_history_clamps_query_parameters() {
+    let fixture = fixture();
+    fixture
+        .state
+        .history
+        .record(&fixture.system.collect_status());
+
+    let (status, _, body) = get(
+        &fixture,
+        "/api/status/history?minutes=not-a-number&limit=99999",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json(&body)["samples"].as_array().unwrap().len(), 1);
 }
 
 #[tokio::test]

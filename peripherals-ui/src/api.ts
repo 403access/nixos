@@ -10,6 +10,7 @@ import type {
   ServiceUnit,
   SessionDetail,
   SessionsResponse,
+  StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
 } from "./types";
@@ -93,6 +94,19 @@ export function getStatus(
   token: string,
 ): Promise<SystemStatus> {
   return request<SystemStatus>(serverUrl, token, "/api/status");
+}
+
+export function getStatusHistory(
+  serverUrl: string,
+  token: string,
+  minutes = 60,
+  limit = 720,
+): Promise<StatusHistoryResponse> {
+  return request<StatusHistoryResponse>(
+    serverUrl,
+    token,
+    withQuery("/api/status/history", { minutes, limit }),
+  );
 }
 
 export function getServices(

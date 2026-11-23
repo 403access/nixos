@@ -2153,3 +2153,141 @@ code {
   font-size: 11px;
   cursor: pointer;
 }
+
+/* Dashboard tile history panel and charts. */
+
+.metric.clickable {
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.metric.clickable:hover {
+  border-color: rgba(90, 169, 255, 0.35);
+  background: rgba(22, 32, 45, 0.85);
+  transform: translateY(-1px);
+}
+
+.metric.clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-grid {
+  stroke: rgba(148, 163, 184, 0.14);
+  stroke-width: 1;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chart-legend-item strong {
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+}
+
+.chart-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+}
+
+.chart-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--border);
+}
+
+.chart-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chart-stats span {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.chart-stats strong {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(8, 12, 17, 0.35);
+}
+
+.history-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  font-size: 11px;
+}
+
+.history-row:last-child {
+  border-bottom: 0;
+}
+
+.history-row span {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+}
+
+.history-row strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .chart-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

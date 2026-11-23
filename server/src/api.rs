@@ -16,6 +16,7 @@ use tower_http::catch_panic::CatchPanicLayer;
 
 use crate::activity::{ActivityStore, NewActivity};
 use crate::config::AppConfig;
+use crate::history::{StatusHistory, StatusHistoryResponse};
 use crate::jobs::JobLauncher;
 use crate::models::{
     HistoryEntry, LoginSession, SessionAction, SessionDetail, SessionSummary, SessionsResponse,
@@ -33,6 +34,7 @@ pub struct AppState {
     pub jobs: Arc<dyn JobLauncher>,
     pub peripherals: Arc<dyn PeripheralProbe>,
     pub activity: Arc<ActivityStore>,
+    pub history: Arc<StatusHistory>,
     pub version: String,
 }
 
@@ -40,6 +42,7 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/status", get(status))
+        .route("/api/status/history", get(status_history))
         .route("/api/peripherals", get(peripherals))
         .route("/api/services", get(service_units))
         .route("/api/services/{unit}/{action}", post(service_action))
@@ -392,6 +395,32 @@ async fn status(State(state): State<AppState>) -> Response {
         Ok(status) => json_response(StatusCode::OK, &status),
         Err(()) => internal_error(),
     }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct StatusHistoryQuery {
+    minutes: Option<String>,
+    limit: Option<String>,
+}
+
+async fn status_history(
+    State(state): State<AppState>,
+    Query(query): Query<StatusHistoryQuery>,
+) -> Response {
+    let minutes = query
+        .minutes
+        .as_deref()
+        .and_then(|value| value.trim().parse::<i64>().ok())
+        .unwrap_or(60)
+        .clamp(1, 360);
+    let limit = query
+        .limit
+        .as_deref()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(720)
+        .clamp(1, 2160);
+    let samples = state.history.samples(minutes, limit);
+    json_response(StatusCode::OK, &StatusHistoryResponse { samples })
 }
 
 async fn peripherals(State(state): State<AppState>) -> Response {

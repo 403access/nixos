@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   Card,
   EmptyState,
@@ -13,6 +15,7 @@ import {
 } from "../components";
 import { useNixOSControl } from "../store";
 import type { AppTab } from "../types";
+import DashboardTilePanel, { type DashboardTile } from "./DashboardTilePanel";
 
 export default function DashboardView({
   onNavigate,
@@ -28,6 +31,7 @@ export default function DashboardView({
     lastUpdated,
     connectionState,
   } = useNixOSControl();
+  const [tile, setTile] = useState<DashboardTile | null>(null);
 
   if (!status && loading.status) {
     return <Spinner label="Loading system status…" />;
@@ -98,6 +102,7 @@ export default function DashboardView({
           value={formatPercent(status.cpu.usage_percent, 1)}
           caption={`${status.cpu.cores} cores · ${status.cpu.model}`}
           progress={status.cpu.usage_percent / 100}
+          onClick={() => setTile("cpu")}
         />
         <MetricTile
           label="Memory"
@@ -105,11 +110,13 @@ export default function DashboardView({
           caption={`of ${formatBytes(status.memory.total)}`}
           progress={memoryFraction}
           tone={memoryFraction >= 0.9 ? "bad" : "accent"}
+          onClick={() => setTile("memory")}
         />
         <MetricTile
           label="Load average"
           value={status.load.map((value) => value.toFixed(2)).join(" / ")}
           caption="1 / 5 / 15 minutes"
+          onClick={() => setTile("load")}
         />
         <MetricTile
           label="Root disk"
@@ -117,6 +124,7 @@ export default function DashboardView({
           caption={`${formatBytes(status.root_disk.used)} of ${formatBytes(status.root_disk.total)}`}
           progress={diskFraction}
           tone={diskFraction >= 0.9 ? "bad" : "accent"}
+          onClick={() => setTile("disk")}
         />
       </div>
 
@@ -223,6 +231,14 @@ export default function DashboardView({
       <div className="view-footer">
         {lastUpdated ? `Updated ${formatTime(lastUpdated)}` : null}
       </div>
+
+      {tile ? (
+        <DashboardTilePanel
+          tile={tile}
+          status={status}
+          onClose={() => setTile(null)}
+        />
+      ) : null}
     </div>
   );
 }

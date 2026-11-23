@@ -17,6 +17,7 @@ import type {
   ServiceUnit,
   SessionDetail,
   SessionSummary,
+  StatusSample,
   StorageSnapshot,
   SystemStatus,
 } from "./types";
@@ -67,6 +68,7 @@ interface Store {
   saveSettings(next: Settings): Promise<string | null>;
   clearSettings(): void;
   refreshStatus(): Promise<void>;
+  fetchStatusHistory(minutes: number, limit?: number): Promise<StatusSample[]>;
   loadServices(): Promise<void>;
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
@@ -129,6 +131,27 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       setLoadingKey("status", false);
     }
   }, [settings, setLoadingKey]);
+
+  const fetchStatusHistory = useCallback(
+    async (minutes: number, limit = 720) => {
+      if (!settings) {
+        return [];
+      }
+      try {
+        const response = await api.getStatusHistory(
+          settings.serverUrl,
+          settings.token,
+          minutes,
+          limit,
+        );
+        return response.samples;
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return [];
+      }
+    },
+    [settings],
+  );
 
   const loadServices = useCallback(async () => {
     if (!settings) {
@@ -503,6 +526,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       saveSettings,
       clearSettings,
       refreshStatus,
+      fetchStatusHistory,
       loadServices,
       loadStorage,
       loadGenerations,
@@ -540,6 +564,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       saveSettings,
       clearSettings,
       refreshStatus,
+      fetchStatusHistory,
       loadServices,
       loadStorage,
       loadGenerations,

@@ -38,7 +38,7 @@ panel to the internet.
 
 - **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory,
   load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale
-  state.
+  state, with charts and recent history in the side panel.
 - **Services** — search and filter systemd units, start/stop/restart,
   enable/disable at boot, and read journal logs.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and

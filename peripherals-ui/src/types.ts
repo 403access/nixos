@@ -126,6 +126,23 @@ export interface GenerationsResponse {
   generations: Generation[];
 }
 
+export interface StatusSample {
+  at: string;
+  cpu: CpuInfo;
+  load: number[];
+  memory: MemoryInfo;
+  root_disk: DiskUsage;
+  services: ServiceCounts;
+  generation: number;
+  uptime_seconds: number;
+  temperatures: Temperature[];
+  pools: PoolSummary[];
+}
+
+export interface StatusHistoryResponse {
+  samples: StatusSample[];
+}
+
 export interface GenerationDiffEntry {
   name: string;
   change: "added" | "removed" | "changed" | string;
