@@ -1,6 +1,8 @@
+import { createPortal } from "react-dom";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
+import { usePanel } from "./panel";
 import type { SignalInfo } from "./types";
 
 export function Card({
@@ -138,6 +140,13 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const { host, setOpen } = usePanel();
+
+  useEffect(() => {
+    setOpen(true);
+    return () => setOpen(false);
+  }, [setOpen]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -148,30 +157,25 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  return (
+  if (!host) {
+    return null;
+  }
+
+  return createPortal(
     <div
-      className="modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+      className={`detail-panel-inner${wide ? " is-wide" : ""}`}
+      role="region"
+      aria-label={title}
     >
-      <div
-        className={`modal${wide ? " modal-wide" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <div className="modal-head">
-          <h2>{title}</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
+      <div className="detail-panel-head">
+        <h2>{title}</h2>
+        <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          ×
+        </button>
       </div>
-    </div>
+      <div className="detail-panel-body">{children}</div>
+    </div>,
+    host,
   );
 }
 

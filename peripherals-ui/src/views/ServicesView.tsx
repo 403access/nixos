@@ -118,7 +118,10 @@ export default function ServicesView() {
         key={service.unit}
         role="button"
         tabIndex={0}
-        onClick={() => setSelected(service)}
+        onClick={() => {
+          setSelected(service);
+          setLogsUnit(null);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             setSelected(service);
@@ -179,6 +182,7 @@ export default function ServicesView() {
             className="button tiny ghost"
             onClick={(event) => {
               event.stopPropagation();
+              setSelected(null);
               setLogsUnit(service.unit);
             }}
           >
@@ -302,7 +306,10 @@ export default function ServicesView() {
             <button
               type="button"
               className="button ghost"
-              onClick={() => setLogsUnit(selectedService.unit)}
+              onClick={() => {
+              setSelected(null);
+              setLogsUnit(selectedService.unit);
+            }}
             >
               Open logs
             </button>

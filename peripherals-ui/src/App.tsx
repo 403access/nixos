@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { formatTime } from "./components";
+import { PanelHost } from "./panel";
 import { NixOSControlProvider, useNixOSControl } from "./store";
 import type { AppTab } from "./types";
 import DashboardView from "./views/DashboardView";
@@ -127,7 +128,8 @@ function Shell() {
         </div>
       </aside>
 
-      <main className="main">
+      <PanelHost>
+        <main className="main">
         <header className="topbar">
           <div>
             <div className="eyebrow">NixOS Control</div>
@@ -169,7 +171,8 @@ function Shell() {
           <span>Read-only receiver probe · token-protected API</span>
           <span>{store.serverVersion ? `NixOS Control ${store.serverVersion}` : "NixOS Control"}</span>
         </footer>
-      </main>
+        </main>
+      </PanelHost>
     </div>
   );
 }
