@@ -25,29 +25,7 @@ lib.mkIf (cfg.enable && cfg.profile == "gnome") {
 
   # WhiteSur's GNOME Shell theme is the part that gives the macOS-style top
   # bar.  The user-theme extension loads it from the system theme directory.
-  programs.dconf.profiles.user.databases = lib.mkIf useWhiteSur [
-    {
-      settings = {
-        "org/gnome/shell" = {
-          enabled-extensions = [
-            "user-theme@gnome-shell-extensions.gcampax.github.com"
-            "dash-to-dock@micxgx.gmail.com"
-            "blur-my-shell@aunetx"
-          ];
-        };
-        "org/gnome/shell/extensions/user-theme" = {
-          name = cfg.gtkThemeName;
-        };
-        "org/gnome/shell/extensions/dash-to-dock" = {
-          dock-position = "BOTTOM";
-          extend-height = false;
-          transparency-mode = "FIXED";
-        };
-      };
-    }
-  ];
-
-  # Apply the selected wallpaper to new GNOME sessions as well.
+  # The same profile also applies the selected wallpaper to new sessions.
   programs.dconf.profiles.user.databases = [
     {
       settings = {
@@ -59,7 +37,25 @@ lib.mkIf (cfg.enable && cfg.profile == "gnome") {
         };
       };
     }
-  ];
+  ] ++ lib.optional useWhiteSur {
+    settings = {
+      "org/gnome/shell" = {
+        enabled-extensions = [
+          "user-theme@gnome-shell-extensions.gcampax.github.com"
+          "dash-to-dock@micxgx.gmail.com"
+          "blur-my-shell@aunetx"
+        ];
+      };
+      "org/gnome/shell/extensions/user-theme" = {
+        name = cfg.gtkThemeName;
+      };
+      "org/gnome/shell/extensions/dash-to-dock" = {
+        dock-position = "BOTTOM";
+        extend-height = false;
+        transparency-mode = "FIXED";
+      };
+    };
+  };
 
   myDesktop.sessionCommand =
     "${pkgs.dbus}/bin/dbus-run-session ${pkgs.gnome-session}/bin/gnome-session";
