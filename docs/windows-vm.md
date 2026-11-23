@@ -333,12 +333,12 @@ virsh -c qemu:///system change-media win11-stock sdb \
   /home/nixos/Downloads/windows-helper.iso --insert --config
 ```
 
-Current layout (verified 2026-11-21):
+Current layout (verified 2026-11-23):
 
 | Target | Media |
 | --- | --- |
 | `vda` | Windows disk |
-| `sda` | empty |
+| `sda` | VIRTIO guest-tools ISO |
 | `sdb` | helper ISO |
 
 The stable helper ISO is
@@ -373,6 +373,62 @@ Two known quirks:
 - `virsh attach-disk ... --type cdrom` can fail with
   *“No more available PCI slots”*. Replace the existing SATA CD with
   `change-media` instead.
+
+## Display resolution
+
+The host HDMI output is 1920×1080. The guest keeps its own framebuffer mode; with
+virtio-gpu and no guest agent it defaults to **1280×800**, and a fullscreen
+viewer alone does not change it.
+
+- `start-vm` opens `virt-viewer` with `--full-screen --auto-resize=always`.
+  Auto-resize only takes effect once the virtio-win guest tools (the SPICE
+  agent) are installed in Windows.
+- Install `virtio-win-guest-tools.exe` from the VIRTIO CD (below), reboot
+  Windows, then set **Settings → Display → 1920×1080** — or let the fullscreen
+  viewer resize the guest.
+- The domain also carries the preferred mode for new boots:
+
+  ```xml
+  <video>
+    <model type='virtio' heads='1' primary='yes'>
+      <resolution x='1920' y='1080'/>
+    </model>
+  </video>
+  ```
+
+  Video changes need a full domain restart (`virsh shutdown win11-stock` then
+  `virsh start win11-stock`), not just a reboot inside Windows.
+
+### VIRTIO guest-tools CD
+
+`virtio-win` keeps the installer in the Nix store. Build a CD with the
+installer, both MSIs and the certificate — **with Joliet**, otherwise Windows
+shows 8.3 names such as `VIRTIO_W.EXE` instead of
+`virtio-win-guest-tools.exe`:
+
+```bash
+V=$(ls -d /nix/store/*-virtio-win-0.1.271-1 | head -1)
+rm -rf /tmp/virtio-tools && mkdir -p /tmp/virtio-tools
+cp "$V"/virtio-win-guest-tools.exe "$V"/virtio-win-gt-x64.msi \
+   "$V"/virtio-win-gt-x86.msi /tmp/virtio-tools/
+cp -r "$V"/cert /tmp/virtio-tools/
+xorriso -as mkisofs -J -R -joliet-long -V VIRTIO \
+  -o /home/nixos/Downloads/virtio-win-tools.iso /tmp/virtio-tools
+```
+
+Insert it into the empty `sda` drive (and persist it in the domain config):
+
+```bash
+virsh -c qemu:///system change-media win11-stock sda --eject
+virsh -c qemu:///system change-media win11-stock sda \
+  /home/nixos/Downloads/virtio-win-tools.iso --insert
+virsh -c qemu:///system change-media win11-stock sda --eject --config
+virsh -c qemu:///system change-media win11-stock sda \
+  /home/nixos/Downloads/virtio-win-tools.iso --insert --config
+```
+
+If the guest instead shows only `VIRTIO_W.EXE`, the ISO was built without
+`-J`; rebuild it and eject/reinsert the media.
 
 ## Connecting from macOS
 
