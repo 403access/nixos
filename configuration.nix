@@ -356,6 +356,15 @@ systemd.sleep.extraConfig = ''
 #    swww
     ];
 
+  # The Windows VM is given every host thread (8 vCPUs). Keep the host's
+  # system and user slices ahead of it whenever the host actually needs CPU or
+  # I/O; weights only matter under contention, so the VM can still use all
+  # cores while the host is idle.
+  systemd.slices.machine.sliceConfig = {
+    CPUWeight = 10;
+    IOWeight = 10;
+  };
+
 # Hyprland configs
 #security.polkit.enable = true;
 #services.dbus.enable = true;
