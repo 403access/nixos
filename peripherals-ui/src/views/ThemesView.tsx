@@ -10,15 +10,17 @@ import {
   jobTone,
 } from "../components";
 import { useNixOSControl } from "../store";
-import type { Job, ThemeCard, ThemeCatalog } from "../types";
+import type { Job, RdpResetResult, ThemeCard, ThemeCatalog } from "../types";
 
 export default function ThemesView() {
-  const { fetchThemes, applyTheme, fetchJob, setActiveJob } = useNixOSControl();
+  const { fetchThemes, applyTheme, resetRdp, fetchJob, setActiveJob } =
+    useNixOSControl();
   const [catalog, setCatalog] = useState<ThemeCatalog | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [job, setJob] = useState<Job | null>(null);
+  const [rdpResult, setRdpResult] = useState<RdpResetResult | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -65,7 +67,7 @@ export default function ThemesView() {
   ) {
     if (
       !window.confirm(
-        `Apply ${label}? This writes the selection and runs nixos-rebuild switch.`,
+        `Apply ${label}? This writes the selection, runs nixos-rebuild switch, and resets RDP sessions when it finishes.`,
       )
     ) {
       return;
@@ -80,6 +82,30 @@ export default function ThemesView() {
     setJob(result.job);
     setActiveJob(result.job);
     setNotice(`${label} selected. Rebuilding the host…`);
+  }
+
+  async function runRdpReset() {
+    if (
+      !window.confirm(
+        "Reset RDP sessions? This disconnects any active RDP session and restarts xrdp. Reconnect afterwards.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setRdpResult(null);
+    const result = await resetRdp(true);
+    if (!result) {
+      setError("Could not reset the RDP session. Check the server log.");
+      return;
+    }
+    setRdpResult(result);
+    setNotice(
+      result.status === "ok"
+        ? "RDP session reset. Reconnect to the desktop."
+        : "RDP reset finished with an error.",
+    );
   }
 
   if (loading && !catalog) {
@@ -120,6 +146,31 @@ export default function ThemesView() {
           <InfoRow label="Catppuccin flavour" value={catalog.current.flavour} />
           <InfoRow label="Accent" value={catalog.current.accent} />
         </div>
+      </Card>
+
+      <Card
+        title="Remote desktop"
+        subtitle="Recover a stuck xrdp session"
+        action={
+          <button
+            type="button"
+            className="button ghost"
+            disabled={busy}
+            onClick={() => void runRdpReset()}
+          >
+            Reset RDP session
+          </button>
+        }
+      >
+        <p className="muted">
+          A rebuild can leave the old xrdp session on its display, so new
+          connections show a black screen and disconnect. Resetting terminates
+          the sessions, removes their X sockets and restarts xrdp. The server
+          also does this automatically after a successful theme apply.
+        </p>
+        {rdpResult ? (
+          <pre className="log-output compact">{rdpResult.output}</pre>
+        ) : null}
       </Card>
 
       {job ? (

@@ -12,6 +12,7 @@ import type {
   SessionsResponse,
   ResourceUsage,
   ResourceHistory,
+  RdpResetResult,
   StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
@@ -161,6 +162,19 @@ export function applyTheme(
     token,
     "/api/themes/apply",
     postJson(update),
+  );
+}
+
+export function resetRdp(
+  serverUrl: string,
+  token: string,
+  force = true,
+): Promise<RdpResetResult> {
+  return request<RdpResetResult>(
+    serverUrl,
+    token,
+    "/api/rdp/reset",
+    postJson({ force }),
   );
 }
 

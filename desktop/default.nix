@@ -253,6 +253,128 @@ let
     '';
   };
 
+  # Reset stale xrdp sessions.  A rebuild can restart xrdp-sesman while the
+  # old Xorg/XFCE session is still alive; the leftover session keeps the
+  # display busy and new RDP connections fail.  `--force` terminates every
+  # xrdp session and restarts both units; without it only stale sessions are
+  # cleaned up.  The control server invokes this as root after a theme change.
+  rdpReset = pkgs.writeShellApplication {
+    name = "nixos-rdp-reset";
+    runtimeInputs = [
+      pkgs.systemd
+      pkgs.coreutils
+      pkgs.gnugrep
+      pkgs.gawk
+      pkgs.procps
+    ];
+    text = ''
+      force=0
+      case "''${1:-}" in
+        --force) force=1 ;;
+        "") ;;
+        *) echo "usage: $0 [--force]" >&2; exit 2 ;;
+      esac
+
+      session_value() {
+        loginctl show-session "$1" -p "$2" --value 2>/dev/null || true
+      }
+
+      terminated=0
+      stale=0
+      kept_displays=""
+
+      while IFS= read -r session; do
+        [ -n "$session" ] || continue
+        [ "$(session_value "$session" Service)" = "xrdp-sesman" ] || continue
+
+        state=$(session_value "$session" State)
+        leader=$(session_value "$session" Leader)
+        display=$(session_value "$session" Display)
+
+        dead_leader=0
+        if [ -n "$leader" ] && [ ! -d "/proc/$leader" ]; then
+          dead_leader=1
+        fi
+
+        if [ "$force" -eq 1 ] || [ "$state" = "closing" ] \
+          || [ "$state" = "abandoned" ] || [ "$dead_leader" -eq 1 ]; then
+          echo "Terminating xrdp session $session (state=''${state:-unknown}, display=''${display:-unknown})"
+          loginctl terminate-session "$session" >/dev/null 2>&1 || true
+          terminated=$((terminated + 1))
+          stale=1
+          case "$display" in
+            :[1-9][0-9]*)
+              rm -f "/tmp/.X11-unix/X''${display#:}"
+              ;;
+          esac
+        else
+          case "$display" in
+            :[1-9][0-9]*) kept_displays="$kept_displays $display" ;;
+          esac
+        fi
+      done < <(loginctl list-sessions --no-legend | awk '{print $1}')
+
+      # Give systemd a moment to reap the session scopes.
+      sleep 1
+
+      # Stop Xorg servers left on an xrdp display (:10 and above) unless a
+      # healthy session is still using that display.
+      for pid in $(pgrep -x Xorg || true); do
+        cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)
+        display=$(printf '%s' "$cmdline" \
+          | grep -oE ' :[1-9][0-9]+( |$)' \
+          | tr -d ' :' \
+          | head -1 || true)
+        [ -n "$display" ] || continue
+        if printf '%s\n' "$kept_displays" | grep -qw ":$display"; then
+          continue
+        fi
+        echo "Stopping orphaned Xorg process $pid on :$display"
+        kill "$pid" >/dev/null 2>&1 || true
+        stale=1
+      done
+
+      sleep 1
+
+      # Remove sockets for xrdp displays that no longer have an X server.
+      for socket in /tmp/.X11-unix/X*; do
+        [ -e "$socket" ] || continue
+        number=''${socket##*/X}
+        case "$number" in
+          [1-9][0-9]|[1-9][0-9][0-9]) ;;
+          *) continue ;;
+        esac
+        if ! pgrep -f "/Xorg :$number( |\$)" >/dev/null 2>&1; then
+          echo "Removed stale X socket $socket"
+          rm -f "$socket"
+          stale=1
+        fi
+      done
+
+      active=1
+      systemctl is-active --quiet xrdp || active=0
+      systemctl is-active --quiet xrdp-sesman || active=0
+
+      restart=0
+      if [ "$force" -eq 1 ] || [ "$active" -eq 0 ]; then
+        restart=1
+      fi
+      if [ "$stale" -eq 1 ] && [ -z "$kept_displays" ]; then
+        restart=1
+      fi
+
+      if [ "$restart" -eq 1 ]; then
+        echo "Restarting xrdp-sesman and xrdp"
+        systemctl restart xrdp-sesman
+        systemctl restart xrdp
+      else
+        echo "No stale RDP sessions found"
+      fi
+
+      echo "RDP reset finished (terminated=$terminated)"
+    '';
+  };
+
 in
 {
   imports = [
@@ -474,6 +596,7 @@ in
       # Common desktop tools
       firefox
       kitty
+      rdpReset
       rofi
       xfce.thunar
       xfce.tumbler
@@ -512,6 +635,10 @@ in
       gtkTheme = cfg.gtkTheme;
       wallpaper = cfg.wallpaperPreset;
     };
+
+    # Stable path used by the control server to reset a wedged xrdp session.
+    environment.etc."nixos-control/rdp-reset".source =
+      "${rdpReset}/bin/nixos-rdp-reset";
 
     environment.etc."gtk-2.0/gtkrc".text = ''
       gtk-theme-name = "${gtkThemeName}"

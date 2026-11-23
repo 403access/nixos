@@ -57,6 +57,11 @@ theme writes `desktop/selected.nix` (with `lib.mkForce`) and runs
 previous generation remains available for rollback. Selecting a GTK theme also
 selects its matching wallpaper; a wallpaper can be pinned separately.
 
+A theme rebuild restarts xrdp, which can leave the old RDP session orphaned on
+its display. The Themes page has a **Reset RDP session** action and the server
+runs the same reset automatically after a successful theme apply, so the next
+connection starts on a clean display.
+
 ```nix
 myDesktop = {
   enable = true;
@@ -573,6 +578,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/resources/history?kind=services&minutes=15&metric=cpu` | Per-entity time series |
 | `GET` | `/api/themes` | Desktop theme catalog and current selection |
 | `POST` | `/api/themes/apply` | Apply a profile, GTK theme or wallpaper (starts a rebuild) |
+| `POST` | `/api/rdp/reset` | Reset stale xrdp sessions |
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
 | `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
 | `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |

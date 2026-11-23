@@ -115,7 +115,9 @@ and executable metadata. Open it from **System → Journal** or from a service's
 **Dashboard → Themes** shows the desktop profile, GTK theme and wallpaper
 gallery with screenshots, descriptions and details. Applying a theme writes the
 selection and starts a NixOS rebuild; the job output is shown on the page. The
-previous generation remains available for rollback.
+previous generation remains available for rollback. A **Reset RDP session**
+action recovers a stuck xrdp display; the server also resets it automatically
+after a successful theme apply.
 
 ## Other LAN access
 

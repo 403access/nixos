@@ -233,6 +233,13 @@ export interface ThemeApplyResult {
   job: Job;
 }
 
+export interface RdpResetResult {
+  status: string;
+  force: boolean;
+  exit_code?: number | null;
+  output: string;
+}
+
 export interface GenerationDiffEntry {
   name: string;
   change: "added" | "removed" | "changed" | string;

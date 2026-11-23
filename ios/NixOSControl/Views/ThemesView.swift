@@ -17,6 +17,8 @@ struct ThemesView: View {
     @State private var pending: ThemeSelection?
     @State private var actionError: String?
     @State private var notice: String?
+    @State private var rdpResult: RdpResetResult?
+    @State private var confirmRdpReset = false
 
     var body: some View {
         ScrollView {
@@ -39,6 +41,7 @@ struct ThemesView: View {
 
                 if let catalog = app.themes {
                     currentCard(catalog)
+                    rdpCard()
 
                     profileSection(catalog)
                     gtkSection(catalog)
@@ -117,6 +120,14 @@ struct ThemesView: View {
         } message: {
             Text(actionError ?? "")
         }
+        .alert("Reset RDP sessions?", isPresented: $confirmRdpReset) {
+            Button("Reset", role: .destructive) {
+                Task { await resetRdp() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This disconnects any active RDP session and restarts xrdp. Reconnect afterwards.")
+        }
     }
 
     private func currentCard(_ catalog: ThemeCatalog) -> some View {
@@ -127,6 +138,51 @@ struct ThemesView: View {
             InfoRow(label: "Catppuccin flavour", value: catalog.current.flavour)
             InfoRow(label: "Accent", value: catalog.current.accent)
         }
+    }
+
+    private func rdpCard() -> some View {
+        Card("Remote desktop", systemImage: "display") {
+            Text("A rebuild can leave the old xrdp session on its display, so new connections show a black screen and disconnect. Resetting terminates the sessions, removes their X sockets and restarts xrdp. The server also does this automatically after a successful theme apply.")
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                confirmRdpReset = true
+            } label: {
+                Text("Reset RDP session")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            .disabled(app.activeJob?.isRunning == true)
+
+            if let result = rdpResult {
+                Text(result.output)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Theme.textMuted)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(
+                        Theme.sunken,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+            }
+        }
+    }
+
+    private func resetRdp() async {
+        actionError = nil
+        notice = nil
+        rdpResult = nil
+        guard let result = await app.resetRdp(force: true) else {
+            actionError = "Could not reset the RDP session."
+            return
+        }
+        rdpResult = result
+        notice = result.status == "ok"
+            ? "RDP session reset. Reconnect to the desktop."
+            : "RDP reset finished with an error."
     }
 
     private func profileSection(_ catalog: ThemeCatalog) -> some View {

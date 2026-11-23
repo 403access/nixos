@@ -352,6 +352,19 @@ final class AppState: ObservableObject {
         }
     }
 
+    func resetRdp(force: Bool = true) async -> RdpResetResult? {
+        guard let client else { return nil }
+        do {
+            return try await client.post(
+                "/api/rdp/reset",
+                body: RdpResetRequest(force: force)
+            )
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
     func fetchResourceHistory(
         kind: String,
         minutes: Int,
@@ -525,4 +538,8 @@ private struct ThemeApplyRequest: Encodable {
     let profile: String?
     let gtkTheme: String?
     let wallpaper: String?
+}
+
+private struct RdpResetRequest: Encodable {
+    let force: Bool
 }

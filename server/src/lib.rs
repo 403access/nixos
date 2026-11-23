@@ -6,6 +6,7 @@ pub mod history;
 pub mod jobs;
 pub mod models;
 pub mod peripherals;
+pub mod rdp;
 pub mod resources;
 pub mod system;
 pub mod themes;

@@ -23,6 +23,7 @@ import type {
   StatusSample,
   StorageSnapshot,
   SystemStatus,
+  RdpResetResult,
   ThemeApplyResult,
   ThemeCatalog,
 } from "./types";
@@ -88,6 +89,7 @@ interface Store {
     gtkTheme?: string;
     wallpaper?: string;
   }): Promise<ThemeApplyResult | null>;
+  resetRdp(force?: boolean): Promise<RdpResetResult | null>;
   loadServices(): Promise<void>;
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
@@ -241,6 +243,21 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
           ...previous.filter((job) => job.id !== result.job.id),
         ]);
         return result;
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
+
+  const resetRdp = useCallback(
+    async (force = true) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        return await api.resetRdp(settings.serverUrl, settings.token, force);
       } catch (cause) {
         setError(api.errorMessage(cause));
         return null;
@@ -621,6 +638,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       fetchResourceHistory,
       fetchThemes,
       applyTheme,
+      resetRdp,
       loadServices,
       loadStorage,
       loadGenerations,
@@ -663,6 +681,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       fetchResourceHistory,
       fetchThemes,
       applyTheme,
+      resetRdp,
       loadServices,
       loadStorage,
       loadGenerations,

@@ -10,6 +10,7 @@ use nixos_control::config::AppConfig;
 use nixos_control::history::{StatusHistory, DEFAULT_HISTORY_CAPACITY};
 use nixos_control::jobs::JobManager;
 use nixos_control::peripherals::LocalPeripherals;
+use nixos_control::rdp::{LocalRdp, RdpReset};
 use nixos_control::resources::{ResourceMonitor, ResourceProbe, SAMPLE_INTERVAL};
 use nixos_control::system::{LocalSystem, SystemProbe};
 use nixos_control::VERSION;
@@ -73,6 +74,7 @@ async fn main() {
     let sampler_history = history.clone();
     let resource_monitor = Arc::new(ResourceMonitor::new());
     let resources: Arc<dyn ResourceProbe> = resource_monitor.clone();
+    let rdp: Arc<dyn RdpReset> = Arc::new(LocalRdp::default());
     let state = AppState {
         config,
         system,
@@ -81,6 +83,7 @@ async fn main() {
         activity,
         history,
         resources,
+        rdp,
         version: VERSION.to_string(),
     };
     let app = build_router(state);

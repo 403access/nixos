@@ -320,6 +320,34 @@ and the job; poll `/api/jobs/{id}` for output. Theme changes require
 `allowRebuild` to be enabled. The active selection is read from
 `/etc/nixos-control/theme.json`, written by the desktop module.
 
+### `POST /api/rdp/reset`
+
+Terminates stale xrdp sessions, removes their leftover X sockets and restarts
+`xrdp-sesman` and `xrdp`. This fixes the black-screen/disconnect loop that can
+happen when a rebuild restarts xrdp while the old desktop session is still
+alive. The theme apply handler runs the same reset automatically after a
+successful rebuild.
+
+```http
+POST /api/rdp/reset
+Content-Type: application/json
+
+{"force": true}
+```
+
+`force` defaults to `true`, which terminates every xrdp session. Send
+`{"force": false}` to clean up only sessions in a stale state. The response
+contains the command output:
+
+```json
+{
+  "status": "ok",
+  "force": true,
+  "exit_code": 0,
+  "output": "Terminating xrdp session 218 (state=closing, display=:10)\nRestarting xrdp-sesman and xrdp\nRDP reset finished (terminated=1)\n"
+}
+```
+
 ## Sessions
 
 | Method | Path | Purpose |

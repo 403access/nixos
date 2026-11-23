@@ -381,3 +381,10 @@ struct ThemeApplyResponse: Decodable {
     let theme: CurrentTheme
     let job: Job
 }
+
+struct RdpResetResult: Decodable {
+    let status: String
+    let force: Bool
+    let exitCode: Int?
+    let output: String
+}

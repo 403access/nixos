@@ -23,6 +23,7 @@ use crate::models::{
     SessionsResponse,
 };
 use crate::peripherals::PeripheralProbe;
+use crate::rdp::RdpReset;
 use crate::resources::ResourceProbe;
 use crate::system::SystemProbe;
 use crate::themes::{self, ThemeApplyRequest};
@@ -39,6 +40,7 @@ pub struct AppState {
     pub activity: Arc<ActivityStore>,
     pub history: Arc<StatusHistory>,
     pub resources: Arc<dyn ResourceProbe>,
+    pub rdp: Arc<dyn RdpReset>,
     pub version: String,
 }
 
@@ -51,6 +53,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/resources/history", get(resource_history))
         .route("/api/themes", get(theme_catalog))
         .route("/api/themes/apply", post(apply_theme))
+        .route("/api/rdp/reset", post(rdp_reset))
         .route("/api/peripherals", get(peripherals))
         .route("/api/services", get(service_units))
         .route("/api/services/{unit}/{action}", post(service_action))
@@ -349,6 +352,7 @@ fn describe_action(
         ["system", "rebuild"] => ("rebuild".to_string(), body_action),
         ["system", "power"] => ("power".to_string(), body_action),
         ["themes", "apply"] => ("apply theme".to_string(), body_action),
+        ["rdp", "reset"] => ("reset RDP session".to_string(), None),
         ["jobs", id, "cancel"] => ("cancel".to_string(), Some(format!("job {id}"))),
         _ => (method.as_str().to_ascii_lowercase(), Some(path.to_string())),
     }
@@ -528,10 +532,70 @@ async fn apply_theme(State(state): State<AppState>, body: Bytes) -> Response {
         Err(message) => return error_response(StatusCode::BAD_REQUEST, message),
     };
     let job = start_rebuild_job(&state, "switch");
+    reset_rdp_after_theme_job(state.clone(), job.id.clone());
     json_response(
         StatusCode::ACCEPTED,
         &serde_json::json!({ "theme": theme, "job": job }),
     )
+}
+
+#[derive(Debug, Deserialize)]
+struct RdpResetRequest {
+    #[serde(default = "default_force_rdp_reset")]
+    force: bool,
+}
+
+fn default_force_rdp_reset() -> bool {
+    true
+}
+
+async fn rdp_reset(State(state): State<AppState>, body: Bytes) -> Response {
+    let request = if body.is_empty() {
+        RdpResetRequest { force: true }
+    } else {
+        match decode_json::<RdpResetRequest>(body) {
+            Ok(request) => request,
+            Err(response) => return response,
+        }
+    };
+
+    let rdp = state.rdp.clone();
+    match blocking(move || rdp.reset(request.force)).await {
+        Ok(result) => json_response(StatusCode::OK, &result),
+        Err(()) => internal_error(),
+    }
+}
+
+/// A theme rebuild can leave the old xrdp session orphaned on its display,
+/// which makes new connections start on the next display and fail. Once the
+/// rebuild finishes, run a forced reset so the next connection starts cleanly.
+fn reset_rdp_after_theme_job(state: AppState, job_id: String) {
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            let Some(job) = state.jobs.snapshot(&job_id) else {
+                return;
+            };
+            match job.status.as_str() {
+                "running" => continue,
+                "succeeded" => {
+                    // Let xrdp-sesman finish its own restart before resetting.
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    let rdp = state.rdp.clone();
+                    match blocking(move || rdp.reset(true)).await {
+                        Ok(result) => log::info!(
+                            "RDP reset after theme apply: status={} exit_code={:?}",
+                            result.status,
+                            result.exit_code
+                        ),
+                        Err(()) => log::warn!("RDP reset task failed after theme apply"),
+                    }
+                    return;
+                }
+                _ => return,
+            }
+        }
+    });
 }
 
 fn start_rebuild_job(state: &AppState, action: &str) -> crate::jobs::Job {

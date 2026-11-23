@@ -18,6 +18,7 @@ use nixos_control::models::{
 use nixos_control::peripherals::{
     BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
 };
+use nixos_control::rdp::{RdpReset, RdpResetResult};
 use nixos_control::resources::{
     ProcessEntry, ResourceEntry, ResourceHistory, ResourceProbe, ResourceSeries,
     ResourceSeriesPoint, ResourceUsage,
@@ -88,6 +89,29 @@ impl JobLauncher for FakeJobs {
 
     fn list(&self) -> Vec<Job> {
         self.jobs.lock().unwrap().clone()
+    }
+}
+
+#[derive(Clone, Default)]
+struct FakeRdp {
+    calls: Arc<Mutex<Vec<bool>>>,
+}
+
+impl FakeRdp {
+    fn calls(&self) -> Vec<bool> {
+        self.calls.lock().unwrap().clone()
+    }
+}
+
+impl RdpReset for FakeRdp {
+    fn reset(&self, force: bool) -> RdpResetResult {
+        self.calls.lock().unwrap().push(force);
+        RdpResetResult {
+            status: "ok".to_string(),
+            force,
+            exit_code: Some(0),
+            output: "reset complete".to_string(),
+        }
     }
 }
 
@@ -530,6 +554,7 @@ struct Fixture {
     state: AppState,
     system: MockSystem,
     jobs: FakeJobs,
+    rdp: FakeRdp,
 }
 
 fn fixture() -> Fixture {
@@ -546,6 +571,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
 
     let system = MockSystem::default();
     let jobs = FakeJobs::default();
+    let rdp = FakeRdp::default();
     let peripherals = MockPeripherals::report();
     let mut config = AppConfig::new(token, None, true, true);
     configure(&mut config);
@@ -560,10 +586,12 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             activity: Arc::new(ActivityStore::new(None)),
             history: Arc::new(StatusHistory::new(10)),
             resources: Arc::new(MockResources::sample()),
+            rdp: Arc::new(rdp.clone()),
             version: "test-version".to_string(),
         },
         system,
         jobs,
+        rdp,
     }
 }
 
@@ -1458,6 +1486,22 @@ async fn theme_apply_validates_and_respects_allow_rebuild() {
         json(&body)["error"],
         "theme changes are disabled on this server"
     );
+}
+
+#[tokio::test]
+async fn rdp_reset_endpoint_runs_cleanup() {
+    let fixture = fixture();
+
+    let (status, _, body) = post(&fixture, "/api/rdp/reset", Some(r#"{"force":true}"#)).await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["status"], "ok");
+    assert_eq!(value["force"], true);
+    assert_eq!(value["output"], "reset complete");
+
+    let (status, _, _) = post(&fixture, "/api/rdp/reset", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(fixture.rdp.calls(), vec![true, true]);
 }
 
 #[tokio::test]
