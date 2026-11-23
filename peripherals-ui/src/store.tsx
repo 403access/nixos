@@ -13,6 +13,7 @@ import type {
   Generation,
   GenerationDiff,
   Job,
+  LogsResponse,
   ProbeReport,
   ResourceUsage,
   ServiceUnit,
@@ -21,6 +22,8 @@ import type {
   StatusSample,
   StorageSnapshot,
   SystemStatus,
+  ThemeApplyResult,
+  ThemeCatalog,
 } from "./types";
 
 export interface Settings {
@@ -71,6 +74,11 @@ interface Store {
   refreshStatus(): Promise<void>;
   fetchStatusHistory(minutes: number, limit?: number): Promise<StatusSample[]>;
   fetchResources(): Promise<ResourceUsage | null>;
+  fetchThemes(): Promise<ThemeCatalog | null>;
+  applyTheme(update: {
+    profile?: string;
+    gtkTheme?: string;
+  }): Promise<ThemeApplyResult | null>;
   loadServices(): Promise<void>;
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
@@ -84,8 +92,8 @@ interface Store {
   startRebuild(action: string): Promise<string | null>;
   cancelActiveJob(): Promise<void>;
   requestPower(action: string): Promise<string | null>;
-  fetchServiceLogs(unit: string, lines: number): Promise<string[]>;
-  fetchSystemLogs(lines: number): Promise<string[]>;
+  fetchServiceLogs(unit: string, lines: number): Promise<LogsResponse | null>;
+  fetchSystemLogs(lines: number): Promise<LogsResponse | null>;
   fetchPoolStatus(name: string): Promise<string | null>;
   setActiveJob(job: Job | null): void;
 }
@@ -169,6 +177,43 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, [settings]);
+
+  const fetchThemes = useCallback(async () => {
+    if (!settings) {
+      return null;
+    }
+    try {
+      return await api.getThemes(settings.serverUrl, settings.token);
+    } catch (cause) {
+      setError(api.errorMessage(cause));
+      return null;
+    }
+  }, [settings]);
+
+  const applyTheme = useCallback(
+    async (update: { profile?: string; gtkTheme?: string }) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        const result = await api.applyTheme(
+          settings.serverUrl,
+          settings.token,
+          update,
+        );
+        setActiveJob(result.job);
+        setJobs((previous) => [
+          result.job,
+          ...previous.filter((job) => job.id !== result.job.id),
+        ]);
+        return result;
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
 
   const loadServices = useCallback(async () => {
     if (!settings) {
@@ -463,41 +508,35 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
   );
 
   const fetchServiceLogs = useCallback(
-    async (unit: string, lines: number) => {
+    async (unit: string, lines: number): Promise<LogsResponse | null> => {
       if (!settings) {
-        return [];
+        return null;
       }
       try {
-        const response = await api.getServiceLogs(
+        return await api.getServiceLogs(
           settings.serverUrl,
           settings.token,
           unit,
           lines,
         );
-        return response.lines;
       } catch (cause) {
         setError(api.errorMessage(cause));
-        return [];
+        return null;
       }
     },
     [settings],
   );
 
   const fetchSystemLogs = useCallback(
-    async (lines: number) => {
+    async (lines: number): Promise<LogsResponse | null> => {
       if (!settings) {
-        return [];
+        return null;
       }
       try {
-        const response = await api.getLogs(
-          settings.serverUrl,
-          settings.token,
-          lines,
-        );
-        return response.lines;
+        return await api.getLogs(settings.serverUrl, settings.token, lines);
       } catch (cause) {
         setError(api.errorMessage(cause));
-        return [];
+        return null;
       }
     },
     [settings],
@@ -545,6 +584,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       refreshStatus,
       fetchStatusHistory,
       fetchResources,
+      fetchThemes,
+      applyTheme,
       loadServices,
       loadStorage,
       loadGenerations,
@@ -584,6 +625,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       refreshStatus,
       fetchStatusHistory,
       fetchResources,
+      fetchThemes,
+      applyTheme,
       loadServices,
       loadStorage,
       loadGenerations,

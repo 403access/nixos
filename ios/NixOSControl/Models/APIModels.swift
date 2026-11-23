@@ -192,6 +192,25 @@ struct ActionResponse: Decodable {
 
 struct LogsResponse: Decodable {
     let lines: [String]
+    let entries: [LogEntry]
+}
+
+struct LogEntry: Decodable, Identifiable {
+    let timestamp: String
+    let priority: Int
+    let level: String
+    let message: String
+    let identifier: String?
+    let unit: String?
+    let pid: Int?
+    let hostname: String?
+    let transport: String?
+    let comm: String?
+    let exe: String?
+
+    var id: String {
+        "\(timestamp)|\(priority)|\(identifier ?? "")|\(pid ?? 0)|\(message)"
+    }
 }
 
 struct PoolStatusResponse: Decodable {
@@ -306,4 +325,32 @@ struct ResourceUsage: Decodable {
     let services: [ResourceEntry]
     let apps: [ResourceEntry]
     let processes: [ResourceProcess]
+}
+
+struct CurrentTheme: Decodable {
+    let profile: String
+    let flavour: String
+    let accent: String
+    let gtkTheme: String
+}
+
+struct ThemeCard: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let description: String
+    let details: [String]
+    let screenshot: String?
+    let accent: String
+    let current: Bool
+}
+
+struct ThemeCatalog: Decodable {
+    let current: CurrentTheme
+    let profiles: [ThemeCard]
+    let gtkThemes: [ThemeCard]
+}
+
+struct ThemeApplyResponse: Decodable {
+    let theme: CurrentTheme
+    let job: Job
 }

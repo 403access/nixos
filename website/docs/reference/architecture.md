@@ -87,6 +87,11 @@ perform every action the module allows.
 - A resource sampler reads `/proc` every five seconds and aggregates CPU,
   resident memory and block I/O by cgroup unit and executable. This powers the
   Resources view; it is read-only.
+- Journal pages are parsed from `journalctl -o json` into structured entries for
+  the Logs views.
+- The Themes page writes `/etc/nixos/desktop/selected.nix` and triggers a
+  rebuild. The active selection is exported to
+  `/etc/nixos-control/theme.json` by the desktop module.
 - The peripherals probe reads HID++ from `/dev/hidraw*` in a blocking worker and
   is read-only.
 - Status and logs are polled by the app; there is no streaming endpoint.

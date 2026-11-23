@@ -17,6 +17,9 @@ ios/DerivedData/
 # Rust build output
 /server/target/
 
+# Theme selected through the control app (generated at runtime)
+/desktop/selected.nix
+
 # Archived Go binaries
 /archive/server-go/nixos-control
 /archive/server-go/server

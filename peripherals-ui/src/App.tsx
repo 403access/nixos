@@ -5,6 +5,7 @@ import { PanelHost } from "./panel";
 import { NixOSControlProvider, useNixOSControl } from "./store";
 import type { AppTab } from "./types";
 import DashboardView from "./views/DashboardView";
+import LogsView from "./views/LogsView";
 import PeripheralsView from "./views/PeripheralsView";
 import ResourcesView from "./views/ResourcesView";
 import ServicesView from "./views/ServicesView";
@@ -12,12 +13,15 @@ import SessionsView from "./views/SessionsView";
 import SettingsView from "./views/SettingsView";
 import StorageView from "./views/StorageView";
 import SystemView from "./views/SystemView";
+import ThemesView from "./views/ThemesView";
 
 const NAV: Array<{ id: AppTab; label: string; icon: string }> = [
   { id: "dashboard", label: "Dashboard", icon: "◈" },
   { id: "sessions", label: "Sessions", icon: "◷" },
   { id: "services", label: "Services", icon: "⚙" },
   { id: "resources", label: "Resources", icon: "▥" },
+  { id: "logs", label: "Logs", icon: "≣" },
+  { id: "themes", label: "Themes", icon: "◑" },
   { id: "storage", label: "Storage", icon: "▤" },
   { id: "system", label: "System", icon: "⌁" },
   { id: "peripherals", label: "Peripherals", icon: "⌨" },
@@ -169,6 +173,8 @@ function Shell() {
         {tab === "sessions" ? <SessionsView /> : null}
         {tab === "services" ? <ServicesView /> : null}
         {tab === "resources" ? <ResourcesView /> : null}
+        {tab === "logs" ? <LogsView /> : null}
+        {tab === "themes" ? <ThemesView /> : null}
         {tab === "storage" ? <StorageView /> : null}
         {tab === "system" ? <SystemView /> : null}
         {tab === "peripherals" ? <PeripheralsView /> : null}

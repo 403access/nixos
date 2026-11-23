@@ -62,6 +62,18 @@ enum SessionFormat {
         return formatter
     }()
 
+    private static let clock: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
+
+    private static let clockWithDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d HH:mm:ss"
+        return formatter
+    }()
+
     private static let relative: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
@@ -84,6 +96,15 @@ enum SessionFormat {
             return value.isEmpty ? "—" : value
         }
         return precise.string(from: date)
+    }
+
+    static func clock(_ value: String) -> String {
+        guard let date = date(value) else {
+            return value.isEmpty ? "—" : value
+        }
+        return Calendar.current.isDateInToday(date)
+            ? clock.string(from: date)
+            : clockWithDate.string(from: date)
     }
 
     static func duration(_ milliseconds: Int) -> String {

@@ -183,7 +183,6 @@ struct RawProcess {
     name: String,
     command: String,
     unit: String,
-    unit_name: String,
     kind: String,
     ticks: u64,
     memory_bytes: i64,
@@ -219,7 +218,7 @@ fn read_processes() -> Vec<RawProcess> {
             .ok()
             .and_then(|contents| parse_cgroup(&contents))
             .unwrap_or_else(|| "/".to_string());
-        let (unit, kind, unit_name) = unit_info(&cgroup);
+        let (unit, kind, _unit_name) = unit_info(&cgroup);
 
         let executable = fs::read_link(base.join("exe")).ok().and_then(|path| {
             path.file_name()
@@ -236,7 +235,6 @@ fn read_processes() -> Vec<RawProcess> {
             name,
             command,
             unit,
-            unit_name,
             kind,
             ticks,
             memory_bytes,

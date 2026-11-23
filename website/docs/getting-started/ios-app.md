@@ -100,6 +100,21 @@ application and individual process. Switch between the three views and sort by
 CPU, memory, disk read or disk write. Values refresh every five seconds; CPU is
 relative to one core and can exceed 100% on multi-core machines.
 
+## Logs
+
+The Logs screen parses the system journal and per-service journals into
+structured entries. Filter by severity, search messages, follow the tail,
+collapse repeated messages and tap an entry for its unit, PID, host, transport
+and executable metadata. Open it from **System → Journal** or from a service's
+**Open journal** row.
+
+## Themes
+
+**Dashboard → Themes** shows the desktop profile and GTK theme gallery with
+screenshots, descriptions and details. Applying a theme writes the selection and
+starts a NixOS rebuild; the job output is shown on the page. The previous
+generation remains available for rollback.
+
 ## Other LAN access
 
 WireGuard mode uses the same server settings as direct LAN access. Enable them

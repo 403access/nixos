@@ -43,6 +43,9 @@ panel to the internet.
   enable/disable at boot, and read journal logs.
 - **Resources** — CPU, memory and disk I/O attribution for services, apps and
   processes.
+- **Logs** — structured journal entries with severity, search and metadata.
+- **Themes** — desktop profile and GTK theme gallery with screenshots and
+  one-click apply.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and
   filesystem usage.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job

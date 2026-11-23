@@ -1,6 +1,7 @@
 pub mod addresses;
 pub mod cpu;
 pub mod generations;
+pub mod logs;
 pub mod services;
 pub mod sessions;
 pub mod status;
@@ -14,7 +15,8 @@ use std::time::Duration;
 use crate::commands::{CommandRunner, RealCommandRunner};
 use crate::config::AppConfig;
 use crate::models::{
-    Generation, GenerationDiff, HistoryEntry, LoginSession, ServiceUnit, Status, StorageSnapshot,
+    Generation, GenerationDiff, HistoryEntry, LoginSession, LogsResponse, ServiceUnit, Status,
+    StorageSnapshot,
 };
 
 /// Filesystem roots used by the system probe. Tests replace these with fixture
@@ -52,8 +54,8 @@ pub trait SystemProbe: Send + Sync {
         Err("generation comparison is not supported".to_string())
     }
     fn service_action(&self, unit: &str, action: &str) -> Result<(), String>;
-    fn service_logs(&self, unit: &str, lines: usize) -> Result<Vec<String>, String>;
-    fn system_logs(&self, lines: usize) -> Result<Vec<String>, String>;
+    fn service_logs(&self, unit: &str, lines: usize) -> Result<LogsResponse, String>;
+    fn system_logs(&self, lines: usize) -> Result<LogsResponse, String>;
     fn pool_status(&self, name: &str) -> Result<String, String>;
     fn power(&self, action: &str) -> Result<(), String>;
 
@@ -155,24 +157,12 @@ impl SystemProbe for LocalSystem {
         command_result(result)
     }
 
-    fn service_logs(&self, unit: &str, lines: usize) -> Result<Vec<String>, String> {
-        let lines = lines.to_string();
-        let result = self.runner.run(
-            "journalctl",
-            &["-u", unit, "-n", &lines, "--no-pager", "-o", "short-iso"],
-            Duration::from_secs(20),
-        );
-        command_lines(result)
+    fn service_logs(&self, unit: &str, lines: usize) -> Result<LogsResponse, String> {
+        logs::service_logs(self.runner.as_ref(), unit, lines)
     }
 
-    fn system_logs(&self, lines: usize) -> Result<Vec<String>, String> {
-        let lines = lines.to_string();
-        let result = self.runner.run(
-            "journalctl",
-            &["-n", &lines, "--no-pager", "-o", "short-iso"],
-            Duration::from_secs(20),
-        );
-        command_lines(result)
+    fn system_logs(&self, lines: usize) -> Result<LogsResponse, String> {
+        logs::system_logs(self.runner.as_ref(), lines)
     }
 
     fn pool_status(&self, name: &str) -> Result<String, String> {
@@ -231,13 +221,6 @@ fn command_result(result: crate::commands::CommandOutput) -> Result<(), String> 
                 message.to_string()
             })
         }
-    }
-}
-
-fn command_lines(result: crate::commands::CommandOutput) -> Result<Vec<String>, String> {
-    match result.error {
-        Some(error) if result.output.trim().is_empty() => Err(error),
-        _ => Ok(crate::util::split_lines(&result.output)),
     }
 }
 
@@ -323,7 +306,7 @@ mod tests {
                         "50".to_string(),
                         "--no-pager".to_string(),
                         "-o".to_string(),
-                        "short-iso".to_string()
+                        "json".to_string()
                     ]
                 ),
                 (
@@ -333,7 +316,7 @@ mod tests {
                         "300".to_string(),
                         "--no-pager".to_string(),
                         "-o".to_string(),
-                        "short-iso".to_string()
+                        "json".to_string()
                     ]
                 ),
                 (

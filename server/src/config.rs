@@ -12,6 +12,8 @@ pub struct AppConfig {
     /// Optional JSONL file that receives the action audit trail. When unset the
     /// log stays in memory only.
     pub activity_file: Option<PathBuf>,
+    /// JSON file written by the desktop module describing the active theme.
+    pub theme_file: PathBuf,
 }
 
 impl AppConfig {
@@ -28,6 +30,7 @@ impl AppConfig {
             allow_power,
             nixos_dir: PathBuf::from("/etc/nixos"),
             activity_file: None,
+            theme_file: PathBuf::from("/etc/nixos-control/theme.json"),
         }
     }
 }

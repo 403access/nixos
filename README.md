@@ -18,6 +18,8 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell commands including timestamps, execution time and exit status.
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
 - **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes.
+- **Logs** — parsed system and service journals with severity filters, search, follow-tail, repeat collapsing and expandable metadata.
+- **Themes** — desktop theme gallery with screenshots, details and one-click apply.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
@@ -47,6 +49,12 @@ XFCE. The original setup remains the default; switch by changing one value.
 | `plasma` | KDE Plasma 6 with the Catppuccin KDE colour scheme, window decoration and SDDM login theme. Works over the VM's X11 VNC display too. |
 | `hyprland` | Hyprland + waybar + mako + Rofi + hyprpaper/hypridle. Wayland only; xrdp is disabled for this profile. |
 | `gnome` | GNOME Shell with the WhiteSur GNOME Shell theme, dash-to-dock and blur-my-shell for the macOS-style top bar. Uses GDM. |
+
+The web console and iOS app include a **Themes** page with screenshots and
+details for these profiles and the GTK theme family. Applying a theme writes
+`desktop/selected.nix` (with `lib.mkForce`) and runs `nixos-rebuild switch`
+through the API; `allowRebuild` must be enabled. The previous generation remains
+available for rollback.
 
 ```nix
 myDesktop = {
@@ -558,6 +566,8 @@ Authorization: Bearer <token>
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
 | `GET` | `/api/resources` | CPU, memory and disk I/O per service, app and process |
+| `GET` | `/api/themes` | Desktop theme catalog and current selection |
+| `POST` | `/api/themes/apply` | Apply a profile or GTK theme (starts a rebuild) |
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
 | `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
 | `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |

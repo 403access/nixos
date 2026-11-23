@@ -8,6 +8,7 @@ pub mod models;
 pub mod peripherals;
 pub mod resources;
 pub mod system;
+pub mod themes;
 pub mod util;
 
 /// Build-time version. The Nix derivation sets `NIXOS_CONTROL_VERSION`;

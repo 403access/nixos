@@ -29,9 +29,11 @@ final class AppState: ObservableObject {
     @Published private(set) var peripherals: PeripheralsReport?
     @Published private(set) var sessions: [SessionSummary] = []
     @Published private(set) var resources: ResourceUsage?
+    @Published private(set) var themes: ThemeCatalog?
     @Published private(set) var isLoadingPeripherals = false
     @Published private(set) var isLoadingSessions = false
     @Published private(set) var isLoadingResources = false
+    @Published private(set) var isLoadingThemes = false
     @Published private(set) var peripheralsError: String?
     @Published private(set) var activeJob: Job?
     @Published private(set) var serverVersion: String?
@@ -149,6 +151,7 @@ final class AppState: ObservableObject {
             peripheralsError = nil
             sessions = []
             resources = nil
+            themes = nil
             await refreshStatus()
             return nil
         } catch {
@@ -175,6 +178,8 @@ final class AppState: ObservableObject {
         isLoadingSessions = false
         resources = nil
         isLoadingResources = false
+        themes = nil
+        isLoadingThemes = false
         activeJob = nil
         serverVersion = nil
         connectionState = .unknown
@@ -308,6 +313,37 @@ final class AppState: ObservableObject {
         }
     }
 
+    func loadThemes() async {
+        guard let client, !isLoadingThemes else { return }
+        isLoadingThemes = true
+        defer { isLoadingThemes = false }
+
+        do {
+            themes = try await client.get("/api/themes")
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func applyTheme(profile: String? = nil, gtkTheme: String? = nil) async -> String? {
+        guard let client else { return "Not configured." }
+        do {
+            let response: ThemeApplyResponse = try await client.post(
+                "/api/themes/apply",
+                body: ThemeApplyRequest(profile: profile, gtkTheme: gtkTheme)
+            )
+            activeJob = response.job
+            jobPollTask?.cancel()
+            jobPollTask = Task { [weak self] in
+                await self?.pollJob(id: response.job.id)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     func fetchSession(_ id: String, lines: Int = 300) async -> SessionDetail? {
         guard let client else { return nil }
         do {
@@ -333,18 +369,17 @@ final class AppState: ObservableObject {
         }
     }
 
-    func fetchLogs(unit: String?, lines: Int) async -> [String] {
-        guard let client else { return [] }
+    func fetchLogs(unit: String?, lines: Int) async -> LogsResponse? {
+        guard let client else { return nil }
         let path = unit.map { "/api/services/\(APIClient.encodePathComponent($0))/logs" } ?? "/api/logs"
         do {
-            let response: LogsResponse = try await client.get(
+            return try await client.get(
                 path,
                 query: [URLQueryItem(name: "lines", value: String(lines))]
             )
-            return response.lines
         } catch {
             lastError = error.localizedDescription
-            return []
+            return nil
         }
     }
 
@@ -429,6 +464,7 @@ final class AppState: ObservableObject {
                 failures = 0
                 if job.status != "running" {
                     await refreshStatus()
+                    await loadThemes()
                     return
                 }
             } catch {
@@ -450,4 +486,9 @@ private struct RebuildRequest: Encodable {
 
 private struct PowerRequest: Encodable {
     let action: String
+}
+
+private struct ThemeApplyRequest: Encodable {
+    let profile: String?
+    let gtkTheme: String?
 }

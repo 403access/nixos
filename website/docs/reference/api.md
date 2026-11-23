@@ -22,6 +22,8 @@ The server listens on `127.0.0.1:8787` by default and returns JSON.
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
 | `GET` | `/api/resources` | CPU, memory and disk I/O by consumer |
+| `GET` | `/api/themes` | Desktop theme catalog and current selection |
+| `POST` | `/api/themes/apply` | Apply a profile or GTK theme |
 | `GET` | `/api/logs?lines=300` | System journal |
 
 ### `GET /api/health`
@@ -215,6 +217,69 @@ Content-Type: application/json
 ```
 
 Allowed actions: `reboot`, `shutdown`, `poweroff`.
+
+## Logs
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/logs?lines=300` | Parsed system journal |
+| `GET` | `/api/services/{unit}/logs?lines=200` | Parsed unit journal |
+
+Both endpoints use `journalctl -o json` and return human-readable `lines` plus
+structured `entries`:
+
+```json
+{
+  "lines": ["2026-11-23T04:20:00Z warning nginx[123]: upstream slow"],
+  "entries": [
+    {
+      "timestamp": "2026-11-23T04:20:00Z",
+      "priority": 4,
+      "level": "warning",
+      "message": "upstream slow",
+      "identifier": "nginx",
+      "unit": "nginx.service",
+      "pid": 123,
+      "hostname": "nixos",
+      "transport": "stdout",
+      "comm": "nginx",
+      "exe": "/nix/store/.../nginx"
+    }
+  ]
+}
+```
+
+The web and iOS apps use the structured entries for severity colours, filters,
+search, follow-tail, repeat collapsing and expandable metadata.
+
+## Themes
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/themes` | Theme catalog and current selection |
+| `POST` | `/api/themes/apply` | Select a profile or GTK theme |
+
+`GET /api/themes` returns the current theme plus desktop profile and GTK theme
+cards with names, descriptions, details, accent colours, screenshot names and
+`current` flags.
+
+```http
+POST /api/themes/apply
+Content-Type: application/json
+
+{"profile": "plasma"}
+```
+
+```json
+{"profile": "plasma", "gtkTheme": "catppuccin"}
+```
+
+At least one field is required. The server writes
+`/etc/nixos/desktop/selected.nix` with `lib.mkForce` settings and starts a
+`nixos-rebuild switch` job. The response is `202 Accepted` with the target theme
+and the job; poll `/api/jobs/{id}` for output. Theme changes require
+`allowRebuild` to be enabled. The active selection is read from
+`/etc/nixos-control/theme.json`, written by the desktop module.
 
 ## Sessions
 

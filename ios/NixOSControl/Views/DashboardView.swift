@@ -17,6 +17,7 @@ struct DashboardView: View {
                     if let status = app.status {
                         metrics(status)
                         resourcesLink
+                        themesLink
                         peripheralsLink
                         servicesCard(status)
                         poolsCard(status)
@@ -58,6 +59,8 @@ struct DashboardView: View {
                 await app.refreshStatus()
             }
             .task {
+                await app.loadThemes()
+                await app.loadResources()
                 await app.refreshStatus()
                 while !Task.isCancelled {
                     try? await Task.sleep(nanoseconds: 10_000_000_000)
@@ -310,6 +313,36 @@ struct DashboardView: View {
                             .foregroundStyle(Theme.textSecondary)
                         if let usage = app.resources, let top = usage.services.first {
                             Text("Top: \(top.name) · \(String(format: "%.1f%%", top.cpuPercent)) CPU")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textMuted)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var themesLink: some View {
+        NavigationLink {
+            ThemesView()
+        } label: {
+            Card("Themes", systemImage: "paintpalette") {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Desktop themes")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("Screenshots, details and one-tap rebuild")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                        if let current = app.themes?.current {
+                            Text("\(current.profile) · \(current.gtkTheme)")
                                 .font(.caption2)
                                 .foregroundStyle(Theme.textMuted)
                                 .lineLimit(1)

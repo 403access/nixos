@@ -17,6 +17,10 @@ view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
   journal logs.
 - **Resources** — CPU, memory and disk I/O by service, app and process, with
   sortable tables and per-consumer details.
+- **Logs** — parsed journals with severity filters, search, follow-tail,
+  collapsible repeats and expandable metadata.
+- **Themes** — desktop profile and GTK theme gallery with screenshots, details
+  and one-click apply through a rebuild.
 - **Storage** — pools, datasets, filesystems and `zpool status`.
 - **System** — machine information, `nixos-rebuild` jobs with live output,
   power actions, generations and generation diffs, and the system journal.

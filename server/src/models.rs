@@ -286,3 +286,35 @@ pub struct SessionDetail {
 pub struct SessionsResponse {
     pub sessions: Vec<SessionSummary>,
 }
+
+/// One parsed journal entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct LogEntry {
+    pub timestamp: String,
+    /// syslog priority 0 (emerg) through 7 (debug).
+    pub priority: u8,
+    /// `emerg`, `alert`, `crit`, `err`, `warning`, `notice`, `info` or `debug`.
+    pub level: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hostname: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transport: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comm: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exe: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct LogsResponse {
+    /// Human-readable lines for clients that do not parse entries.
+    pub lines: Vec<String>,
+    pub entries: Vec<LogEntry>,
+}

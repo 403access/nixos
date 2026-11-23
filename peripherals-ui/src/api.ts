@@ -14,6 +14,8 @@ import type {
   StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
+  ThemeApplyResult,
+  ThemeCatalog,
 } from "./types";
 
 export class ApiError extends Error {
@@ -115,6 +117,26 @@ export function getResources(
   token: string,
 ): Promise<ResourceUsage> {
   return request<ResourceUsage>(serverUrl, token, "/api/resources");
+}
+
+export function getThemes(
+  serverUrl: string,
+  token: string,
+): Promise<ThemeCatalog> {
+  return request<ThemeCatalog>(serverUrl, token, "/api/themes");
+}
+
+export function applyTheme(
+  serverUrl: string,
+  token: string,
+  update: { profile?: string; gtkTheme?: string },
+): Promise<ThemeApplyResult> {
+  return request<ThemeApplyResult>(
+    serverUrl,
+    token,
+    "/api/themes/apply",
+    postJson(update),
+  );
 }
 
 export function getServices(

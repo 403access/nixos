@@ -180,6 +180,34 @@ export interface ResourceUsage {
   processes: ResourceProcess[];
 }
 
+export interface CurrentTheme {
+  profile: string;
+  flavour: string;
+  accent: string;
+  gtkTheme: string;
+}
+
+export interface ThemeCard {
+  id: string;
+  name: string;
+  description: string;
+  details: string[];
+  screenshot?: string | null;
+  accent: string;
+  current: boolean;
+}
+
+export interface ThemeCatalog {
+  current: CurrentTheme;
+  profiles: ThemeCard[];
+  gtkThemes: ThemeCard[];
+}
+
+export interface ThemeApplyResult {
+  theme: CurrentTheme;
+  job: Job;
+}
+
 export interface GenerationDiffEntry {
   name: string;
   change: "added" | "removed" | "changed" | string;
@@ -213,6 +241,21 @@ export interface Job {
 
 export interface LogsResponse {
   lines: string[];
+  entries: LogEntry[];
+}
+
+export interface LogEntry {
+  timestamp: string;
+  priority: number;
+  level: string;
+  message: string;
+  identifier?: string | null;
+  unit?: string | null;
+  pid?: number | null;
+  hostname?: string | null;
+  transport?: string | null;
+  comm?: string | null;
+  exe?: string | null;
 }
 
 export interface SessionSummary {
@@ -331,6 +374,8 @@ export type AppTab =
   | "sessions"
   | "services"
   | "resources"
+  | "logs"
+  | "themes"
   | "storage"
   | "system"
   | "peripherals"

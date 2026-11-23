@@ -19,11 +19,13 @@ use crate::config::AppConfig;
 use crate::history::{StatusHistory, StatusHistoryResponse};
 use crate::jobs::JobLauncher;
 use crate::models::{
-    HistoryEntry, LoginSession, SessionAction, SessionDetail, SessionSummary, SessionsResponse,
+    HistoryEntry, LoginSession, LogsResponse, SessionAction, SessionDetail, SessionSummary,
+    SessionsResponse,
 };
 use crate::peripherals::PeripheralProbe;
 use crate::resources::ResourceProbe;
 use crate::system::SystemProbe;
+use crate::themes::{self, ThemeApplyRequest};
 use crate::util::{
     parse_lines_param, valid_pool_name, valid_session_id, valid_token, valid_unit_name,
 };
@@ -46,6 +48,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/status", get(status))
         .route("/api/status/history", get(status_history))
         .route("/api/resources", get(resources))
+        .route("/api/themes", get(theme_catalog))
+        .route("/api/themes/apply", post(apply_theme))
         .route("/api/peripherals", get(peripherals))
         .route("/api/services", get(service_units))
         .route("/api/services/{unit}/{action}", post(service_action))
@@ -201,7 +205,10 @@ async fn record_activity(State(state): State<AppState>, request: Request, next: 
     // Read it before the handler consumes the request so the audit entry can
     // show what was requested.
     let mut body_action = None;
-    let request = if path == "/api/system/rebuild" || path == "/api/system/power" {
+    let request = if path == "/api/system/rebuild"
+        || path == "/api/system/power"
+        || path == "/api/themes/apply"
+    {
         let (parts, body) = request.into_parts();
         let bytes = match axum::body::to_bytes(body, 1024 * 1024 + 1).await {
             Ok(bytes) => bytes,
@@ -214,7 +221,9 @@ async fn record_activity(State(state): State<AppState>, request: Request, next: 
             .and_then(|value| {
                 value
                     .get("action")
-                    .and_then(|action| action.as_str())
+                    .or_else(|| value.get("profile"))
+                    .or_else(|| value.get("gtkTheme"))
+                    .and_then(|value| value.as_str())
                     .map(str::to_string)
             });
         Request::from_parts(parts, Body::from(bytes))
@@ -338,6 +347,7 @@ fn describe_action(
         ["services", unit, action] => (action.to_string(), Some(unit.to_string())),
         ["system", "rebuild"] => ("rebuild".to_string(), body_action),
         ["system", "power"] => ("power".to_string(), body_action),
+        ["themes", "apply"] => ("apply theme".to_string(), body_action),
         ["jobs", id, "cancel"] => ("cancel".to_string(), Some(format!("job {id}"))),
         _ => (method.as_str().to_ascii_lowercase(), Some(path.to_string())),
     }
@@ -434,6 +444,53 @@ async fn resources(State(state): State<AppState>) -> Response {
             "resource sampler is starting",
         ),
     }
+}
+
+async fn theme_catalog(State(state): State<AppState>) -> Response {
+    json_response(StatusCode::OK, &themes::catalog(&state.config))
+}
+
+async fn apply_theme(State(state): State<AppState>, body: Bytes) -> Response {
+    if !state.config.allow_rebuild {
+        return error_response(
+            StatusCode::FORBIDDEN,
+            "theme changes are disabled on this server",
+        );
+    }
+
+    let request: ThemeApplyRequest = match decode_json(body) {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
+
+    let theme = match themes::apply(&state.config, request) {
+        Ok(theme) => theme,
+        Err(message) => return error_response(StatusCode::BAD_REQUEST, message),
+    };
+    let job = start_rebuild_job(&state, "switch");
+    json_response(
+        StatusCode::ACCEPTED,
+        &serde_json::json!({ "theme": theme, "job": job }),
+    )
+}
+
+fn start_rebuild_job(state: &AppState, action: &str) -> crate::jobs::Job {
+    let mut args = vec![action.to_string()];
+    if let Some(flake) = &state.config.flake {
+        args.push("--flake".to_string());
+        args.push(flake.clone());
+    }
+    let dir = if state.config.nixos_dir.is_dir() {
+        Some(state.config.nixos_dir.clone())
+    } else {
+        None
+    };
+    state.jobs.start(
+        &format!("nixos-rebuild {action}"),
+        "nixos-rebuild",
+        args,
+        dir,
+    )
 }
 
 async fn peripherals(State(state): State<AppState>) -> Response {
@@ -713,16 +770,17 @@ async fn service_logs(
     let unit_for_call = unit.clone();
     let result = blocking(move || system.service_logs(&unit_for_call, lines)).await;
     match result {
-        Ok(Ok(log_lines)) => lines_body(unit, log_lines),
+        Ok(Ok(logs)) => lines_body(unit, logs),
         Ok(Err(message)) => error_response(StatusCode::INTERNAL_SERVER_ERROR, message),
         Err(()) => internal_error(),
     }
 }
 
-fn lines_body(unit: String, lines: Vec<String>) -> Response {
+fn lines_body(unit: String, logs: LogsResponse) -> Response {
     let value = serde_json::json!({
         "unit": unit,
-        "lines": lines,
+        "lines": logs.lines,
+        "entries": logs.entries,
     });
     json_response(StatusCode::OK, &value)
 }
@@ -731,9 +789,7 @@ async fn system_logs(State(state): State<AppState>, Query(query): Query<LinesQue
     let lines = parse_lines_param(query.lines.as_deref().unwrap_or(""), 300);
     let system = state.system.clone();
     match blocking(move || system.system_logs(lines)).await {
-        Ok(Ok(log_lines)) => {
-            json_response(StatusCode::OK, &serde_json::json!({ "lines": log_lines }))
-        }
+        Ok(Ok(logs)) => json_response(StatusCode::OK, &logs),
         Ok(Err(message)) => error_response(StatusCode::INTERNAL_SERVER_ERROR, message),
         Err(()) => internal_error(),
     }
@@ -843,24 +899,7 @@ async fn rebuild(State(state): State<AppState>, body: Bytes) -> Response {
         }
     }
 
-    let mut args = vec![request.action.clone()];
-    if let Some(flake) = &state.config.flake {
-        args.push("--flake".to_string());
-        args.push(flake.clone());
-    }
-
-    let dir = if state.config.nixos_dir.is_dir() {
-        Some(state.config.nixos_dir.clone())
-    } else {
-        None
-    };
-
-    let job = state.jobs.start(
-        &format!("nixos-rebuild {}", request.action),
-        "nixos-rebuild",
-        args,
-        dir,
-    );
+    let job = start_rebuild_job(&state, &request.action);
     json_response(StatusCode::ACCEPTED, &job)
 }
 

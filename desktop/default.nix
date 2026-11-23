@@ -259,7 +259,7 @@ in
     ./profiles/rice.nix
     ./profiles/hyprland.nix
     ./profiles/gnome.nix
-  ];
+  ] ++ lib.optional (builtins.pathExists ./selected.nix) ./selected.nix;
 
   options.myDesktop = {
     enable = lib.mkEnableOption "the themed desktop profiles";
@@ -486,6 +486,14 @@ in
       GTK_THEME = gtkThemeName;
       XCURSOR_THEME = cursorName;
       XCURSOR_SIZE = "24";
+    };
+
+    # Read by the control API so the Themes page can show the active choice.
+    environment.etc."nixos-control/theme.json".text = builtins.toJSON {
+      profile = cfg.profile;
+      flavour = cfg.flavour;
+      accent = cfg.accent;
+      gtkTheme = cfg.gtkTheme;
     };
 
     environment.etc."gtk-2.0/gtkrc".text = ''

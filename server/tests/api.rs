@@ -12,7 +12,8 @@ use nixos_control::history::StatusHistory;
 use nixos_control::jobs::{Job, JobLauncher};
 use nixos_control::models::{
     CpuInfo, DatasetInfo, FilesystemInfo, Generation, GenerationDiff, GenerationDiffEntry,
-    HistoryEntry, LoginSession, PoolInfo, ServiceUnit, Status, StorageSnapshot,
+    HistoryEntry, LogEntry, LoginSession, LogsResponse, PoolInfo, ServiceUnit, Status,
+    StorageSnapshot,
 };
 use nixos_control::peripherals::{
     BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
@@ -368,20 +369,52 @@ impl SystemProbe for MockSystem {
         }
     }
 
-    fn service_logs(&self, unit: &str, lines: usize) -> Result<Vec<String>, String> {
+    fn service_logs(&self, unit: &str, lines: usize) -> Result<LogsResponse, String> {
         self.record(format!("logs {unit} {lines}"));
         match &self.logs_error {
             Some(error) => Err(error.clone()),
-            None => Ok(vec![
-                "2026-01-01 line one".to_string(),
-                "2026-01-01 line two".to_string(),
-            ]),
+            None => Ok(LogsResponse {
+                lines: vec![
+                    "2026-01-01 line one".to_string(),
+                    "2026-01-01 line two".to_string(),
+                ],
+                entries: vec![
+                    LogEntry {
+                        timestamp: "2026-01-01T00:00:00Z".to_string(),
+                        priority: 6,
+                        level: "info".to_string(),
+                        message: "line one".to_string(),
+                        identifier: Some("nginx".to_string()),
+                        unit: Some(unit.to_string()),
+                        ..LogEntry::default()
+                    },
+                    LogEntry {
+                        timestamp: "2026-01-01T00:00:01Z".to_string(),
+                        priority: 6,
+                        level: "info".to_string(),
+                        message: "line two".to_string(),
+                        identifier: Some("nginx".to_string()),
+                        unit: Some(unit.to_string()),
+                        ..LogEntry::default()
+                    },
+                ],
+            }),
         }
     }
 
-    fn system_logs(&self, lines: usize) -> Result<Vec<String>, String> {
+    fn system_logs(&self, lines: usize) -> Result<LogsResponse, String> {
         self.record(format!("system logs {lines}"));
-        Ok(vec!["system line".to_string()])
+        Ok(LogsResponse {
+            lines: vec!["system line".to_string()],
+            entries: vec![LogEntry {
+                timestamp: "2026-01-01T00:00:00Z".to_string(),
+                priority: 6,
+                level: "info".to_string(),
+                message: "system line".to_string(),
+                identifier: Some("systemd".to_string()),
+                ..LogEntry::default()
+            }],
+        })
     }
 
     fn pool_status(&self, name: &str) -> Result<String, String> {
@@ -795,6 +828,9 @@ async fn service_logs_use_the_default_line_count() {
     let value = json(&body);
     assert_eq!(value["unit"], "nginx.service");
     assert_eq!(value["lines"][0], "2026-01-01 line one");
+    assert_eq!(value["entries"][0]["level"], "info");
+    assert_eq!(value["entries"][0]["message"], "line one");
+    assert_eq!(value["entries"][0]["unit"], "nginx.service");
     assert_eq!(fixture.system.calls(), vec!["logs nginx.service 200"]);
 }
 
@@ -835,6 +871,7 @@ async fn system_logs_use_the_default_line_count() {
     let (status, _, body) = get(&fixture, "/api/logs").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json(&body)["lines"][0], "system line");
+    assert_eq!(json(&body)["entries"][0]["identifier"], "systemd");
     assert_eq!(fixture.system.calls(), vec!["system logs 300"]);
 }
 
@@ -1290,4 +1327,80 @@ async fn sessions_endpoint_requires_a_token() {
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn themes_catalog_lists_profiles_and_gtk_themes() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/themes").await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["current"]["profile"], "xfce");
+    assert_eq!(value["profiles"].as_array().unwrap().len(), 5);
+    assert_eq!(value["gtkThemes"].as_array().unwrap().len(), 2);
+    assert_eq!(value["profiles"][1]["screenshot"], "desktop-rice");
+}
+
+#[tokio::test]
+async fn applying_a_theme_writes_selection_and_starts_a_rebuild() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut fixture = fixture();
+    fixture.state.config.nixos_dir = directory.path().join("nixos");
+    fixture.state.config.theme_file = directory.path().join("theme.json");
+    std::fs::create_dir_all(&fixture.state.config.nixos_dir).unwrap();
+
+    let (status, _, body) = post(
+        &fixture,
+        "/api/themes/apply",
+        Some(r#"{"profile":"plasma","gtkTheme":"whitesur"}"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    let value = json(&body);
+    assert_eq!(value["theme"]["profile"], "plasma");
+    assert_eq!(value["theme"]["gtkTheme"], "whitesur");
+    assert_eq!(value["job"]["status"], "running");
+
+    let started = fixture.jobs.started();
+    assert_eq!(started.len(), 1);
+    assert_eq!(started[0].program, "nixos-rebuild");
+    assert_eq!(started[0].args, vec!["switch".to_string()]);
+
+    let selected =
+        std::fs::read_to_string(directory.path().join("nixos/desktop/selected.nix")).unwrap();
+    assert!(selected.contains("myDesktop.profile = lib.mkForce \"plasma\";"));
+    assert!(selected.contains("myDesktop.gtkTheme = lib.mkForce \"whitesur\";"));
+}
+
+#[tokio::test]
+async fn theme_apply_validates_and_respects_allow_rebuild() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut fixture = fixture();
+    fixture.state.config.nixos_dir = directory.path().join("nixos");
+    fixture.state.config.theme_file = directory.path().join("theme.json");
+
+    let (status, _, body) = post(
+        &fixture,
+        "/api/themes/apply",
+        Some(r#"{"profile":"windows"}"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(json(&body)["error"]
+        .as_str()
+        .unwrap()
+        .contains("unknown desktop profile"));
+
+    fixture.state.config.allow_rebuild = false;
+    let (status, _, body) = post(
+        &fixture,
+        "/api/themes/apply",
+        Some(r#"{"profile":"plasma"}"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        json(&body)["error"],
+        "theme changes are disabled on this server"
+    );
 }
