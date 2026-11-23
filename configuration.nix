@@ -61,6 +61,7 @@
       ./nixos-control.nix
       ./nixos-control-web.nix
       ./input-leap-client.nix
+      ./console-desktop.nix
       ./jotta-cli.nix
       ./zfs.nix
       ./desktop
