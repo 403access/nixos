@@ -73,6 +73,21 @@ boot and does not need a reboot to confirm the setting.
 default libvirt network is started by the NixOS module at boot, so the guest
 gets its lease without manual steps.
 
+## CPU allocation and host priority
+
+The VM runs with **8 vCPUs** (1 socket × 4 cores × 2 threads = every host
+thread) and **8 GB** RAM. It may use the whole machine while the host is idle.
+
+Host work always wins under contention, without a hard cap:
+
+- `machine.slice` is given `CPUWeight=10` and `IOWeight=10` through
+  `systemd.slices.machine` in `configuration.nix`, against the default weight
+  100 of `user.slice` and `system.slice`.
+- libvirt also sets the domain's `cputune` to `<shares>256</shares>`.
+
+Weights only matter when the host is busy. During a compile or other host load
+the VM yields; when the host is idle the VM still gets every free cycle.
+
 ## Memory
 
 The guest currently runs with **4 GiB** (reduced from 12 GiB, then 8 GiB, then
