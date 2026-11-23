@@ -802,16 +802,14 @@ code {
 
 .main {
   min-width: 0;
-  padding: 28px 32px;
+  padding: 28px clamp(18px, 2.4vw, 36px);
 }
 
 .main > .topbar,
 .main > .view-stack,
 .main > .footer,
 .main > .settings-view {
-  width: min(1180px, 100%);
-  margin-right: auto;
-  margin-left: auto;
+  width: 100%;
 }
 
 .main .topbar {
@@ -1636,7 +1634,21 @@ code {
   }
 
   .main {
-    padding: 22px 18px;
+    padding: 18px clamp(14px, 4vw, 22px);
+  }
+
+  .sidebar {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .nav-item {
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+
+  .main .topbar h1 {
+    font-size: 24px;
   }
 }
 
