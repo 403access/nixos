@@ -156,7 +156,7 @@ let
 
     echo "Opening the Windows 11 display (Alt+Tab returns to this terminal)..."
     setsid ${pkgs.virt-viewer}/bin/virt-viewer \
-      --connect qemu:///system --wait "$domain" \
+      --connect qemu:///system --wait --full-screen --auto-resize=always "$domain" \
       >"$run_dir/nixos-vm-viewer.log" 2>&1 &
     printf '%s\n' "$!" > "$pidfile"
   '';
