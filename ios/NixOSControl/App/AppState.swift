@@ -241,6 +241,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    func fetchGenerationDiff(from: Int, to: Int) async -> GenerationDiff? {
+        guard let client else { return nil }
+        do {
+            return try await client.get(
+                "/api/system/generations/diff",
+                query: [
+                    URLQueryItem(name: "from", value: String(from)),
+                    URLQueryItem(name: "to", value: String(to)),
+                ]
+            )
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
     func loadPeripherals() async {
         guard let client, !isLoadingPeripherals else { return }
         isLoadingPeripherals = true

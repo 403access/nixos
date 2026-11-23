@@ -43,7 +43,7 @@ panel to the internet.
   enable/disable at boot, and read journal logs.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and
   filesystem usage.
-- **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job
+- **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job
   output and cancellation, reboot, and shutdown.
 - **Peripherals** — read the Logitech receiver and paired devices over HID++:
   names, battery, signal strength and firmware.

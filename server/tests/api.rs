@@ -10,8 +10,8 @@ use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
 use nixos_control::jobs::{Job, JobLauncher};
 use nixos_control::models::{
-    CpuInfo, DatasetInfo, FilesystemInfo, Generation, HistoryEntry, LoginSession, PoolInfo,
-    ServiceUnit, Status, StorageSnapshot,
+    CpuInfo, DatasetInfo, FilesystemInfo, Generation, GenerationDiff, GenerationDiffEntry,
+    HistoryEntry, LoginSession, PoolInfo, ServiceUnit, Status, StorageSnapshot,
 };
 use nixos_control::peripherals::{
     BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
@@ -259,6 +259,40 @@ impl SystemProbe for MockSystem {
             date: "2026-01-01 00:00:00".to_string(),
             current: true,
         }]
+    }
+
+    fn generation_diff(&self, from: i32, to: i32) -> Result<GenerationDiff, String> {
+        self.record(format!("generation diff {from} {to}"));
+        Ok(GenerationDiff {
+            from,
+            to,
+            entries: vec![
+                GenerationDiffEntry {
+                    name: "glibc".to_string(),
+                    change: "changed".to_string(),
+                    before: Some("2.39-52".to_string()),
+                    after: Some("2.39-66".to_string()),
+                    size: Some("+12.0 KiB".to_string()),
+                    line: "glibc: 2.39-52 → 2.39-66, +12.0 KiB".to_string(),
+                },
+                GenerationDiffEntry {
+                    name: "kdeconnect".to_string(),
+                    change: "removed".to_string(),
+                    before: Some("20.08.2".to_string()),
+                    after: None,
+                    size: Some("-6597.8 KiB".to_string()),
+                    line: "kdeconnect: 20.08.2 → ∅, -6597.8 KiB".to_string(),
+                },
+            ],
+            lines: vec![
+                "glibc: 2.39-52 → 2.39-66, +12.0 KiB".to_string(),
+                "kdeconnect: 20.08.2 → ∅, -6597.8 KiB".to_string(),
+            ],
+            added: 0,
+            removed: 1,
+            changed: 1,
+            truncated: false,
+        })
     }
 
     fn service_action(&self, unit: &str, action: &str) -> Result<(), String> {
@@ -706,6 +740,38 @@ async fn generations_are_returned() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json(&body)["generations"][0]["number"], 12);
     assert_eq!(json(&body)["generations"][0]["current"], true);
+}
+
+#[tokio::test]
+async fn generation_diff_is_returned() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/system/generations/diff?from=10&to=12").await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["from"], 10);
+    assert_eq!(value["to"], 12);
+    assert_eq!(value["changed"], 1);
+    assert_eq!(value["removed"], 1);
+    assert_eq!(value["entries"][0]["name"], "glibc");
+    assert_eq!(value["entries"][0]["before"], "2.39-52");
+    assert_eq!(value["entries"][0]["after"], "2.39-66");
+    assert_eq!(fixture.system.calls(), vec!["generation diff 10 12"]);
+}
+
+#[tokio::test]
+async fn generation_diff_validates_parameters() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/system/generations/diff?from=10").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json(&body)["error"], "to is required");
+
+    let (status, _, body) = get(&fixture, "/api/system/generations/diff?from=x&to=12").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json(&body)["error"], "invalid from generation");
+
+    let (status, _, body) = get(&fixture, "/api/system/generations/diff?from=10&to=0").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json(&body)["error"], "invalid to generation");
 }
 
 #[tokio::test]

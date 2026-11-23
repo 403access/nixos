@@ -84,6 +84,13 @@ rebuilds, power changes) with the host's current console, SSH and RDP logins.
 Each entry shows its start time, status and action count; open one to read the
 individual actions, rebuild output, session journal and recent shell history.
 
+## Generations
+
+**System → Generations** lists the available NixOS generations. Tap
+**Compare generations**, choose a **From** and **To** generation, and compare
+their package closures, including added, removed and changed packages with
+version and size deltas.
+
 ## Other LAN access
 
 WireGuard mode uses the same server settings as direct LAN access. Enable them

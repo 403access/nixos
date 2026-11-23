@@ -13,7 +13,9 @@ use std::time::Duration;
 
 use crate::commands::{CommandRunner, RealCommandRunner};
 use crate::config::AppConfig;
-use crate::models::{Generation, HistoryEntry, LoginSession, ServiceUnit, Status, StorageSnapshot};
+use crate::models::{
+    Generation, GenerationDiff, HistoryEntry, LoginSession, ServiceUnit, Status, StorageSnapshot,
+};
 
 /// Filesystem roots used by the system probe. Tests replace these with fixture
 /// directories.
@@ -45,6 +47,10 @@ pub trait SystemProbe: Send + Sync {
     fn collect_services(&self) -> Vec<ServiceUnit>;
     fn collect_storage(&self) -> StorageSnapshot;
     fn collect_generations(&self) -> Vec<Generation>;
+    /// Package-level differences between two NixOS generations.
+    fn generation_diff(&self, _from: i32, _to: i32) -> Result<GenerationDiff, String> {
+        Err("generation comparison is not supported".to_string())
+    }
     fn service_action(&self, unit: &str, action: &str) -> Result<(), String>;
     fn service_logs(&self, unit: &str, lines: usize) -> Result<Vec<String>, String>;
     fn system_logs(&self, lines: usize) -> Result<Vec<String>, String>;
@@ -135,6 +141,10 @@ impl SystemProbe for LocalSystem {
 
     fn collect_generations(&self) -> Vec<Generation> {
         generations::collect_generations(self.runner.as_ref(), &self.paths)
+    }
+
+    fn generation_diff(&self, from: i32, to: i32) -> Result<GenerationDiff, String> {
+        generations::diff_generations(self.runner.as_ref(), &self.paths, from, to)
     }
 
     fn service_action(&self, unit: &str, action: &str) -> Result<(), String> {

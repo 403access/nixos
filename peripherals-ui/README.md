@@ -15,7 +15,7 @@ view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
   journal logs.
 - **Storage** — pools, datasets, filesystems and `zpool status`.
 - **System** — machine information, `nixos-rebuild` jobs with live output,
-  power actions, generations and the system journal.
+  power actions, generations and generation diffs, and the system journal.
 - **Peripherals** — read-only Logitech receiver, paired devices, battery,
   signal and firmware.
 - **Settings** — server URL, bearer token, connection status and local macOS

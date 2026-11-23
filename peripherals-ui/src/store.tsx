@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import * as api from "./api";
 import type {
   Generation,
+  GenerationDiff,
   Job,
   ProbeReport,
   ServiceUnit,
@@ -69,6 +70,7 @@ interface Store {
   loadServices(): Promise<void>;
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
+  fetchGenerationDiff(from: number, to: number): Promise<GenerationDiff | null>;
   loadPeripherals(): Promise<void>;
   loadSessions(): Promise<void>;
   fetchSession(id: string, lines: number): Promise<SessionDetail | null>;
@@ -176,6 +178,26 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       setLoadingKey("generations", false);
     }
   }, [settings, setLoadingKey]);
+
+  const fetchGenerationDiff = useCallback(
+    async (from: number, to: number) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        return await api.getGenerationDiff(
+          settings.serverUrl,
+          settings.token,
+          from,
+          to,
+        );
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
 
   const loadPeripherals = useCallback(async () => {
     if (!settings) {
@@ -484,6 +506,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       loadServices,
       loadStorage,
       loadGenerations,
+      fetchGenerationDiff,
       loadPeripherals,
       loadSessions,
       fetchSession,
@@ -520,6 +543,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       loadServices,
       loadStorage,
       loadGenerations,
+      fetchGenerationDiff,
       loadPeripherals,
       loadSessions,
       fetchSession,

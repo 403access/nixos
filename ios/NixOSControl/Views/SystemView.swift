@@ -304,6 +304,18 @@ struct SystemView: View {
                             .foregroundStyle(Theme.textMuted)
                     }
                 }
+
+                if app.generations.count >= 2 {
+                    Divider()
+                        .overlay(Theme.border)
+
+                    NavigationLink {
+                        GenerationDiffView(generations: app.generations)
+                    } label: {
+                        Label("Compare generations", systemImage: "arrow.left.arrow.right")
+                            .font(.subheadline)
+                    }
+                }
             }
         }
     }

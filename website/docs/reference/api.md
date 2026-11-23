@@ -62,11 +62,42 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/system/generations` | NixOS generations |
+| `GET` | `/api/system/generations/diff?from=91&to=93` | Package-level diff between two generations |
 | `POST` | `/api/system/rebuild` | Start a rebuild job |
 | `GET` | `/api/jobs` | List rebuild jobs |
 | `GET` | `/api/jobs/{id}` | Rebuild job status and output |
 | `POST` | `/api/jobs/{id}/cancel` | Cancel a running job |
 | `POST` | `/api/system/power` | Reboot or shut down |
+
+### Generation diff
+
+`GET /api/system/generations/diff?from=91&to=93` compares the package closures
+of two NixOS generations with `nix store diff-closures`. The response contains
+structured entries plus the raw, ANSI-free output.
+
+```json
+{
+  "from": 91,
+  "to": 93,
+  "added": 2,
+  "removed": 1,
+  "changed": 3,
+  "entries": [
+    {
+      "name": "glibc",
+      "change": "changed",
+      "before": "2.39-52",
+      "after": "2.39-66",
+      "size": "+12.0 KiB",
+      "line": "glibc: 2.39-52 → 2.39-66, +12.0 KiB"
+    }
+  ],
+  "lines": ["glibc: 2.39-52 → 2.39-66, +12.0 KiB"],
+  "truncated": false
+}
+```
+
+Both apps expose this from **System → Generations → Compare generations**.
 
 ### Rebuild
 

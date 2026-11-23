@@ -2035,3 +2035,110 @@ code {
     display: none;
   }
 }
+
+/* Generation comparison: package drift between NixOS configurations. */
+
+.generation-compare {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.generation-compare .select {
+  min-width: 190px;
+}
+
+.generation-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.generation-diff-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.diff-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(8, 12, 17, 0.35);
+}
+
+.diff-entry {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  font-size: 12px;
+}
+
+.diff-entry:last-child {
+  border-bottom: 0;
+}
+
+.diff-mark {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  text-align: center;
+}
+
+.diff-added .diff-mark {
+  color: var(--good);
+}
+
+.diff-removed .diff-mark {
+  color: var(--bad);
+}
+
+.diff-changed .diff-mark {
+  color: var(--warn);
+}
+
+.diff-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.diff-main strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.diff-versions {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.diff-size {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.diff-raw summary {
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}

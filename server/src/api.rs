@@ -47,6 +47,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/storage", get(storage))
         .route("/api/storage/pools/{name}", get(pool_status))
         .route("/api/system/generations", get(generations))
+        .route("/api/system/generations/diff", get(generation_diff))
         .route("/api/system/rebuild", post(rebuild))
         .route("/api/system/power", post(power))
         .route("/api/logs", get(system_logs))
@@ -720,6 +721,45 @@ async fn generations(State(state): State<AppState>) -> Response {
             StatusCode::OK,
             &serde_json::json!({ "generations": generations }),
         ),
+        Err(()) => internal_error(),
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct GenerationDiffQuery {
+    from: Option<String>,
+    to: Option<String>,
+}
+
+fn parse_generation_param(key: &str, value: Option<&str>) -> Result<i32, String> {
+    let value = value.ok_or_else(|| format!("{key} is required"))?;
+    let number: i32 = value
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid {key} generation"))?;
+    if number <= 0 {
+        return Err(format!("invalid {key} generation"));
+    }
+    Ok(number)
+}
+
+async fn generation_diff(
+    State(state): State<AppState>,
+    Query(query): Query<GenerationDiffQuery>,
+) -> Response {
+    let from = match parse_generation_param("from", query.from.as_deref()) {
+        Ok(number) => number,
+        Err(message) => return error_response(StatusCode::BAD_REQUEST, message),
+    };
+    let to = match parse_generation_param("to", query.to.as_deref()) {
+        Ok(number) => number,
+        Err(message) => return error_response(StatusCode::BAD_REQUEST, message),
+    };
+
+    let system = state.system.clone();
+    match blocking(move || system.generation_diff(from, to)).await {
+        Ok(Ok(diff)) => json_response(StatusCode::OK, &diff),
+        Ok(Err(message)) => error_response(StatusCode::BAD_REQUEST, message),
         Err(()) => internal_error(),
     }
 }

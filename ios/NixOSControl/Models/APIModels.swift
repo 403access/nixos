@@ -151,6 +151,28 @@ struct Generation: Decodable, Identifiable {
     var id: Int { number }
 }
 
+struct GenerationDiffEntry: Decodable, Identifiable {
+    let name: String
+    let change: String
+    let before: String?
+    let after: String?
+    let size: String?
+    let line: String
+
+    var id: String { name + "|" + line }
+}
+
+struct GenerationDiff: Decodable {
+    let from: Int
+    let to: Int
+    let entries: [GenerationDiffEntry]
+    let lines: [String]
+    let added: Int
+    let removed: Int
+    let changed: Int
+    let truncated: Bool
+}
+
 struct Job: Decodable, Identifiable {
     let id: String
     let kind: String

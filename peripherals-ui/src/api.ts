@@ -1,6 +1,7 @@
 import type {
   ActionResponse,
   GenerationsResponse,
+  GenerationDiff,
   HealthResponse,
   Job,
   LogsResponse,
@@ -155,6 +156,19 @@ export function getGenerations(
     serverUrl,
     token,
     "/api/system/generations",
+  );
+}
+
+export function getGenerationDiff(
+  serverUrl: string,
+  token: string,
+  from: number,
+  to: number,
+): Promise<GenerationDiff> {
+  return request<GenerationDiff>(
+    serverUrl,
+    token,
+    withQuery("/api/system/generations/diff", { from, to }),
   );
 }
 

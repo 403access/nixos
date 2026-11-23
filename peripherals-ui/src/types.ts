@@ -126,6 +126,26 @@ export interface GenerationsResponse {
   generations: Generation[];
 }
 
+export interface GenerationDiffEntry {
+  name: string;
+  change: "added" | "removed" | "changed" | string;
+  before?: string | null;
+  after?: string | null;
+  size?: string | null;
+  line: string;
+}
+
+export interface GenerationDiff {
+  from: number;
+  to: number;
+  entries: GenerationDiffEntry[];
+  lines: string[];
+  added: number;
+  removed: number;
+  changed: number;
+  truncated: boolean;
+}
+
 export interface Job {
   id: string;
   kind: string;

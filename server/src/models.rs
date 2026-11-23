@@ -105,6 +105,36 @@ pub struct Generation {
     pub current: bool,
 }
 
+/// One package-level difference between two NixOS generations, as reported by
+/// `nix store diff-closures`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GenerationDiffEntry {
+    pub name: String,
+    /// `added`, `removed` or `changed`.
+    pub change: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub before: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub after: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<String>,
+    /// The original line, with ANSI colour codes removed.
+    pub line: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct GenerationDiff {
+    pub from: i32,
+    pub to: i32,
+    pub entries: Vec<GenerationDiffEntry>,
+    pub lines: Vec<String>,
+    pub added: usize,
+    pub removed: usize,
+    pub changed: usize,
+    /// True when the output exceeded the line cap.
+    pub truncated: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct DatasetInfo {
     pub name: String,

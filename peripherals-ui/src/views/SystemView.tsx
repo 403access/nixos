@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Card,
@@ -12,6 +12,7 @@ import {
   jobTone,
 } from "../components";
 import { useNixOSControl } from "../store";
+import type { GenerationDiff } from "../types";
 import LogsModal from "./LogsModal";
 
 const REBUILD_ACTIONS = [
@@ -36,12 +37,56 @@ export default function SystemView() {
     cancelActiveJob,
     requestPower,
     fetchJob,
+    fetchGenerationDiff,
     setActiveJob,
   } = useNixOSControl();
   const [rebuildAction, setRebuildAction] = useState<string>("switch");
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [diffFrom, setDiffFrom] = useState<number | null>(null);
+  const [diffTo, setDiffTo] = useState<number | null>(null);
+  const [generationDiff, setGenerationDiff] = useState<GenerationDiff | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
+
+  const sortedGenerations = useMemo(
+    () => [...generations].sort((left, right) => left.number - right.number),
+    [generations],
+  );
+
+  useEffect(() => {
+    if (sortedGenerations.length < 2) {
+      setDiffFrom(null);
+      setDiffTo(null);
+      return;
+    }
+    const numbers = sortedGenerations.map((generation) => generation.number);
+    setDiffTo((current) =>
+      current !== null && numbers.includes(current)
+        ? current
+        : sortedGenerations[sortedGenerations.length - 1].number,
+    );
+    setDiffFrom((current) =>
+      current !== null && numbers.includes(current)
+        ? current
+        : sortedGenerations[sortedGenerations.length - 2].number,
+    );
+  }, [sortedGenerations]);
+
+  async function runGenerationDiff() {
+    if (diffFrom === null || diffTo === null) {
+      return;
+    }
+    setDiffLoading(true);
+    setDiffError(null);
+    const result = await fetchGenerationDiff(diffFrom, diffTo);
+    setGenerationDiff(result);
+    if (!result) {
+      setDiffError("Could not compare these generations.");
+    }
+    setDiffLoading(false);
+  }
 
   useEffect(() => {
     void loadGenerations();
@@ -233,6 +278,57 @@ export default function SystemView() {
           </button>
         }
       >
+        {sortedGenerations.length >= 2 ? (
+          <div className="generation-compare">
+            <label className="inline-field">
+              From
+              <select
+                className="select"
+                value={diffFrom ?? ""}
+                onChange={(event) => setDiffFrom(Number(event.target.value))}
+              >
+                {sortedGenerations.map((generation) => (
+                  <option value={generation.number} key={generation.number}>
+                    Generation {generation.number} — {generation.date}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="muted" aria-hidden="true">
+              →
+            </span>
+            <label className="inline-field">
+              To
+              <select
+                className="select"
+                value={diffTo ?? ""}
+                onChange={(event) => setDiffTo(Number(event.target.value))}
+              >
+                {sortedGenerations.map((generation) => (
+                  <option value={generation.number} key={generation.number}>
+                    Generation {generation.number} — {generation.date}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="button primary"
+              onClick={() => void runGenerationDiff()}
+              disabled={
+                diffLoading || diffFrom === null || diffTo === null
+              }
+            >
+              {diffLoading ? "Comparing…" : "Compare"}
+            </button>
+            {diffError ? <span className="tone-bad">{diffError}</span> : null}
+          </div>
+        ) : generations.length === 1 ? (
+          <p className="muted">
+            Create another generation to compare configurations.
+          </p>
+        ) : null}
+
         {loading.generations && generations.length === 0 ? (
           <Spinner label="Loading generations…" />
         ) : generations.length === 0 ? (
@@ -253,6 +349,8 @@ export default function SystemView() {
               ))}
           </div>
         )}
+
+        {generationDiff ? <GenerationDiffPanel diff={generationDiff} /> : null}
       </Card>
 
       <Card
@@ -271,6 +369,64 @@ export default function SystemView() {
         <LogsModal title="System journal" unit={null} onClose={() => setShowLogs(false)} />
       ) : null}
     </div>
+  );
+}
+
+function GenerationDiffPanel({ diff }: { diff: GenerationDiff }) {
+  const noChanges = diff.entries.length === 0 && diff.lines.length === 0;
+
+  return (
+    <section className="generation-diff">
+      <div className="generation-diff-head">
+        <strong>
+          Generation {diff.from} → {diff.to}
+        </strong>
+        <span className="muted">
+          {diff.added} added · {diff.removed} removed · {diff.changed} changed
+        </span>
+      </div>
+
+      {noChanges ? (
+        <p className="muted">No package changes between these generations.</p>
+      ) : diff.entries.length > 0 ? (
+        <div className="diff-list">
+          {diff.entries.map((entry, index) => (
+            <div
+              className={`diff-entry diff-${entry.change}`}
+              key={`${entry.name}-${index}`}
+              title={entry.line}
+            >
+              <span className="diff-mark" aria-hidden="true">
+                {entry.change === "added"
+                  ? "+"
+                  : entry.change === "removed"
+                    ? "−"
+                    : "~"}
+              </span>
+              <div className="diff-main">
+                <strong>{entry.name}</strong>
+                {entry.before || entry.after ? (
+                  <span className="diff-versions">
+                    {entry.before ?? "∅"} → {entry.after ?? "∅"}
+                  </span>
+                ) : null}
+              </div>
+              {entry.size ? <span className="diff-size">{entry.size}</span> : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <pre className="log-output compact">{diff.lines.join("\n")}</pre>
+      )}
+
+      {diff.truncated ? <p className="muted">Output truncated.</p> : null}
+      {diff.entries.length > 0 && diff.lines.length > 0 ? (
+        <details className="diff-raw">
+          <summary>Raw output</summary>
+          <pre className="log-output compact">{diff.lines.join("\n")}</pre>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

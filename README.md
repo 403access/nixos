@@ -18,7 +18,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell history.
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
-- **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
+- **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
 - **Tailscale or WireGuard** — the iPhone reaches the machine through the tailnet, or through the WireGuard VPN that already runs on your FRITZ!Box.
@@ -563,6 +563,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/storage` | Pools, datasets, filesystems |
 | `GET` | `/api/storage/pools/{name}` | `zpool status` output |
 | `GET` | `/api/system/generations` | NixOS generations |
+| `GET` | `/api/system/generations/diff?from=91&to=93` | Package-level diff between two generations |
 | `POST` | `/api/system/rebuild` | `{"action":"switch"\|"boot"\|"test"\|"dry-activate"\|"dry-build"}` |
 | `GET` | `/api/jobs/{id}` | Rebuild job status/output |
 | `POST` | `/api/jobs/{id}/cancel` | Cancel a rebuild |
