@@ -381,12 +381,24 @@ Mac:   nc -> sox `play` -> default CoreAudio device (AirPods)
   not exposed on the Tailscale or container interfaces;
 - the stream is unauthenticated raw PCM, intended for the home LAN.
 
-Control which output is used:
+Check and switch it from the NixOS terminal:
 
 | Command | Effect |
 | --- | --- |
-| `audio-airpods` | Route NixOS audio to the bridge (the default). |
-| `audio-local` | Route it back to the first hardware sink. |
+| `audio-bridge` (or `audio-bridge status`) | Report whether audio is bridged, whether the sink exists and how many Mac clients are connected. |
+| `audio-bridge on` (`audio-airpods`) | Route NixOS audio to the bridge (the default). |
+| `audio-bridge off` (`audio-local`) | Route it back to the first hardware sink. |
+
+```text
+$ audio-bridge
+audio bridge: ON  (default sink: airpods_bridge)
+bridge sink:   present
+mac client:    1 connection(s) on port 4953
+```
+
+The TCP connection stays open while the bridge is off; it then carries
+digital silence, so switching is instant and the Mac reconnects immediately
+when audio is routed back.
 
 ### Mac side
 

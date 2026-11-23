@@ -38,9 +38,10 @@ let
          5. nixos-control      Show the web dashboard URL and the control
                                service state.
 
-         6. audio-airpods      Route NixOS audio to the AirPods bridge
-                               (the default). audio-local routes it back to
-                               the local output.
+         6. audio-bridge       Show whether NixOS audio is bridged to the
+                               AirPods. `audio-bridge on` / `audio-bridge off`
+                               switches it; audio-airpods / audio-local are
+                               shortcuts for on / off.
 
          7. stop-desktop       Stop the desktop and return to this console.
 

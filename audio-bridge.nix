@@ -21,25 +21,69 @@ let
   sink = "airpods_bridge";
   port = 4953;
 
-  # Switches the default output between the bridge and the local hardware sink.
-  audioAirpods = pkgs.writeShellScriptBin "audio-airpods" ''
+  # Switches the default output between the bridge and the local hardware
+  # sink, and reports whether audio is currently bridged.
+  audioBridge = pkgs.writeShellScriptBin "audio-bridge" ''
+    set -u
     export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-${runtimeDir}}"
-    if ! ${pulse}/bin/pactl list short sinks | awk '{ print $2 }' | grep -qx ${sink}; then
-      ${pulse}/bin/pactl load-module module-null-sink sink_name=${sink} \
-        sink_properties=device.description=AirPods-Bridge >/dev/null
-    fi
-    exec ${pulse}/bin/pactl set-default-sink ${sink}
+    export PULSE_SERVER="''${PULSE_SERVER:-unix:${runtimeDir}/pulse/native}"
+    bridge=${sink}
+    ctl=${pulse}/bin/pactl
+
+    ensure_sink() {
+      if ! "$ctl" list short sinks | awk '{ print $2 }' | grep -qx "$bridge"; then
+        "$ctl" load-module module-null-sink sink_name="$bridge" \
+          sink_properties=device.description=AirPods-Bridge >/dev/null
+      fi
+    }
+
+    local_sink() {
+      "$ctl" list short sinks | awk -v b="$bridge" '$2 != b { print $2; exit }'
+    }
+
+    case "''${1:-status}" in
+      on)
+        ensure_sink
+        "$ctl" set-default-sink "$bridge"
+        echo "Audio bridge: ON. NixOS audio now plays on the Mac (AirPods)."
+        ;;
+      off)
+        target=$(local_sink)
+        if [ -z "$target" ]; then
+          echo "No local audio sink found." >&2
+          exit 1
+        fi
+        "$ctl" set-default-sink "$target"
+        echo "Audio bridge: OFF. NixOS audio plays on $target."
+        ;;
+      status)
+        current=$("$ctl" get-default-sink)
+        if [ "$current" = "$bridge" ]; then
+          echo "audio bridge: ON  (default sink: $bridge)"
+        else
+          echo "audio bridge: OFF (default sink: $current)"
+        fi
+        if "$ctl" list short sinks | awk '{ print $2 }' | grep -qx "$bridge"; then
+          echo "bridge sink:   present"
+        else
+          echo "bridge sink:   not created"
+        fi
+        conns=$(ss -Htn state established "( sport = :${toString port} )" 2>/dev/null | wc -l)
+        echo "mac client:    ''${conns} connection(s) on port ${toString port}"
+        ;;
+      *)
+        echo "usage: audio-bridge [on|off|status]" >&2
+        exit 2
+        ;;
+    esac
+  '';
+
+  audioAirpods = pkgs.writeShellScriptBin "audio-airpods" ''
+    exec ${audioBridge}/bin/audio-bridge on
   '';
 
   audioLocal = pkgs.writeShellScriptBin "audio-local" ''
-    export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-${runtimeDir}}"
-    local_sink=$(${pulse}/bin/pactl list short sinks |
-      awk -v bridge=${sink} '$2 != bridge { print $2; exit }')
-    if [ -z "$local_sink" ]; then
-      echo "No local audio sink found." >&2
-      exit 1
-    fi
-    exec ${pulse}/bin/pactl set-default-sink "$local_sink"
+    exec ${audioBridge}/bin/audio-bridge off
   '';
 
   # Runs once per accepted TCP connection; stdout is the socket.
@@ -90,5 +134,5 @@ in
   # Tailscale or container interfaces.
   networking.firewall.allowedTCPPorts = [ port ];
 
-  environment.systemPackages = [ pulse audioAirpods audioLocal ];
+  environment.systemPackages = [ pulse audioBridge audioAirpods audioLocal ];
 }
