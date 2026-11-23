@@ -244,10 +244,11 @@ The Windows guest can run its own InputLeap client, so the Mac sends input
 straight to Windows over the LAN instead of routing it through NixOS and the
 SPICE window. That removes the extra hop and the SPICE pointer latency.
 
-1. Get the Windows build (portable, no installer) into the guest. It is on the
-   `WINDOWS` tools CD as `InputLeap-windows-debug-3.0.3.zip`; copy it to e.g.
-   `C:\Tools` and extract it.
-2. Run `input-leap.exe` → **Client**, Server IP `192.168.178.33`, Screen name
+1. Run `InputLeap_3.0.2_windows_qt6.exe` from the `WINDOWS` tools CD and install
+   it. (The 3.0.3 Windows assets are Debug builds that need the
+   non-redistributable MSVC debug CRT; 3.0.2 is the latest Windows release and
+   speaks the same protocol as the 3.0.3 server.)
+2. Launch InputLeap → **Client**, Server IP `192.168.178.33`, Screen name
    `windows`, then **Start**. Accept the server certificate prompt.
 3. Add the client to the login autostart (a shortcut in `shell:startup`, or the
    GUI's start-at-login option).
@@ -265,7 +266,7 @@ mkdir -p /tmp/win-tools
 cp "$V"/virtio-win-guest-tools.exe "$V"/virtio-win-gt-x64.msi \
    "$V"/virtio-win-gt-x86.msi /tmp/win-tools/
 cp -r "$V"/cert /tmp/win-tools/
-cp InputLeap-windows-debug-3.0.3.zip /tmp/win-tools/
+cp InputLeap_3.0.2_windows_qt6.exe /tmp/win-tools/
 xorriso -as mkisofs -J -R -joliet-long -V WINDOWS \
   -o /home/nixos/Downloads/windows-tools.iso /tmp/win-tools
 ```
