@@ -8,6 +8,10 @@ use http_body_util::BodyExt;
 use nixos_control::activity::ActivityStore;
 use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
+use nixos_control::files::{
+    FileBrowseError, FileBrowser, FileEntry, FileFilter, FileListing, FileOptions, FileOrder,
+    FileRequest, FileSort,
+};
 use nixos_control::history::StatusHistory;
 use nixos_control::jobs::{Job, JobLauncher};
 use nixos_control::models::{
@@ -89,6 +93,48 @@ impl JobLauncher for FakeJobs {
 
     fn list(&self) -> Vec<Job> {
         self.jobs.lock().unwrap().clone()
+    }
+}
+
+#[derive(Clone, Default)]
+struct FakeFiles {
+    requests: Arc<Mutex<Vec<FileRequest>>>,
+}
+
+impl FakeFiles {
+    fn requests(&self) -> Vec<FileRequest> {
+        self.requests.lock().unwrap().clone()
+    }
+}
+
+impl FileBrowser for FakeFiles {
+    fn browse(&self, request: FileRequest) -> Result<FileListing, FileBrowseError> {
+        self.requests.lock().unwrap().push(request);
+        Ok(FileListing {
+            root: "/".to_string(),
+            path: "/home".to_string(),
+            parent: Some("/".to_string()),
+            total: 2,
+            truncated: false,
+            entries: vec![
+                FileEntry {
+                    name: "nixos".to_string(),
+                    path: "/home/nixos".to_string(),
+                    kind: "dir".to_string(),
+                    size: 0,
+                    modified: Some("2026-01-01T00:00:00Z".to_string()),
+                    hidden: false,
+                },
+                FileEntry {
+                    name: "notes.txt".to_string(),
+                    path: "/home/notes.txt".to_string(),
+                    kind: "file".to_string(),
+                    size: 128,
+                    modified: None,
+                    hidden: false,
+                },
+            ],
+        })
     }
 }
 
@@ -555,6 +601,7 @@ struct Fixture {
     system: MockSystem,
     jobs: FakeJobs,
     rdp: FakeRdp,
+    files: FakeFiles,
 }
 
 fn fixture() -> Fixture {
@@ -572,6 +619,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
     let system = MockSystem::default();
     let jobs = FakeJobs::default();
     let rdp = FakeRdp::default();
+    let files = FakeFiles::default();
     let peripherals = MockPeripherals::report();
     let mut config = AppConfig::new(token, None, true, true);
     configure(&mut config);
@@ -587,11 +635,13 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             history: Arc::new(StatusHistory::new(10)),
             resources: Arc::new(MockResources::sample()),
             rdp: Arc::new(rdp.clone()),
+            files: Arc::new(files.clone()),
             version: "test-version".to_string(),
         },
         system,
         jobs,
         rdp,
+        files,
     }
 }
 
@@ -967,6 +1017,56 @@ async fn storage_returns_pools_datasets_and_filesystems() {
     assert_eq!(value["pools"][0]["name"], "tank");
     assert_eq!(value["datasets"][0]["name"], "tank/data");
     assert_eq!(value["filesystems"][0]["mountpoint"], "/");
+}
+
+#[tokio::test]
+async fn storage_files_lists_and_passes_options() {
+    let fixture = fixture();
+    let (status, _, body) = get(
+        &fixture,
+        "/api/storage/files?root=%2F&path=%2Fhome&q=txt&sort=size&order=desc&filter=files&hidden=true",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["path"], "/home");
+    assert_eq!(value["total"], 2);
+    assert_eq!(value["entries"][0]["name"], "nixos");
+    assert_eq!(value["entries"][1]["size"], 128);
+
+    let requests = fixture.files.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].root, PathBuf::from("/"));
+    assert_eq!(requests[0].path, PathBuf::from("/home"));
+    assert_eq!(
+        requests[0].options,
+        FileOptions {
+            query: Some("txt".to_string()),
+            sort: FileSort::Size,
+            order: FileOrder::Desc,
+            filter: FileFilter::Files,
+            hidden: true,
+        }
+    );
+}
+
+#[tokio::test]
+async fn storage_files_validates_query_parameters() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/storage/files").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json(&body)["error"], "root is required");
+
+    let (status, _, body) = get(&fixture, "/api/storage/files?root=%2F&sort=nope").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json(&body)["error"],
+        "sort must be name, size, modified or type"
+    );
+
+    let (status, _, body) = get(&fixture, "/api/storage/files?root=%2F&filter=nope").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json(&body)["error"], "filter must be all, files or dirs");
 }
 
 #[tokio::test]

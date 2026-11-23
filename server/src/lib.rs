@@ -2,6 +2,7 @@ pub mod activity;
 pub mod api;
 pub mod commands;
 pub mod config;
+pub mod files;
 pub mod history;
 pub mod jobs;
 pub mod models;

@@ -13,6 +13,7 @@ import type {
   ResourceUsage,
   ResourceHistory,
   RdpResetResult,
+  FileListing,
   StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
@@ -217,6 +218,34 @@ export function getStorage(
   token: string,
 ): Promise<StorageSnapshot> {
   return request<StorageSnapshot>(serverUrl, token, "/api/storage");
+}
+
+export function getFiles(
+  serverUrl: string,
+  token: string,
+  params: {
+    root: string;
+    path?: string;
+    q?: string;
+    sort?: string;
+    order?: string;
+    filter?: string;
+    hidden?: boolean;
+  },
+): Promise<FileListing> {
+  return request<FileListing>(
+    serverUrl,
+    token,
+    withQuery("/api/storage/files", {
+      root: params.root,
+      path: params.path,
+      q: params.q || undefined,
+      sort: params.sort,
+      order: params.order,
+      filter: params.filter,
+      hidden: params.hidden ? "true" : "false",
+    }),
+  );
 }
 
 export function getPoolStatus(

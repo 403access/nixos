@@ -116,6 +116,24 @@ export interface StorageSnapshot {
   filesystems: FilesystemInfo[];
 }
 
+export interface FileEntry {
+  name: string;
+  path: string;
+  kind: "dir" | "file" | "symlink" | "other" | string;
+  size: number;
+  modified?: string | null;
+  hidden: boolean;
+}
+
+export interface FileListing {
+  root: string;
+  path: string;
+  parent?: string | null;
+  entries: FileEntry[];
+  total: number;
+  truncated: boolean;
+}
+
 export interface Generation {
   number: number;
   date: string;

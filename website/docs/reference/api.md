@@ -186,7 +186,53 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/storage` | Pools, datasets, filesystems |
+| `GET` | `/api/storage/files?root=/&path=/home` | Read-only directory listing and search |
 | `GET` | `/api/storage/pools/{name}` | `zpool status` output |
+
+### File explorer
+
+`GET /api/storage/files` lists one directory inside a selected filesystem. The
+path must stay inside `root`; symlinks are resolved and anything outside the
+selected mount is rejected. Directories are returned first.
+
+- `root` (required): absolute mountpoint selected on the Storage page
+- `path`: absolute directory to list, defaults to `root`
+- `q`: case-insensitive name search, recursive up to 8 levels
+- `sort`: `name`, `size`, `modified` or `type`
+- `order`: `asc` or `desc`
+- `filter`: `all`, `files` or `dirs`
+- `hidden`: `true` to include dotfiles
+
+```json
+{
+  "root": "/",
+  "path": "/home/nixos",
+  "parent": "/home",
+  "total": 2,
+  "truncated": false,
+  "entries": [
+    {
+      "name": "Desktop",
+      "path": "/home/nixos/Desktop",
+      "kind": "dir",
+      "size": 0,
+      "modified": "2026-11-23T04:12:30Z",
+      "hidden": false
+    },
+    {
+      "name": "notes.txt",
+      "path": "/home/nixos/notes.txt",
+      "kind": "file",
+      "size": 128,
+      "modified": "2026-11-22T18:01:00Z",
+      "hidden": false
+    }
+  ]
+}
+```
+
+Listings are capped at 2000 entries and searches at 500 results, 20,000 visited
+entries or 1.5 seconds; `truncated` is set when a limit is reached.
 
 ## System
 

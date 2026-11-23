@@ -7,6 +7,7 @@ use clap::{ArgAction, Parser};
 use nixos_control::activity::ActivityStore;
 use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
+use nixos_control::files::{FileBrowser, LocalFiles};
 use nixos_control::history::{StatusHistory, DEFAULT_HISTORY_CAPACITY};
 use nixos_control::jobs::JobManager;
 use nixos_control::peripherals::LocalPeripherals;
@@ -75,6 +76,7 @@ async fn main() {
     let resource_monitor = Arc::new(ResourceMonitor::new());
     let resources: Arc<dyn ResourceProbe> = resource_monitor.clone();
     let rdp: Arc<dyn RdpReset> = Arc::new(LocalRdp::default());
+    let files: Arc<dyn FileBrowser> = Arc::new(LocalFiles);
     let state = AppState {
         config,
         system,
@@ -84,6 +86,7 @@ async fn main() {
         history,
         resources,
         rdp,
+        files,
         version: VERSION.to_string(),
     };
     let app = build_router(state);

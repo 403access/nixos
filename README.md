@@ -20,7 +20,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes, with time-series charts for the last hour.
 - **Logs** — parsed system and service journals with severity filters, search, follow-tail, repeat collapsing and expandable metadata.
 - **Themes** — desktop profile, GTK theme and wallpaper gallery with screenshots, details and one-click apply.
-- **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
+- **Storage** — ZFS pool usage and health, `zpool status`, datasets, filesystem usage, and a read-only file explorer that opens beside the list.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
@@ -586,6 +586,7 @@ Authorization: Bearer <token>
 | `POST` | `/api/services/{unit}/{action}` | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `reset-failed`, … |
 | `GET` | `/api/services/{unit}/logs?lines=200` | Service journal |
 | `GET` | `/api/storage` | Pools, datasets, filesystems |
+| `GET` | `/api/storage/files` | Read-only directory listing and search |
 | `GET` | `/api/storage/pools/{name}` | `zpool status` output |
 | `GET` | `/api/system/generations` | NixOS generations |
 | `GET` | `/api/system/generations/diff?from=91&to=93` | Package-level diff between two generations |

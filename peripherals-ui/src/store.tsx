@@ -12,6 +12,7 @@ import * as api from "./api";
 import type {
   Generation,
   GenerationDiff,
+  FileListing,
   Job,
   LogsResponse,
   ProbeReport,
@@ -106,6 +107,15 @@ interface Store {
   fetchServiceLogs(unit: string, lines: number): Promise<LogsResponse | null>;
   fetchSystemLogs(lines: number): Promise<LogsResponse | null>;
   fetchPoolStatus(name: string): Promise<string | null>;
+  fetchFiles(params: {
+    root: string;
+    path?: string;
+    q?: string;
+    sort?: string;
+    order?: string;
+    filter?: string;
+    hidden?: boolean;
+  }): Promise<FileListing | null>;
   setActiveJob(job: Job | null): void;
 }
 
@@ -613,6 +623,29 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
     [settings],
   );
 
+  const fetchFiles = useCallback(
+    async (params: {
+      root: string;
+      path?: string;
+      q?: string;
+      sort?: string;
+      order?: string;
+      filter?: string;
+      hidden?: boolean;
+    }) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        return await api.getFiles(settings.serverUrl, settings.token, params);
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
+
   const value = useMemo<Store>(
     () => ({
       settings,
@@ -655,6 +688,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       fetchServiceLogs,
       fetchSystemLogs,
       fetchPoolStatus,
+      fetchFiles,
       setActiveJob,
     }),
     [
@@ -698,6 +732,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       fetchServiceLogs,
       fetchSystemLogs,
       fetchPoolStatus,
+      fetchFiles,
     ],
   );
 

@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -16,6 +17,7 @@ use tower_http::catch_panic::CatchPanicLayer;
 
 use crate::activity::{ActivityStore, NewActivity};
 use crate::config::AppConfig;
+use crate::files::{FileBrowser, FileFilter, FileOptions, FileOrder, FileRequest, FileSort};
 use crate::history::{StatusHistory, StatusHistoryResponse};
 use crate::jobs::JobLauncher;
 use crate::models::{
@@ -41,6 +43,7 @@ pub struct AppState {
     pub history: Arc<StatusHistory>,
     pub resources: Arc<dyn ResourceProbe>,
     pub rdp: Arc<dyn RdpReset>,
+    pub files: Arc<dyn FileBrowser>,
     pub version: String,
 }
 
@@ -59,6 +62,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/services/{unit}/{action}", post(service_action))
         .route("/api/services/{unit}/logs", get(service_logs))
         .route("/api/storage", get(storage))
+        .route("/api/storage/files", get(storage_files))
         .route("/api/storage/pools/{name}", get(pool_status))
         .route("/api/system/generations", get(generations))
         .route("/api/system/generations/diff", get(generation_diff))
@@ -931,6 +935,88 @@ async fn storage(State(state): State<AppState>) -> Response {
     let system = state.system.clone();
     match blocking(move || system.collect_storage()).await {
         Ok(storage) => json_response(StatusCode::OK, &storage),
+        Err(()) => internal_error(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct FilesQuery {
+    root: Option<String>,
+    path: Option<String>,
+    q: Option<String>,
+    sort: Option<String>,
+    order: Option<String>,
+    filter: Option<String>,
+    hidden: Option<String>,
+}
+
+async fn storage_files(State(state): State<AppState>, Query(query): Query<FilesQuery>) -> Response {
+    let root = query
+        .root
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let Some(root) = root else {
+        return error_response(StatusCode::BAD_REQUEST, "root is required");
+    };
+    let path = query
+        .path
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| root.clone());
+
+    let sort = match query.sort.as_deref() {
+        None | Some("") => FileSort::Name,
+        Some(value) => match FileSort::parse(value) {
+            Some(sort) => sort,
+            None => {
+                return error_response(
+                    StatusCode::BAD_REQUEST,
+                    "sort must be name, size, modified or type",
+                )
+            }
+        },
+    };
+    let order = match query.order.as_deref() {
+        None | Some("") => FileOrder::Asc,
+        Some(value) => match FileOrder::parse(value) {
+            Some(order) => order,
+            None => return error_response(StatusCode::BAD_REQUEST, "order must be asc or desc"),
+        },
+    };
+    let filter = match query.filter.as_deref() {
+        None | Some("") => FileFilter::All,
+        Some(value) => match FileFilter::parse(value) {
+            Some(filter) => filter,
+            None => {
+                return error_response(StatusCode::BAD_REQUEST, "filter must be all, files or dirs")
+            }
+        },
+    };
+    let hidden = match query.hidden.as_deref() {
+        None | Some("") | Some("false") | Some("0") => false,
+        Some("true") | Some("1") => true,
+        Some(_) => return error_response(StatusCode::BAD_REQUEST, "hidden must be true or false"),
+    };
+    let search = query
+        .q
+        .map(|value| value.trim().chars().take(200).collect::<String>())
+        .filter(|value| !value.is_empty());
+
+    let request = FileRequest {
+        root: PathBuf::from(root),
+        path: PathBuf::from(path),
+        options: FileOptions {
+            query: search,
+            sort,
+            order,
+            filter,
+            hidden,
+        },
+    };
+    let files = state.files.clone();
+    match blocking(move || files.browse(request)).await {
+        Ok(Ok(listing)) => json_response(StatusCode::OK, &listing),
+        Ok(Err(error)) => error_response(error.status(), error.message()),
         Err(()) => internal_error(),
     }
 }
