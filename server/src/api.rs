@@ -576,24 +576,32 @@ fn reset_rdp_after_theme_job(state: AppState, job_id: String) {
             let Some(job) = state.jobs.snapshot(&job_id) else {
                 return;
             };
-            match job.status.as_str() {
-                "running" => continue,
-                "succeeded" => {
-                    // Let xrdp-sesman finish its own restart before resetting.
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    let rdp = state.rdp.clone();
-                    match blocking(move || rdp.reset(true)).await {
-                        Ok(result) => log::info!(
-                            "RDP reset after theme apply: status={} exit_code={:?}",
-                            result.status,
-                            result.exit_code
-                        ),
-                        Err(()) => log::warn!("RDP reset task failed after theme apply"),
-                    }
-                    return;
-                }
-                _ => return,
+            if job.status == "running" {
+                continue;
             }
+            // switch-to-configuration can return non-zero when an unrelated
+            // unit fails even though the new generation was activated. Treat
+            // that as a completed theme apply so the RDP cleanup still runs.
+            let activated = job.status == "succeeded"
+                || (job.status == "failed"
+                    && job
+                        .output
+                        .contains("error(s) occurred while switching to the new configuration"));
+            if !activated {
+                return;
+            }
+            // Let xrdp-sesman finish its own restart before resetting.
+            tokio::time::sleep(Duration::from_secs(3)).await;
+            let rdp = state.rdp.clone();
+            match blocking(move || rdp.reset(true)).await {
+                Ok(result) => log::info!(
+                    "RDP reset after theme apply: status={} exit_code={:?}",
+                    result.status,
+                    result.exit_code
+                ),
+                Err(()) => log::warn!("RDP reset task failed after theme apply"),
+            }
+            return;
         }
     });
 }

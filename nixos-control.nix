@@ -49,6 +49,27 @@ let
     fi
     cat ${lib.escapeShellArg cfg.tokenFile}
   '';
+
+  # `tailscale serve` exits 1 while the host is logged out. Treat that as a
+  # skipped setup step so it cannot make every nixos-rebuild switch fail.
+  tailscaleServeScript = pkgs.writeShellScript "nixos-control-tailscale-serve" ''
+    set +e
+    output=$(${pkgs.tailscale}/bin/tailscale serve --bg \
+      --https=${toString cfg.tailscaleServe.httpsPort} \
+      http://127.0.0.1:${toString cfg.port} 2>&1)
+    code=$?
+    printf '%s\n' "$output"
+    if [ "$code" -eq 0 ]; then
+      exit 0
+    fi
+    case "$output" in
+      *"Logged out."*|*"logged out"*|*"not logged in"*)
+        echo "Tailscale is logged out; skipping serve setup." >&2
+        exit 0
+        ;;
+    esac
+    exit "$code"
+  '';
 in
 {
   options.services.nixos-control = {
@@ -232,7 +253,7 @@ in
           RemainAfterExit = true;
           Restart = "on-failure";
           RestartSec = 30;
-          ExecStart = "${pkgs.tailscale}/bin/tailscale serve --bg --https=${toString cfg.tailscaleServe.httpsPort} http://127.0.0.1:${toString cfg.port}";
+          ExecStart = tailscaleServeScript;
         };
       };
 
