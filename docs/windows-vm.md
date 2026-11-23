@@ -454,6 +454,36 @@ virsh -c qemu:///system change-media win11-stock sda \
 If the guest instead shows only `VIRTIO_W.EXE`, the ISO was built without
 `-J`; rebuild it and eject/reinsert the media.
 
+## Performance profiles (optional)
+
+### Audio CPU profile
+
+For low-latency FL Studio work there is an optional CPU profile:
+
+```bash
+vm-audio-profile on --yes      # 4 vCPUs pinned to host CPUs 4-7
+vm-audio-profile off --yes     # back to 8 vCPUs, unpinned
+vm-audio-profile status
+vm-audio-profile on --dry-run  # write the XML only, do not touch the VM
+```
+
+- `on` shuts the VM down gracefully (ACPI), redefines it with **4 vCPUs**
+  (1 socket × 4 cores), pins vCPU 0–3 to host CPUs **4–7**, pins the emulator to
+  CPU 3, and sets `shares=512`. Each vCPU gets one thread of a physical core;
+  the sibling host threads (0–3) stay free.
+- The **desktop profile is the default**: 8 vCPUs, unpinned. The desktop XML is
+  backed up in `~/.local/share/nixos-vm/`.
+- Reopen the viewer after the restart. Apply the profile **before**
+  `vm-audio-usb on`.
+- The host's `machine.slice` weight (10) still applies and host slices are not
+  restricted to 0–3, so this is pinning, not complete isolation.
+
+### RDP AVC444
+
+`start-vm-rdp` requests AVC444 (`/gfx:AVC444:on /network:lan`).
+`start-vm-rdp --legacy` uses the previous codec path if a plugin or the RDP
+server misbehaves. Both are optional; `start-vm` (SPICE) is unchanged.
+
 ## Connecting from macOS
 
 The guest is behind libvirt NAT (`192.168.122.0/24`), so the Mac cannot reach
@@ -500,10 +530,12 @@ start-vm-rdp
 ```
 
 It resolves the guest address, checks TCP 3389, and runs `xfreerdp` with
-`+admin +dynamic-resolution /f /sound /clipboard` against the **console
-session** — the same session the physical console would show. FreeRDP draws the
-cursor client-side, so pointer motion is immediate; the rest of the screen still
-goes through RDP encoding, which is generally faster than SPICE.
+`+admin +dynamic-resolution /f /sound /clipboard /gfx:AVC444:on /network:lan`
+against the **console session** — the same session the physical console would
+show. Use `start-vm-rdp --legacy` to disable AVC444 if a plugin or the server
+misbehaves. FreeRDP draws the cursor client-side, so pointer motion is
+immediate; the rest of the screen still goes through RDP encoding, which is
+generally faster than SPICE.
 
 - Log in as `Windows-PC` (local account on `Windows-VM`) when xfreerdp prompts;
   the password is not stored.

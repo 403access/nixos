@@ -31,10 +31,10 @@ let
 
             start-vm-rdp       Optional alternative: open the Windows console
                                session over RDP (fullscreen, client-side cursor,
-                               usually lower display latency). Needs the Windows
-                               password; start-vm (SPICE) stays available.
-                               Keep the Mac on the nixos screen
-                               (Ctrl+Option+1) for input.
+                               AVC444). Needs the Windows password; start-vm
+                               (SPICE) stays available. `start-vm-rdp --legacy`
+                               disables AVC444. Keep the Mac on the nixos
+                               screen (Ctrl+Option+1) for input.
 
          3. virt-manager       Manage the Windows 11 VM, once the desktop is up
                                (or click the Virtual Machine Manager icon).
@@ -55,11 +55,16 @@ let
                                (`on` / `off` / `status`). The host's local
                                audio pauses while it is attached.
 
-         8. stop-desktop       Stop the desktop and return to this console.
+         8. vm-audio-profile   Optional audio CPU profile: 4 vCPUs pinned to
+                               host CPUs 4-7 (`on --yes` / `off --yes` /
+                               `status`). Restarts the VM; `--dry-run` only
+                               writes the XML.
 
-         9. reboot / poweroff  Restart or shut down the machine.
+         9. stop-desktop       Stop the desktop and return to this console.
 
-        10. console-help       Print this message again.
+        10. reboot / poweroff  Restart or shut down the machine.
+
+        11. console-help       Print this message again.
 
        Other access:
          - SSH is always available:  ssh nixos@192.168.178.5
@@ -176,6 +181,10 @@ let
   startVmRdp = pkgs.writeShellScriptBin "start-vm-rdp" ''
     set -u
     domain="win11-stock"
+    legacy=0
+    if [ "''${1:-}" = "--legacy" ]; then
+      legacy=1
+    fi
 
     # Allow starting the session over SSH as well.
     if [ -z "''${DISPLAY:-}" ]; then
@@ -208,10 +217,21 @@ let
     echo "Opening the Windows console session over RDP (fullscreen)..."
     echo "Keep the Mac on the nixos screen (Ctrl+Option+1) for input, not Windows-VM."
 
+    if [ "$legacy" = 1 ]; then
+      echo "Codec: legacy (no AVC444)."
+      exec ${pkgs.freerdp}/bin/xfreerdp \
+        /v:"$ip":3389 \
+        /u:Windows-PC /d:Windows-VM \
+        +admin +dynamic-resolution /f \
+        /cert:ignore /sound /clipboard +auto-reconnect
+    fi
+
+    echo "Codec: AVC444, network: lan."
     exec ${pkgs.freerdp}/bin/xfreerdp \
       /v:"$ip":3389 \
       /u:Windows-PC /d:Windows-VM \
       +admin +dynamic-resolution /f \
+      /gfx:AVC444:on /network:lan \
       /cert:ignore /sound /clipboard +auto-reconnect
   '';
 
@@ -248,6 +268,147 @@ XML
         ;;
       *)
         echo "usage: vm-audio-usb [on|off|status]" >&2
+        exit 2
+        ;;
+    esac
+  '';
+
+  vmAudioProfile = pkgs.writeShellScriptBin "vm-audio-profile" ''
+    set -u
+    domain="win11-stock"
+    state_dir="$HOME/.local/share/nixos-vm"
+    desktop_xml="$state_dir/win11-stock-desktop.xml"
+    audio_xml="$state_dir/win11-stock-audio.xml"
+    py=${pkgs.python3}/bin/python3
+
+    mkdir -p "$state_dir"
+
+    mode="''${1:-status}"
+    yes=0
+    dry=0
+    shift || true
+    for arg in "$@"; do
+      case "$arg" in
+        --yes) yes=1 ;;
+        --dry-run) dry=1 ;;
+      esac
+    done
+
+    is_audio() {
+      local xml
+      xml=$(virsh -c qemu:///system dumpxml --inactive "$domain" 2>/dev/null) || return 1
+      printf '%s\n' "$xml" | grep -q "<vcpu[^>]*>4</vcpu>" &&
+        printf '%s\n' "$xml" | grep -q "vcpupin"
+    }
+
+    stop_vm() {
+      [ "$(virsh -c qemu:///system domstate "$domain" 2>/dev/null)" = "running" ] || return 0
+      if [ "$yes" != 1 ]; then
+        echo "This restarts Windows. Re-run with --yes to continue." >&2
+        return 1
+      fi
+      echo "Shutting down $domain (ACPI)..."
+      virsh -c qemu:///system shutdown "$domain" >/dev/null || return 1
+      for _ in $(seq 1 90); do
+        [ "$(virsh -c qemu:///system domstate "$domain" 2>/dev/null)" = "shut off" ] && return 0
+        sleep 2
+      done
+      echo "Windows did not shut down; profile not changed." >&2
+      return 1
+    }
+
+    make_audio() {
+      "$py" - "$1" "$2" <<'PY'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+s = open(src).read()
+s = re.sub(r"<vcpu[^>]*>8</vcpu>", "<vcpu placement='static'>4</vcpu>", s, count=1)
+s = re.sub(r"(<topology[^>]*threads=')2(')", r"\g<1>1\g<2>", s, count=1)
+tune = """  <cputune>
+    <vcpupin vcpu='0' cpuset='4'/>
+    <vcpupin vcpu='1' cpuset='5'/>
+    <vcpupin vcpu='2' cpuset='6'/>
+    <vcpupin vcpu='3' cpuset='7'/>
+    <emulatorpin cpuset='3'/>
+    <shares>512</shares>
+  </cputune>
+"""
+if "<cputune>" in s:
+    s = re.sub(r"  <cputune>.*?</cputune>\n", tune, s, count=1, flags=re.S)
+else:
+    s = s.replace("  <os>", tune + "  <os>", 1)
+open(dst, "w").write(s)
+PY
+    }
+
+    restore_desktop() {
+      if [ -f "$desktop_xml" ]; then
+        cp "$desktop_xml" "$1"
+        return
+      fi
+      virsh -c qemu:///system dumpxml --inactive "$domain" > /tmp/win11-current.xml
+      "$py" - /tmp/win11-current.xml "$1" <<'PY'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+s = open(src).read()
+s = re.sub(r"<vcpu[^>]*>4</vcpu>", "<vcpu placement='static'>8</vcpu>", s, count=1)
+s = re.sub(r"(<topology[^>]*threads=')1(')", r"\g<1>2\g<2>", s, count=1)
+s = re.sub(
+    r"  <cputune>.*?</cputune>\n",
+    "  <cputune>\n    <shares>256</shares>\n  </cputune>\n",
+    s,
+    count=1,
+    flags=re.S,
+)
+open(dst, "w").write(s)
+PY
+    }
+
+    case "$mode" in
+      on)
+        if is_audio; then
+          echo "Audio CPU profile is already active."
+          exit 0
+        fi
+        if [ "$dry" = 1 ]; then
+          virsh -c qemu:///system dumpxml --inactive "$domain" > "$desktop_xml"
+          make_audio "$desktop_xml" "$audio_xml"
+          echo "Dry run: wrote $audio_xml (not applied)."
+          exit 0
+        fi
+        stop_vm || exit 1
+        virsh -c qemu:///system dumpxml --inactive "$domain" > "$desktop_xml"
+        make_audio "$desktop_xml" "$audio_xml"
+        virsh -c qemu:///system define "$audio_xml" >/dev/null || exit 1
+        virsh -c qemu:///system start "$domain" >/dev/null || exit 1
+        echo "Audio CPU profile active: 4 vCPUs pinned to host CPUs 4-7."
+        echo "Reopen the viewer with start-vm or start-vm-rdp."
+        ;;
+      off)
+        if ! is_audio; then
+          echo "Desktop CPU profile is already active."
+          exit 0
+        fi
+        restore_desktop /tmp/win11-desktop.xml
+        if [ "$dry" = 1 ]; then
+          echo "Dry run: wrote /tmp/win11-desktop.xml (not applied)."
+          exit 0
+        fi
+        stop_vm || exit 1
+        virsh -c qemu:///system define /tmp/win11-desktop.xml >/dev/null || exit 1
+        virsh -c qemu:///system start "$domain" >/dev/null || exit 1
+        echo "Desktop CPU profile active: 8 vCPUs, no pinning."
+        echo "Reopen the viewer with start-vm or start-vm-rdp."
+        ;;
+      status)
+        if is_audio; then
+          echo "CPU profile: audio (4 vCPUs pinned to host CPUs 4-7)"
+        else
+          echo "CPU profile: desktop (8 vCPUs, unpinned)"
+        fi
+        ;;
+      *)
+        echo "usage: vm-audio-profile [on|off|status] [--yes] [--dry-run]" >&2
         exit 2
         ;;
     esac
@@ -333,6 +494,7 @@ in
     startVmRdp
     stopDesktop
     vmAudioUsb
+    vmAudioProfile
     bridgeStatus
     controlInfo
     consoleHelp
