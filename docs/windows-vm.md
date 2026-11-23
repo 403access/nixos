@@ -490,6 +490,32 @@ virsh -c qemu:///system net-update default add ip-dhcp-host \
 After a guest reboot the tunnel becomes
 `ssh -N -L 13389:192.168.122.50:3389 nixos@192.168.178.5`.
 
+## RDP console session (alternative to SPICE)
+
+The normal physical-console path is `start-vm` (virt-viewer/SPICE). An optional
+RDP path keeps the VM on the HDMI monitor but avoids the SPICE display pipeline:
+
+```bash
+start-vm-rdp
+```
+
+It resolves the guest address, checks TCP 3389, and runs `xfreerdp` with
+`+admin +dynamic-resolution /f /sound /clipboard` against the **console
+session** — the same session the physical console would show. FreeRDP draws the
+cursor client-side, so pointer motion is immediate; the rest of the screen still
+goes through RDP encoding, which is generally faster than SPICE.
+
+- Log in as `Windows-PC` (local account on `Windows-VM`) when xfreerdp prompts;
+  the password is not stored.
+- Input for this path goes through **NixOS X**, not the Windows InputLeap
+  client: keep the Mac on the **nixos** screen (`Ctrl+Option+1`) or use the
+  Logitech receiver on the host. Do **not** switch the Mac to `Windows-VM`
+  while RDP is open; InputLeap would fight the RDP session.
+- Audio is redirected by FreeRDP to the host’s default sink, so the AirPods
+  bridge still works.
+- Close the SPICE viewer first (or use Alt+Tab); both can be open for comparison.
+- `start-vm` stays the default; the SPICE path is unchanged.
+
 ## SSH (terminal only)
 
 The guest does not enable OpenSSH by default. Run the helper CD and choose

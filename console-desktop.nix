@@ -29,6 +29,13 @@ let
                                display, without starting the desktop.
                                Alt+Tab switches back to this terminal.
 
+            start-vm-rdp       Optional alternative: open the Windows console
+                               session over RDP (fullscreen, client-side cursor,
+                               usually lower display latency). Needs the Windows
+                               password; start-vm (SPICE) stays available.
+                               Keep the Mac on the nixos screen
+                               (Ctrl+Option+1) for input.
+
          3. virt-manager       Manage the Windows 11 VM, once the desktop is up
                                (or click the Virtual Machine Manager icon).
 
@@ -161,6 +168,48 @@ let
     printf '%s\n' "$!" > "$pidfile"
   '';
 
+  startVmRdp = pkgs.writeShellScriptBin "start-vm-rdp" ''
+    set -u
+    domain="win11-stock"
+
+    # Allow starting the session over SSH as well.
+    if [ -z "''${DISPLAY:-}" ]; then
+      export DISPLAY=:0
+      export XAUTHORITY="$HOME/.Xauthority"
+    fi
+
+    state=$(virsh -c qemu:///system domstate "$domain" 2>/dev/null | head -n 1)
+    if [ "$state" != "running" ]; then
+      echo "Starting $domain..."
+      virsh -c qemu:///system start "$domain" >/dev/null || {
+        echo "Could not start $domain." >&2
+        exit 1
+      }
+      sleep 3
+    fi
+
+    ip=$(virsh -c qemu:///system domifaddr "$domain" --source lease 2>/dev/null |
+      awk '/ipv4/ { print $4; exit }' | cut -d/ -f1)
+    if [ -z "$ip" ]; then
+      echo "Could not determine the Windows VM address." >&2
+      exit 1
+    fi
+
+    if ! timeout 3 bash -c "echo > /dev/tcp/$ip/3389" 2>/dev/null; then
+      echo "RDP is not reachable on $ip:3389 — enable it inside Windows first." >&2
+      exit 1
+    fi
+
+    echo "Opening the Windows console session over RDP (fullscreen)..."
+    echo "Keep the Mac on the nixos screen (Ctrl+Option+1) for input, not Windows-VM."
+
+    exec ${pkgs.freerdp}/bin/xfreerdp \
+      /v:"$ip":3389 \
+      /u:Windows-PC /d:Windows-VM \
+      +admin +dynamic-resolution /f \
+      /cert:ignore /sound /clipboard +auto-reconnect
+  '';
+
   bridgeStatus = pkgs.writeShellScriptBin "bridge-status" ''
     set -u
     echo "Mac keyboard/mouse bridge (InputLeap client):"
@@ -234,9 +283,11 @@ in
     pkgs.openbox
     pkgs.xfce.xfce4-terminal
     pkgs.virt-viewer
+    pkgs.freerdp
     consoleShell
     startDesktop
     startVm
+    startVmRdp
     stopDesktop
     bridgeStatus
     controlInfo
