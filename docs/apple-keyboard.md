@@ -180,13 +180,17 @@ and the same 3.0.3 package on NixOS, so both ends are version-matched.
    section: screens
        MacBook-Air-von-Oliver.local:
        nixos:
+       windows:
    end
 
    section: links
        MacBook-Air-von-Oliver.local:
            left = nixos
+           right = windows
        nixos:
            right = MacBook-Air-von-Oliver.local
+       windows:
+           left = MacBook-Air-von-Oliver.local
    end
 
    section: options
@@ -194,12 +198,15 @@ and the same 3.0.3 package on NixOS, so both ends are version-matched.
        screenSaverSync = true
        clipboardSharing = true
        clipboardSharingSize = 100000000
+       keystroke(control+alt+1) = switchToScreen(nixos)
+       keystroke(control+alt+2) = switchToScreen(windows)
+       keystroke(control+alt+0) = switchToScreen(MacBook-Air-von-Oliver.local)
    end
    ```
 
    The server screen name must match `--name` of the running server (the GUI
-   uses `<LocalHostName>.local`). The client screen name must match `--name`
-   of the NixOS client (`nixos`).
+   uses `<LocalHostName>.local`). The client screen names must match the names
+   the clients register: `nixos` and `windows`.
 
 4. In the InputLeap window, Server tab: enable **Use existing configuration**
    and point it at that file, then click **Start**. The window should say
@@ -230,6 +237,41 @@ Deploy changes with:
 ```bash
 sudo nixos-rebuild switch
 ```
+
+### Windows VM as a second screen
+
+The Windows guest can run its own InputLeap client, so the Mac sends input
+straight to Windows over the LAN instead of routing it through NixOS and the
+SPICE window. That removes the extra hop and the SPICE pointer latency.
+
+1. Get the Windows build (portable, no installer) into the guest. It is on the
+   `WINDOWS` tools CD as `InputLeap-windows-debug-3.0.3.zip`; copy it to e.g.
+   `C:\Tools` and extract it.
+2. Run `input-leap.exe` → **Client**, Server IP `192.168.178.33`, Screen name
+   `windows`, then **Start**. Accept the server certificate prompt.
+3. Add the client to the login autostart (a shortcut in `shell:startup`, or the
+   GUI's start-at-login option).
+
+With the server layout above:
+
+- Mac pointer off the **left** edge → NixOS; off the **right** edge → Windows.
+- `Ctrl+Alt+1` → NixOS, `Ctrl+Alt+2` → Windows, `Ctrl+Alt+0` → Mac.
+
+The tools ISO is built on the host with:
+
+```bash
+V=$(ls -d /nix/store/*-virtio-win-0.1.271-1 | head -1)
+mkdir -p /tmp/win-tools
+cp "$V"/virtio-win-guest-tools.exe "$V"/virtio-win-gt-x64.msi \
+   "$V"/virtio-win-gt-x86.msi /tmp/win-tools/
+cp -r "$V"/cert /tmp/win-tools/
+cp InputLeap-windows-debug-3.0.3.zip /tmp/win-tools/
+xorriso -as mkisofs -J -R -joliet-long -V WINDOWS \
+  -o /home/nixos/Downloads/windows-tools.iso /tmp/win-tools
+```
+
+Attach it to the VM's `sda` drive with `change-media` (see
+[`windows-vm.md`](windows-vm.md#virtio-guest-tools-cd)).
 
 ### Boot: console first, desktop on demand
 
