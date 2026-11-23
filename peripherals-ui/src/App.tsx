@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { formatTime } from "./components";
 import { NixOSControlProvider, useNixOSControl } from "./store";
@@ -27,15 +27,32 @@ export default function App() {
   );
 }
 
+const NAV_IDS = NAV.map((item) => item.id);
+
+// Deep links: /#peripherals opens the receiver view directly.
+function tabFromHash(): AppTab | null {
+  const id = window.location.hash.replace(/^#\/?/, "").split(/[?&]/)[0];
+  return (NAV_IDS as string[]).includes(id) ? (id as AppTab) : null;
+}
+
 function Shell() {
   const store = useNixOSControl();
-  const [tab, setTab] = useState<AppTab>(store.settings ? "dashboard" : "settings");
+  const [tab, setTabState] = useState<AppTab>(
+    () => tabFromHash() ?? (store.settings ? "dashboard" : "settings"),
+  );
+
+  const setTab = useCallback((next: AppTab) => {
+    setTabState(next);
+    if (window.location.hash !== `#${next}`) {
+      window.history.replaceState(null, "", `#${next}`);
+    }
+  }, []);
 
   useEffect(() => {
     if (!store.settings) {
       setTab("settings");
     }
-  }, [store.settings]);
+  }, [store.settings, setTab]);
 
   const active = NAV.find((item) => item.id === tab) ?? NAV[0];
   const connectionTone =

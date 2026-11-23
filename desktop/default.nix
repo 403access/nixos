@@ -120,6 +120,20 @@ let
     StartupNotify=true
   '';
 
+  # Desktop shortcut for the local NixOS Control web console.
+  webConsoleDesktop = pkgs.writeText "nixos-control.desktop" ''
+    [Desktop Entry]
+    Type=Application
+    Version=1.0
+    Name=NixOS Control
+    Comment=Web dashboard: system status and the Logitech receiver
+    Exec=${pkgs.firefox}/bin/firefox http://127.0.0.1:3050/#peripherals
+    Icon=applications-internet
+    Terminal=false
+    Categories=System;Network;
+    StartupNotify=true
+  '';
+
   # Resolved names and packages shared with the individual profiles.
   gtkThemeName = if useWhiteSur then whiteSurGtkThemeName else catppuccinGtkThemeName;
   iconThemeName =
@@ -538,6 +552,7 @@ in
       [
         "d ${cfg.home}/Desktop 0755 ${cfg.user} users -"
         "C ${cfg.home}/Desktop/virt-manager.desktop 0755 ${cfg.user} users - ${virtManagerDesktop}"
+        "C ${cfg.home}/Desktop/nixos-control.desktop 0755 ${cfg.user} users - ${webConsoleDesktop}"
       ]
       ++ lib.optionals
       (useWhiteSur && cfg.whiteSur.plank)

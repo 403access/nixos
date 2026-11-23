@@ -3,6 +3,10 @@
 Bun + TypeScript + React console for the NixOS Control API. It mirrors the iOS
 app: Dashboard, Services, Storage, System, Peripherals and Settings.
 
+Each view has a hash deep link, for example `/#peripherals` opens the receiver
+view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
+`http://127.0.0.1:3050/#peripherals`.
+
 ## Views
 
 - **Dashboard** — host, CPU, memory, load, root disk, services, ZFS pools,
