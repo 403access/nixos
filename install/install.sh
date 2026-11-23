@@ -649,6 +649,7 @@ copy_configuration() {
     nixos-control.nix
     desktop
     server
+    shell
     install
     windows
   )

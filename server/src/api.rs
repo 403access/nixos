@@ -586,10 +586,18 @@ async fn session_detail(
 
         let system = state.system.clone();
         let history_user = user.clone();
-        let commands: Vec<HistoryEntry> =
-            blocking(move || system.login_session_history(&history_user, since, 300))
-                .await
-                .unwrap_or_default();
+        // A graphical login owns a tty such as tty7, while terminals inside
+        // the session run on pts/*. Only filter by tty for real shell sessions.
+        let history_tty = if session.kind.is_empty() || session.kind == "tty" {
+            session.tty.clone()
+        } else {
+            None
+        };
+        let commands: Vec<HistoryEntry> = blocking(move || {
+            system.login_session_history(&history_user, history_tty.as_deref(), since, 300)
+        })
+        .await
+        .unwrap_or_default();
 
         let mut summary = login_summary(&session);
         summary.action_count = commands.len();

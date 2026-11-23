@@ -355,6 +355,7 @@ impl SystemProbe for MockSystem {
     fn login_session_history(
         &self,
         user: &str,
+        _tty: Option<&str>,
         _since_epoch: Option<i64>,
         _limit: usize,
     ) -> Vec<HistoryEntry> {
@@ -362,6 +363,11 @@ impl SystemProbe for MockSystem {
         vec![HistoryEntry {
             at: Some("2026-01-01T00:01:00Z".to_string()),
             command: "nixos-rebuild switch".to_string(),
+            duration_ms: Some(1234),
+            exit_code: Some(0),
+            status: "ok".to_string(),
+            cwd: Some("/etc/nixos".to_string()),
+            source: "log".to_string(),
         }]
     }
 }
@@ -1132,6 +1138,11 @@ async fn lists_login_sessions_with_logs_and_history() {
     let detail = json(&detail);
     assert_eq!(detail["logs"][0], "2026-01-01 session line");
     assert_eq!(detail["commands"][0]["command"], "nixos-rebuild switch");
+    assert_eq!(detail["commands"][0]["status"], "ok");
+    assert_eq!(detail["commands"][0]["duration_ms"], 1234);
+    assert_eq!(detail["commands"][0]["exit_code"], 0);
+    assert_eq!(detail["commands"][0]["cwd"], "/etc/nixos");
+    assert_eq!(detail["commands"][0]["source"], "log");
     assert_eq!(detail["action_count"], 1);
 }
 

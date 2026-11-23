@@ -274,6 +274,36 @@ export function formatTimestamp(value: string): string {
   });
 }
 
+export function formatPreciseTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value || "—";
+  }
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+export function formatDurationMs(value: number): string {
+  if (!Number.isFinite(value) || value < 0) {
+    return "—";
+  }
+  if (value < 1_000) {
+    return `${Math.round(value)} ms`;
+  }
+  if (value < 60_000) {
+    return `${(value / 1_000).toFixed(value < 10_000 ? 1 : 0)} s`;
+  }
+  const minutes = Math.floor(value / 60_000);
+  const seconds = Math.round((value % 60_000) / 1_000);
+  return `${minutes}m ${seconds}s`;
+}
+
 export function formatSignal(signal: SignalInfo): string {
   return signal.percent === null ? `raw ${signal.raw}` : `${signal.percent}%`;
 }

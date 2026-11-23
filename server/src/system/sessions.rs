@@ -1,9 +1,11 @@
+use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, SecondsFormat, TimeZone, Utc};
+use serde::Deserialize;
 
 use crate::commands::CommandRunner;
 use crate::models::{HistoryEntry, LoginSession};
@@ -13,6 +15,8 @@ const SHOW_TIMEOUT: Duration = Duration::from_secs(10);
 const JOURNAL_TIMEOUT: Duration = Duration::from_secs(20);
 const HISTORY_TAIL_BYTES: u64 = 256 * 1024;
 const MAX_COMMANDS: usize = 300;
+/// Command log timestamps can be a few seconds before logind's session start.
+const COMMAND_LOG_GRACE_SECONDS: i64 = 5;
 
 /// Collect the sessions systemd-logind currently knows about.
 pub fn collect_login_sessions(runner: &dyn CommandRunner) -> Vec<LoginSession> {
@@ -257,25 +261,157 @@ pub fn session_logs(
     }
 }
 
-/// Recent commands from a user's zsh and bash history. Entries with a
-/// timestamp are filtered to the session start; plain history lines are only
-/// available as the most recent commands.
-pub fn shell_history(user: &str, since_epoch: Option<i64>, limit: usize) -> Vec<HistoryEntry> {
+/// Recent commands for a session. Prefer the structured shell audit log (which
+/// records start time, duration, exit status and working directory) and fall
+/// back to zsh/bash history for older commands.
+pub fn shell_history(
+    user: &str,
+    tty: Option<&str>,
+    since_epoch: Option<i64>,
+    limit: usize,
+) -> Vec<HistoryEntry> {
     let limit = limit.clamp(1, MAX_COMMANDS);
     let home = home_directory(user);
-    let mut entries = Vec::new();
+    let mut entries = read_command_log(user, tty, since_epoch);
+    let has_log = !entries.is_empty();
 
+    let mut history = Vec::new();
     if let Some(contents) = read_tail(&home.join(".zsh_history")) {
-        entries.extend(parse_zsh_history(&contents, since_epoch));
+        history.extend(parse_zsh_history(&contents, since_epoch));
     }
     if let Some(contents) = read_tail(&home.join(".bash_history")) {
-        entries.extend(parse_bash_history(&contents, since_epoch));
+        history.extend(parse_bash_history(&contents, since_epoch));
     }
+
+    for entry in history {
+        // Untimed history entries cannot be attributed reliably once the
+        // structured log has taken over.
+        if has_log && entry.at.is_none() {
+            continue;
+        }
+        if entries.iter().any(|logged| same_command(logged, &entry)) {
+            continue;
+        }
+        entries.push(entry);
+    }
+
+    entries.sort_by(|left, right| match (&left.at, &right.at) {
+        (Some(left), Some(right)) => left.cmp(right),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    });
 
     if entries.len() > limit {
         entries.drain(0..entries.len() - limit);
     }
     entries
+}
+
+#[derive(Debug, Deserialize)]
+struct CommandLogRecord {
+    ts_ms: i64,
+    #[serde(default)]
+    duration_ms: Option<u64>,
+    #[serde(default)]
+    exit_code: Option<i32>,
+    #[serde(default)]
+    tty: Option<String>,
+    #[serde(default)]
+    cwd: Option<String>,
+    command: String,
+}
+
+fn command_log_path(user: &str) -> PathBuf {
+    home_directory(user).join(".local/state/nixos-control/commands.jsonl")
+}
+
+fn read_command_log(user: &str, tty: Option<&str>, since_epoch: Option<i64>) -> Vec<HistoryEntry> {
+    let Some(contents) = read_tail(&command_log_path(user)) else {
+        return Vec::new();
+    };
+    parse_command_log(&contents, tty, since_epoch)
+}
+
+fn parse_command_log(
+    contents: &str,
+    tty: Option<&str>,
+    since_epoch: Option<i64>,
+) -> Vec<HistoryEntry> {
+    let session_tty = tty.map(normalize_tty);
+    let mut entries = Vec::new();
+    for line in contents.lines() {
+        let Ok(record) = serde_json::from_str::<CommandLogRecord>(line) else {
+            continue;
+        };
+        if record.ts_ms <= 0 || record.command.trim().is_empty() {
+            continue;
+        }
+        if let Some(since) = since_epoch {
+            if record.ts_ms / 1000 < since - COMMAND_LOG_GRACE_SECONDS {
+                continue;
+            }
+        }
+        if let (Some(session_tty), Some(entry_tty)) = (&session_tty, record.tty.as_deref()) {
+            if *session_tty != normalize_tty(entry_tty) {
+                continue;
+            }
+        }
+
+        let at = Utc
+            .timestamp_millis_opt(record.ts_ms)
+            .single()
+            .map(|value| value.to_rfc3339_opts(SecondsFormat::Secs, true));
+        let status = match record.exit_code {
+            Some(0) => "ok",
+            Some(_) => "failed",
+            None => "unknown",
+        };
+        entries.push(HistoryEntry {
+            at,
+            command: record.command,
+            duration_ms: record.duration_ms,
+            exit_code: record.exit_code,
+            status: status.to_string(),
+            cwd: record.cwd.filter(|value| !value.is_empty()),
+            source: "log".to_string(),
+        });
+    }
+    entries
+}
+
+fn normalize_tty(tty: &str) -> String {
+    tty.trim().trim_start_matches("/dev/").to_string()
+}
+
+fn same_command(left: &HistoryEntry, right: &HistoryEntry) -> bool {
+    if left.command != right.command {
+        return false;
+    }
+    match (parse_entry_time(left), parse_entry_time(right)) {
+        (Some(left), Some(right)) => (left - right).num_seconds().abs() <= 3,
+        _ => left.at.is_none() && right.at.is_none(),
+    }
+}
+
+fn parse_entry_time(entry: &HistoryEntry) -> Option<DateTime<Utc>> {
+    entry
+        .at
+        .as_deref()
+        .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+        .map(|value| value.with_timezone(&Utc))
+}
+
+fn history_entry(at: Option<String>, command: String, duration_ms: Option<u64>) -> HistoryEntry {
+    HistoryEntry {
+        at,
+        command,
+        duration_ms,
+        exit_code: None,
+        status: "unknown".to_string(),
+        cwd: None,
+        source: "history".to_string(),
+    }
 }
 
 fn home_directory(user: &str) -> PathBuf {
@@ -312,10 +448,7 @@ fn parse_zsh_history(contents: &str, since_epoch: Option<i64>) -> Vec<HistoryEnt
         let Some(rest) = line.strip_prefix(": ") else {
             let command = line.trim();
             if !command.is_empty() {
-                entries.push(HistoryEntry {
-                    at: None,
-                    command: command.to_string(),
-                });
+                entries.push(history_entry(None, command.to_string(), None));
             }
             continue;
         };
@@ -326,6 +459,9 @@ fn parse_zsh_history(contents: &str, since_epoch: Option<i64>) -> Vec<HistoryEnt
         let started = parts
             .next()
             .and_then(|value| value.trim().parse::<i64>().ok());
+        let elapsed = parts
+            .next()
+            .and_then(|value| value.trim().parse::<u64>().ok());
         let command = command.trim();
         if command.is_empty() {
             continue;
@@ -335,12 +471,13 @@ fn parse_zsh_history(contents: &str, since_epoch: Option<i64>) -> Vec<HistoryEnt
                 continue;
             }
         }
-        entries.push(HistoryEntry {
-            at: started
+        entries.push(history_entry(
+            started
                 .and_then(|value| Utc.timestamp_opt(value, 0).single())
                 .map(|value| value.to_rfc3339_opts(SecondsFormat::Secs, true)),
-            command: command.to_string(),
-        });
+            command.to_string(),
+            elapsed.map(|seconds| seconds * 1000),
+        ));
     }
     entries
 }
@@ -366,12 +503,12 @@ fn parse_bash_history(contents: &str, since_epoch: Option<i64>) -> Vec<HistoryEn
                 continue;
             }
         }
-        entries.push(HistoryEntry {
-            at: at
-                .and_then(|value| Utc.timestamp_opt(value, 0).single())
+        entries.push(history_entry(
+            at.and_then(|value| Utc.timestamp_opt(value, 0).single())
                 .map(|value| value.to_rfc3339_opts(SecondsFormat::Secs, true)),
-            command: trimmed.to_string(),
-        });
+            trimmed.to_string(),
+            None,
+        ));
     }
     entries
 }
@@ -440,16 +577,60 @@ mod tests {
 
     #[test]
     fn parses_zsh_and_bash_history() {
-        let zsh = ": 1763852400:0;git status\n: 1763852500:0;nixos-rebuild switch\n";
+        let zsh = ": 1763852400:0;git status\n: 1763852500:3;nixos-rebuild switch\n";
         let entries = parse_zsh_history(zsh, Some(1763852450));
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].command, "nixos-rebuild switch");
         assert!(entries[0].at.is_some());
+        assert_eq!(entries[0].duration_ms, Some(3000));
+        assert_eq!(entries[0].status, "unknown");
+        assert_eq!(entries[0].source, "history");
 
         let bash = "#1763852400\nls -la\n#1763852500\nmake test\n";
         let entries = parse_bash_history(bash, Some(1763852450));
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].command, "make test");
+        assert!(entries[0].at.is_some());
+        assert_eq!(entries[0].duration_ms, None);
+        assert_eq!(entries[0].exit_code, None);
+        assert_eq!(entries[0].source, "history");
+    }
+
+    #[test]
+    fn parses_the_shell_command_audit_log() {
+        let log = concat!(
+            r#"{"ts_ms":1763852500000,"duration_ms":1250,"exit_code":0,"tty":"pts/2","cwd":"/etc/nixos","command":"nixos-rebuild switch"}"#,
+            "\n",
+            r#"{"ts_ms":1763852510000,"duration_ms":20,"exit_code":1,"tty":"/dev/pts/2","cwd":"/tmp","command":"false"}"#,
+            "\n",
+            r#"{"ts_ms":1763852520000,"duration_ms":5,"exit_code":0,"tty":"pts/3","cwd":"/tmp","command":"ls"}"#,
+            "\n",
+            "not json\n",
+        );
+
+        let entries = parse_command_log(log, Some("pts/2"), Some(1763852400));
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].command, "nixos-rebuild switch");
+        assert_eq!(entries[0].status, "ok");
+        assert_eq!(entries[0].exit_code, Some(0));
+        assert_eq!(entries[0].duration_ms, Some(1250));
+        assert_eq!(entries[0].cwd.as_deref(), Some("/etc/nixos"));
+        assert_eq!(entries[0].source, "log");
+        assert!(entries[0].at.as_deref().unwrap().starts_with("2025-11-22"));
+
+        assert_eq!(entries[1].command, "false");
+        assert_eq!(entries[1].status, "failed");
+        assert_eq!(entries[1].exit_code, Some(1));
+
+        let older = parse_command_log(log, Some("pts/2"), Some(1763852515));
+        assert_eq!(older.len(), 1);
+        assert_eq!(older[0].command, "false");
+    }
+
+    #[test]
+    fn tty_comparison_ignores_the_dev_prefix() {
+        assert_eq!(normalize_tty("/dev/pts/2"), "pts/2");
+        assert_eq!(normalize_tty(" pts/2 "), "pts/2");
     }
 
     #[test]

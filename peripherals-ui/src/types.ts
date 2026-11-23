@@ -201,6 +201,11 @@ export interface SessionAction {
 export interface SessionCommand {
   at?: string | null;
   command: string;
+  duration_ms?: number | null;
+  exit_code?: number | null;
+  status?: string | null;
+  cwd?: string | null;
+  source?: string | null;
 }
 
 export interface SessionDetail extends SessionSummary {

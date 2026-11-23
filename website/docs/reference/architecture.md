@@ -78,7 +78,9 @@ perform every action the module allows.
 - Mutating API requests are appended to
   `/var/lib/nixos-control/activity.jsonl` and grouped into sessions per client.
   Host login sessions and their journals are read from `loginctl` and
-  `journalctl`.
+  `journalctl`. Interactive shell commands are recorded by an optional bash/zsh
+  hook in each user's `~/.local/state/nixos-control/commands.jsonl` with timing
+  and exit status.
 - The peripherals probe reads HID++ from `/dev/hidraw*` in a blocking worker and
   is read-only.
 - Status and logs are polled by the app; there is no streaming endpoint.

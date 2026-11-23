@@ -82,7 +82,9 @@ Open the **Sessions** tab to see what happened on the machine. The list combines
 actions taken through the web console and this app (service start/stop/restart,
 rebuilds, power changes) with the host's current console, SSH and RDP logins.
 Each entry shows its start time, status and action count; open one to read the
-individual actions, rebuild output, session journal and recent shell history.
+individual actions, rebuild output, session journal and shell commands. Commands
+show their start time, execution duration and exit status when the shell audit
+log is enabled; older entries fall back to shell history.
 
 ## Generations
 

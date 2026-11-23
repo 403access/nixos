@@ -111,6 +111,22 @@ in
       description = "Allow the app to reboot and shut down the machine.";
     };
 
+    commandLog = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Record interactive bash and zsh commands with start time, duration,
+          exit status, TTY and working directory in
+          `~/.local/state/nixos-control/commands.jsonl`. The Sessions view reads
+          this file so it can show execution times and whether a command
+          succeeded or failed. The log is private to each user (mode 0600) and
+          is read by the root API service. Disable to turn off shell
+          integration.
+        '';
+      };
+    };
+
     tailscaleServe = {
       enable = lib.mkOption {
         type = lib.types.bool;
@@ -137,6 +153,14 @@ in
         message = "services.nixos-control.tokenFile must not be empty.";
       }
     ];
+
+    # Interactive shell audit log for the Sessions view.
+    programs.bash.interactiveShellInit = lib.mkIf cfg.commandLog.enable (
+      builtins.readFile ./shell/command-log.bash
+    );
+    programs.zsh.interactiveShellInit = lib.mkIf cfg.commandLog.enable (
+      builtins.readFile ./shell/command-log.zsh
+    );
 
     systemd.services.nixos-control = {
       description = "NixOS Control API";

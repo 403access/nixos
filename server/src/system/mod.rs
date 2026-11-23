@@ -70,6 +70,7 @@ pub trait SystemProbe: Send + Sync {
     fn login_session_history(
         &self,
         _user: &str,
+        _tty: Option<&str>,
         _since_epoch: Option<i64>,
         _limit: usize,
     ) -> Vec<HistoryEntry> {
@@ -211,10 +212,11 @@ impl SystemProbe for LocalSystem {
     fn login_session_history(
         &self,
         user: &str,
+        tty: Option<&str>,
         since_epoch: Option<i64>,
         limit: usize,
     ) -> Vec<HistoryEntry> {
-        sessions::shell_history(user, since_epoch, limit)
+        sessions::shell_history(user, tty, since_epoch, limit)
     }
 }
 

@@ -15,7 +15,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 ## Features
 
 - **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state.
-- **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell history.
+- **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell commands including timestamps, execution time and exit status.
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
@@ -515,6 +515,7 @@ See the [FRITZ!Box WireGuard guide](website/docs/guides/fritzbox-wireguard.md) f
 | `flake` | `null` | When set, rebuilds use `--flake <value>` |
 | `allowRebuild` | `true` | Allow `nixos-rebuild` actions |
 | `allowPower` | `true` | Allow reboot/shutdown |
+| `commandLog.enable` | `true` | Record shell commands with timing and exit status for Sessions |
 | `tailscaleServe.enable` | `true` | Expose the API via Tailscale Serve |
 | `tailscaleServe.httpsPort` | `443` | HTTPS port used by Tailscale Serve |
 
@@ -577,8 +578,11 @@ same-origin. See [`docs/peripherals.md`](docs/peripherals.md).
 Mutating API requests (service actions, rebuilds, power and job cancellation)
 are written to `/var/lib/nixos-control/activity.jsonl` and grouped into
 sessions per client. Host sessions come from `loginctl`, with the session
-journal and recent shell history attached. Open **Sessions** in either app to
-browse them.
+journal attached. Interactive bash and zsh commands are recorded in
+`~/.local/state/nixos-control/commands.jsonl` with start time, duration, exit
+status, TTY and working directory, so the Sessions view can show execution time
+and whether each command succeeded. Older commands fall back to shell history.
+Open **Sessions** in either app to browse them.
 
 ### Rotate the token
 
@@ -600,6 +604,7 @@ Update the token in the app afterwards.
 - The unit runs as root because it talks to systemd, reads the journal, manages ZFS, and invokes `nixos-rebuild`. It is token-protected; **a leaked token is effectively root access to the machine**.
 - Restrict access with Tailscale ACLs so only your phone can reach this machine on port 443.
 - Keep `allowRebuild`/`allowPower` disabled if you do not need them.
+- The shell audit log (`commandLog.enable`, enabled by default) stores interactive bash/zsh commands, working directories, exit statuses and timings in each user's `~/.local/state/nixos-control/commands.jsonl` (mode 0600). The root API service reads it for the Sessions view; disable it if you do not want that history exposed to the bearer token.
 - Keep ZFS snapshots/backups before using `switch`; use the `test` action to validate a configuration first.
 - Do not expose port `8787` to the internet. If you use the LAN mode, keep it behind the firewall and on a trusted network.
 

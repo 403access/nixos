@@ -56,6 +56,12 @@ enum SessionFormat {
         return formatter
     }()
 
+    private static let precise: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
+
     private static let relative: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
@@ -71,6 +77,29 @@ enum SessionFormat {
             return value.isEmpty ? "—" : value
         }
         return display.string(from: date)
+    }
+
+    static func preciseTimestamp(_ value: String) -> String {
+        guard let date = date(value) else {
+            return value.isEmpty ? "—" : value
+        }
+        return precise.string(from: date)
+    }
+
+    static func duration(_ milliseconds: Int) -> String {
+        guard milliseconds >= 0 else { return "—" }
+        if milliseconds < 1_000 {
+            return "\(milliseconds) ms"
+        }
+        if milliseconds < 60_000 {
+            let seconds = Double(milliseconds) / 1_000
+            return seconds < 10
+                ? String(format: "%.1f s", seconds)
+                : String(format: "%.0f s", seconds)
+        }
+        let minutes = milliseconds / 60_000
+        let seconds = (milliseconds % 60_000) / 1_000
+        return "\(minutes)m \(seconds)s"
     }
 
     static func ago(_ value: String) -> String {

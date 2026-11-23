@@ -7,6 +7,8 @@ import {
   Modal,
   Spinner,
   StatusBadge,
+  formatDurationMs,
+  formatPreciseTimestamp,
   formatTimestamp,
   type Tone,
 } from "../components";
@@ -284,7 +286,7 @@ export default function SessionsView() {
                             {action.target ? ` ${action.target}` : ""}
                           </strong>
                           <span className="muted">
-                            {formatTimestamp(action.at)}
+                            {formatPreciseTimestamp(action.at)}
                           </span>
                         </div>
                         {action.path ? (
@@ -292,7 +294,7 @@ export default function SessionsView() {
                             {(action.method ?? "post").toUpperCase()} {action.path}
                             {action.status_code ? ` · ${action.status_code}` : ""}
                             {typeof action.duration_ms === "number"
-                              ? ` · ${action.duration_ms}ms`
+                              ? ` · ${formatDurationMs(action.duration_ms)}`
                               : ""}
                           </span>
                         ) : null}
@@ -310,25 +312,60 @@ export default function SessionsView() {
 
               {detail.commands.length > 0 ? (
                 <section className="session-section">
-                  <h3>Shell history</h3>
+                  <h3>Commands</h3>
                   <p className="muted session-note">
-                    Recovered from the user's shell history. Timestamps are
-                    approximate when the shell does not store them.
+                    Commands come from the shell audit log when enabled. Older
+                    entries are recovered from shell history and may lack a
+                    timestamp, duration or exit status.
                   </p>
                   <div className="session-commands">
-                    {detail.commands.map((entry, index) => (
-                      <div
-                        className="session-command"
-                        key={`${entry.at ?? "unknown"}-${index}`}
-                      >
-                        {entry.at ? (
-                          <span className="muted">
-                            {formatTimestamp(entry.at)}
-                          </span>
-                        ) : null}
-                        <code>{entry.command}</code>
-                      </div>
-                    ))}
+                    {detail.commands.map((entry, index) => {
+                      const commandStatus = entry.status ?? "unknown";
+                      return (
+                        <div
+                          className="session-command"
+                          key={`${entry.at ?? "unknown"}-${index}`}
+                        >
+                          <div className="session-command-head">
+                            {commandStatus === "ok" ||
+                            commandStatus === "failed" ? (
+                              <StatusBadge
+                                text={commandStatus}
+                                tone={statusTone(commandStatus)}
+                              />
+                            ) : (
+                              <span className="muted">exit not recorded</span>
+                            )}
+                            {entry.at ? (
+                              <span className="muted">
+                                {formatPreciseTimestamp(entry.at)}
+                              </span>
+                            ) : (
+                              <span className="muted">time not recorded</span>
+                            )}
+                            {typeof entry.duration_ms === "number" ? (
+                              <span className="muted">
+                                {formatDurationMs(entry.duration_ms)}
+                              </span>
+                            ) : null}
+                            {typeof entry.exit_code === "number" ? (
+                              <span className="muted">
+                                exit {entry.exit_code}
+                              </span>
+                            ) : null}
+                            {entry.source === "history" ? (
+                              <span className="service-tag">history</span>
+                            ) : null}
+                          </div>
+                          {entry.cwd ? (
+                            <span className="session-command-cwd">
+                              {entry.cwd}
+                            </span>
+                          ) : null}
+                          <code>{entry.command}</code>
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               ) : null}

@@ -239,6 +239,11 @@ struct SessionAction: Decodable, Identifiable {
 struct SessionCommand: Decodable {
     let at: String?
     let command: String
+    let durationMs: Int?
+    let exitCode: Int?
+    let status: String?
+    let cwd: String?
+    let source: String?
 }
 
 struct SessionDetail: Decodable {

@@ -131,10 +131,17 @@ Allowed actions: `reboot`, `shutdown`, `poweroff`.
 | `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
 | `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |
 
-Every mutating request is recorded and grouped into a session per client. The
-audit trail is kept in `/var/lib/nixos-control/activity.jsonl`, so it survives
-server restarts. Host sessions come from `loginctl`; their detail includes the
-session journal and recent shell history.
+The API server records mutating requests and groups them into sessions per
+client. The audit trail is kept in `/var/lib/nixos-control/activity.jsonl`, so
+it survives server restarts. Host sessions come from `loginctl`; their detail
+includes the session journal and shell commands.
+
+When `services.nixos-control.commandLog.enable` is true (the default), an
+interactive bash/zsh hook appends commands to
+`~/.local/state/nixos-control/commands.jsonl`. Each command entry includes
+`at`, `duration_ms`, `exit_code`, `status` (`ok`, `failed` or `unknown`),
+`cwd`, `tty` and `source` (`log` or `history`). Older commands recovered from
+shell history may omit timing and exit status.
 
 ```json
 {
@@ -173,7 +180,22 @@ session journal and recent shell history.
 
 Application session detail returns an `actions` array, with captured `job_id`
 and `output` for rebuilds. Login session detail returns `logs` from the journal
-and `commands` from the user's shell history.
+and `commands` from the shell audit log:
+
+```json
+{
+  "at": "2026-11-23T03:12:04Z",
+  "command": "nixos-rebuild switch",
+  "duration_ms": 48210,
+  "exit_code": 0,
+  "status": "ok",
+  "cwd": "/etc/nixos",
+  "source": "log"
+}
+```
+
+Older commands recovered from shell history carry `source: "history"` and may
+omit `duration_ms` and `exit_code`.
 
 ## Peripherals
 

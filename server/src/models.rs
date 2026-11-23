@@ -185,12 +185,22 @@ pub struct LoginSession {
     pub started_at: String,
 }
 
-/// One command recovered from a user's shell history.
+/// One command recovered from a shell audit log or a user's shell history.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HistoryEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub at: Option<String>,
     pub command: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    /// `ok`, `failed` or `unknown`.
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    /// `log` for the shell audit log, `history` for recovered shell history.
+    pub source: String,
 }
 
 /// One action performed in an application session.

@@ -131,7 +131,7 @@ The overrides only apply to `DEBUG` builds (the default for `xcodebuild`).
 
 ## How the script works
 
-`apply.sh` copies `server/`, `nixos-control.nix`, `desktop/`, and
+`apply.sh` copies `server/`, `shell/`, `nixos-control.nix`, `desktop/`, and
 `vm/configuration.nix` into the machine's `/etc/nixos`, writes the selected
 profile to `/etc/nixos/vm/desktop.nix`, and generates
 `/etc/nixos/control-test.nix`:

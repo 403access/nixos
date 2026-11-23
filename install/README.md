@@ -400,7 +400,7 @@ On the target system it:
 - writes `myInstall.mode`, the Windows toolchain choice and the relevant
   options to `/etc/nixos/installation-mode.nix`;
 - copies `configuration.nix`, `installation-mode.nix`, `nixos-control.nix`,
-  `jotta-cli.nix`, `desktop/`, `server/`, `install/` and `windows/`;
+  `jotta-cli.nix`, `desktop/`, `server/`, `shell/`, `install/` and `windows/`;
 - regenerates `hardware-configuration.nix` with `nixos-generate-config`;
 - creates the `tank` ZFS pool and adds `/mnt/tank` if the generated hardware
   config does not already include it;

@@ -26,12 +26,46 @@ struct SessionDetailView: View {
                 if !detail.commands.isEmpty {
                     Section {
                         ForEach(Array(detail.commands.enumerated()), id: \.offset) { _, entry in
-                            VStack(alignment: .leading, spacing: 3) {
-                                if let at = entry.at {
-                                    Text(SessionFormat.timestamp(at))
-                                        .font(.caption2)
-                                        .foregroundStyle(Theme.textMuted)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    if let status = entry.status,
+                                       status == "ok" || status == "failed" {
+                                        StatusBadge(
+                                            text: status,
+                                            tint: .sessionStatus(status)
+                                        )
+                                    } else {
+                                        Text("exit not recorded")
+                                    }
+
+                                    if let at = entry.at {
+                                        Text(SessionFormat.preciseTimestamp(at))
+                                    } else {
+                                        Text("time not recorded")
+                                    }
+
+                                    if let duration = entry.durationMs {
+                                        Text(SessionFormat.duration(duration))
+                                    }
+
+                                    if let code = entry.exitCode {
+                                        Text("exit \(code)")
+                                    }
+
+                                    if entry.source == "history" {
+                                        Text("history")
+                                    }
                                 }
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textMuted)
+
+                                if let cwd = entry.cwd {
+                                    Text(cwd)
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundStyle(Theme.textMuted)
+                                        .textSelection(.enabled)
+                                }
+
                                 Text(entry.command)
                                     .font(.system(.caption, design: .monospaced))
                                     .textSelection(.enabled)
@@ -39,9 +73,9 @@ struct SessionDetailView: View {
                             .padding(.vertical, 2)
                         }
                     } header: {
-                        Text("Shell history")
+                        Text("Commands")
                     } footer: {
-                        Text("Recent commands recovered from the user's shell history. Timestamps are approximate when the shell does not store them.")
+                        Text("Commands come from the shell audit log when enabled. Older entries are recovered from history and may lack a timestamp, duration or exit status.")
                             .font(.caption2)
                             .foregroundStyle(Theme.textMuted)
                     }
@@ -161,7 +195,7 @@ struct SessionActionRow: View {
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
                 Spacer(minLength: 4)
-                Text(SessionFormat.ago(action.at))
+                Text(SessionFormat.preciseTimestamp(action.at))
                     .font(.caption2)
                     .foregroundStyle(Theme.textMuted)
             }
@@ -194,7 +228,7 @@ struct SessionActionRow: View {
             parts.append("\(code)")
         }
         if let duration = action.durationMs {
-            parts.append("\(duration)ms")
+            parts.append(SessionFormat.duration(duration))
         }
         return parts.joined(separator: " · ")
     }
