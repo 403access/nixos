@@ -106,6 +106,20 @@ let
     done
   '';
 
+  # Desktop shortcut for the Windows 11 virtual machine.
+  virtManagerDesktop = pkgs.writeText "virt-manager.desktop" ''
+    [Desktop Entry]
+    Type=Application
+    Version=1.0
+    Name=Virtual Machine Manager
+    Comment=Manage the Windows 11 virtual machine
+    Exec=${pkgs.virt-manager}/bin/virt-manager
+    Icon=virt-manager
+    Terminal=false
+    Categories=System;Emulator;
+    StartupNotify=true
+  '';
+
   # Resolved names and packages shared with the individual profiles.
   gtkThemeName = if useWhiteSur then whiteSurGtkThemeName else catppuccinGtkThemeName;
   iconThemeName =
@@ -520,7 +534,12 @@ in
         '';
       };
 
-    systemd.tmpfiles.rules = lib.optionals
+    systemd.tmpfiles.rules =
+      [
+        "d ${cfg.home}/Desktop 0755 ${cfg.user} users -"
+        "C ${cfg.home}/Desktop/virt-manager.desktop 0755 ${cfg.user} users - ${virtManagerDesktop}"
+      ]
+      ++ lib.optionals
       (useWhiteSur && cfg.whiteSur.plank)
       [
         "d ${cfg.home}/.local/share 0755 ${cfg.user} users -"
