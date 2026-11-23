@@ -357,6 +357,111 @@ Prevention:
 The InputLeap bridge is not affected: `input-leap-client.service` runs in the
 system scope and reconnects when the greeter hands the display to the session.
 
+## Audio bridge (AirPods)
+
+The AirPods pair with the Mac, and the host has no Bluetooth radio, so NixOS
+audio is streamed to the Mac and played on its current default output (the
+AirPods). This is the audio counterpart of the input bridge above.
+
+```text
+NixOS: PipeWire null sink `airpods_bridge` (default output)
+       -> airpods-audio.socket on 192.168.178.5:4953
+       -> per-connection service: parec <sink>.monitor, 48 kHz/16 bit/stereo
+       -> raw PCM over TCP
+Mac:   nc -> sox `play` -> default CoreAudio device (AirPods)
+```
+
+### NixOS side
+
+[`audio-bridge.nix`](../audio-bridge.nix) is imported by `configuration.nix`:
+
+- the connection service creates the null sink `airpods_bridge`, makes it the
+  default output, and captures its monitor;
+- `airpods-audio.socket` listens on `192.168.178.5:4953` only, so the stream is
+  not exposed on the Tailscale or container interfaces;
+- the stream is unauthenticated raw PCM, intended for the home LAN.
+
+Control which output is used:
+
+| Command | Effect |
+| --- | --- |
+| `audio-airpods` | Route NixOS audio to the bridge (the default). |
+| `audio-local` | Route it back to the first hardware sink. |
+
+### Mac side
+
+1. Install the player: `brew install sox`.
+2. Save this launcher as
+   `~/Library/Application Support/nixos-control/audio-bridge.sh`:
+
+   ```sh
+   #!/bin/sh
+   exec 2>&1
+   /usr/bin/tail -f /dev/null | /usr/bin/nc 192.168.178.5 4953 | \
+     /opt/homebrew/bin/play -q -t raw -r 48000 -e signed-integer -b 16 -c 2 -
+   ```
+
+3. Save this as
+   `~/Library/LaunchAgents/com.nixos-control.audio-bridge.plist`:
+
+   ```xml
+   <?xml version="1.0" encoding="UTF-8"?>
+   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+   <plist version="1.0">
+   <dict>
+       <key>Label</key>
+       <string>com.nixos-control.audio-bridge</string>
+       <key>ProgramArguments</key>
+       <array>
+           <string>/bin/sh</string>
+           <string>/Users/olivermolnar/Library/Application Support/nixos-control/audio-bridge.sh</string>
+       </array>
+       <key>RunAtLoad</key>
+       <true/>
+       <key>KeepAlive</key>
+       <true/>
+       <key>ThrottleInterval</key>
+       <integer>3</integer>
+       <key>StandardOutPath</key>
+       <string>/Users/olivermolnar/Library/Logs/nixos-audio-bridge.log</string>
+       <key>StandardErrorPath</key>
+       <string>/Users/olivermolnar/Library/Logs/nixos-audio-bridge.log</string>
+   </dict>
+   </plist>
+   ```
+
+4. Load it:
+
+   ```bash
+   launchctl bootstrap gui/$(id -u) \
+     "$HOME/Library/LaunchAgents/com.nixos-control.audio-bridge.plist"
+   ```
+
+The agent starts at login and restarts automatically. `sox` opens the default
+output when it starts, so after the AirPods (re)connect, re-open it:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.nixos-control.audio-bridge
+```
+
+Logs: `~/Library/Logs/nixos-audio-bridge.log`.
+
+### Notes and troubleshooting
+
+- **No sound:** check `pactl get-default-sink` on the host (must be
+  `airpods_bridge`), `ss -tln | grep 4953`, and that the launchd job is running
+  (`launchctl print gui/$(id -u)/com.nixos-control.audio-bridge`).
+- **Sound on the Mac speakers instead of the AirPods:** the agent opened the
+  default device before the AirPods connected; run the `kickstart` command.
+- **Snapcast was tried first and rejected:** snapclient 0.35's CoreAudio player
+  closes immediately after start (uninitialized timer) and its file player
+  replays stale buffers as white noise when a chunk is late. The raw PCM socket
+  avoids both bugs.
+- **Latency:** the TCP/sox buffer plus the AirPods' own Bluetooth latency. Fine
+  for media; not suitable for lip-sync with the VM display.
+- The VM's audio follows the default sink too, so Windows sound reaches the
+  AirPods through the same bridge.
+
 ## Pair the Apple keyboard
 
 1. Put the keyboard in pairing mode: hold its power button until the LED starts

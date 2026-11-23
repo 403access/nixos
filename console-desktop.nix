@@ -38,11 +38,15 @@ let
          5. nixos-control      Show the web dashboard URL and the control
                                service state.
 
-         6. stop-desktop       Stop the desktop and return to this console.
+         6. audio-airpods      Route NixOS audio to the AirPods bridge
+                               (the default). audio-local routes it back to
+                               the local output.
 
-         7. reboot / poweroff  Restart or shut down the machine.
+         7. stop-desktop       Stop the desktop and return to this console.
 
-         8. console-help       Print this message again.
+         8. reboot / poweroff  Restart or shut down the machine.
+
+         9. console-help       Print this message again.
 
        Other access:
          - SSH is always available:  ssh nixos@192.168.178.5
