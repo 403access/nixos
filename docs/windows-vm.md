@@ -88,6 +88,15 @@ Host work always wins under contention, without a hard cap:
 Weights only matter when the host is busy. During a compile or other host load
 the VM yields; when the host is idle the VM still gets every free cycle.
 
+Verify the settings:
+
+```bash
+virsh -c qemu:///system dumpxml win11-stock \
+  | grep -E "<vcpu|<topology|<shares"
+systemctl show machine.slice -p CPUWeight -p IOWeight
+cat /sys/fs/cgroup/machine.slice/cpu.weight
+```
+
 ## Memory
 
 The guest currently runs with **4 GiB** (reduced from 12 GiB, then 8 GiB, then
