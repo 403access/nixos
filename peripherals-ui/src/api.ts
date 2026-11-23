@@ -7,6 +7,8 @@ import type {
   PoolStatusResponse,
   ProbeReport,
   ServiceUnit,
+  SessionDetail,
+  SessionsResponse,
   StorageSnapshot,
   SystemStatus,
 } from "./types";
@@ -228,6 +230,31 @@ export function getPeripherals(
   token: string,
 ): Promise<ProbeReport> {
   return request<ProbeReport>(serverUrl, token, "/api/peripherals");
+}
+
+export function getSessions(
+  serverUrl: string,
+  token: string,
+  limit = 50,
+): Promise<SessionsResponse> {
+  return request<SessionsResponse>(
+    serverUrl,
+    token,
+    withQuery("/api/sessions", { limit }),
+  );
+}
+
+export function getSession(
+  serverUrl: string,
+  token: string,
+  id: string,
+  lines = 300,
+): Promise<SessionDetail> {
+  return request<SessionDetail>(
+    serverUrl,
+    token,
+    withQuery(`/api/sessions/${encodeURIComponent(id)}`, { lines }),
+  );
 }
 
 export const fetchPeripherals = getPeripherals;

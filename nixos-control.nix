@@ -37,6 +37,7 @@ let
     "${package}/bin/nixos-control"
     "--listen" "${cfg.address}:${toString cfg.port}"
     "--token-file" cfg.tokenFile
+    "--activity-file" "/var/lib/nixos-control/activity.jsonl"
     "--allow-rebuild=${lib.boolToString cfg.allowRebuild}"
     "--allow-power=${lib.boolToString cfg.allowPower}"
   ] ++ lib.optionals (cfg.flake != null) [ "--flake" cfg.flake ];

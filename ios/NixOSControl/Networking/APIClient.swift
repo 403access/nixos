@@ -73,6 +73,7 @@ struct APIClient {
         request.timeoutInterval = 60
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("NixOSControl iOS", forHTTPHeaderField: "User-Agent")
         return request
     }
 

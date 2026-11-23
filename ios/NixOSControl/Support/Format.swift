@@ -38,6 +38,49 @@ enum PercentFormat {
     }
 }
 
+/// Formats the timestamps returned by the sessions endpoint. Unparseable
+/// values (such as a raw `loginctl` timestamp) are shown as-is.
+enum SessionFormat {
+    private static let iso = ISO8601DateFormatter()
+
+    private static let isoFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let display: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    private static let relative: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter
+    }()
+
+    static func date(_ value: String) -> Date? {
+        iso.date(from: value) ?? isoFractional.date(from: value)
+    }
+
+    static func timestamp(_ value: String) -> String {
+        guard let date = date(value) else {
+            return value.isEmpty ? "—" : value
+        }
+        return display.string(from: date)
+    }
+
+    static func ago(_ value: String) -> String {
+        guard let date = date(value) else {
+            return value
+        }
+        return relative.localizedString(for: date, relativeTo: Date())
+    }
+}
+
 func usageFraction(_ used: Int64, _ total: Int64) -> Double {
     guard total > 0 else { return 0 }
     return min(1, max(0, Double(used) / Double(total)))
@@ -82,6 +125,19 @@ extension Color {
             return Theme.textMuted
         default:
             return Theme.textSecondary
+        }
+    }
+
+    static func sessionStatus(_ status: String) -> Color {
+        switch status {
+        case "ok":
+            return Theme.success
+        case "failed":
+            return Theme.danger
+        case "denied", "mixed":
+            return Theme.warning
+        default:
+            return Theme.textMuted
         }
     }
 }

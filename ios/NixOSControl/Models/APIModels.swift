@@ -176,3 +176,66 @@ struct PoolStatusResponse: Decodable {
     let name: String
     let status: String
 }
+
+struct SessionSummary: Decodable, Identifiable, Hashable {
+    let id: String
+    let kind: String
+    let source: String
+    let title: String
+    let user: String?
+    let tty: String?
+    let seat: String?
+    let remoteHost: String?
+    let service: String?
+    let state: String
+    let startedAt: String
+    let lastActiveAt: String
+    let actionCount: Int
+    let status: String
+    let summary: String
+}
+
+struct SessionsResponse: Decodable {
+    let sessions: [SessionSummary]
+}
+
+struct SessionAction: Decodable, Identifiable {
+    let id: String
+    let at: String
+    let action: String
+    let target: String?
+    let status: String
+    let detail: String?
+    let jobId: String?
+    let output: String?
+    let method: String?
+    let path: String?
+    let statusCode: Int?
+    let durationMs: Int?
+}
+
+struct SessionCommand: Decodable {
+    let at: String?
+    let command: String
+}
+
+struct SessionDetail: Decodable {
+    let id: String
+    let kind: String
+    let source: String
+    let title: String
+    let user: String?
+    let tty: String?
+    let seat: String?
+    let remoteHost: String?
+    let service: String?
+    let state: String
+    let startedAt: String
+    let lastActiveAt: String
+    let actionCount: Int
+    let status: String
+    let summary: String
+    let actions: [SessionAction]
+    let logs: [String]
+    let commands: [SessionCommand]
+}

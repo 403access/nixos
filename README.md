@@ -15,6 +15,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 ## Features
 
 - **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state.
+- **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell history.
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
@@ -554,6 +555,8 @@ Authorization: Bearer <token>
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
+| `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
+| `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |
 | `GET` | `/api/services` | systemd service units |
 | `POST` | `/api/services/{unit}/{action}` | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `reset-failed`, … |
 | `GET` | `/api/services/{unit}/logs?lines=200` | Service journal |
@@ -569,6 +572,12 @@ Authorization: Bearer <token>
 `GET /api/peripherals` is read-only. It and `/api/health` allow CORS so the
 standalone `peripherals-ui` dashboard can read them; the other routes remain
 same-origin. See [`docs/peripherals.md`](docs/peripherals.md).
+
+Mutating API requests (service actions, rebuilds, power and job cancellation)
+are written to `/var/lib/nixos-control/activity.jsonl` and grouped into
+sessions per client. Host sessions come from `loginctl`, with the session
+journal and recent shell history attached. Open **Sessions** in either app to
+browse them.
 
 ### Rotate the token
 
@@ -683,7 +692,7 @@ In `DEBUG` builds, these environment variables can point the app at a local fixt
 
 - `NIXOS_CONTROL_SERVER`
 - `NIXOS_CONTROL_TOKEN`
-- `NIXOS_CONTROL_TAB` (`dashboard`, `services`, `storage`, `system`, `settings`)
+- `NIXOS_CONTROL_TAB` (`dashboard`, `sessions`, `services`, `storage`, `system`, `settings`)
 
 They are ignored in release builds.
 

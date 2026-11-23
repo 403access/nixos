@@ -79,12 +79,21 @@ fn pool_name_re() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"^[A-Za-z0-9_][A-Za-z0-9_.:-]*$").expect("valid pool regex"))
 }
 
+fn session_id_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$").expect("valid session regex"))
+}
+
 pub fn valid_unit_name(name: &str) -> bool {
     unit_name_re().is_match(name)
 }
 
 pub fn valid_pool_name(name: &str) -> bool {
     pool_name_re().is_match(name)
+}
+
+pub fn valid_session_id(id: &str) -> bool {
+    session_id_re().is_match(id)
 }
 
 pub fn round1(value: f64) -> f64 {
@@ -222,6 +231,16 @@ mod tests {
         }
         for name in ["", "-pool", "../tank", "tank/data", "tank data", "/tank"] {
             assert!(!valid_pool_name(name), "expected {name:?} to be invalid");
+        }
+    }
+
+    #[test]
+    fn session_ids_accept_logind_values_and_reject_arguments() {
+        for id in ["2", "c1", "auto-autologin", "session42"] {
+            assert!(valid_session_id(id), "expected {id:?} to be valid");
+        }
+        for id in ["", "2; rm -rf /", "../2", "2 3", "-2"] {
+            assert!(!valid_session_id(id), "expected {id:?} to be invalid");
         }
     }
 

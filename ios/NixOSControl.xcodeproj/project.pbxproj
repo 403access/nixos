@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01FDDE210AC16AA46295E64A /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 426182EDE427B1163E539FFD /* SessionDetailView.swift */; };
 		04146CA8C481C6FE02F7CED9 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E66D570D356FBB072472CC3 /* LogsView.swift */; };
 		0BA6345920E1D854214A9475 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D29125181F1BA5873AA2C4D /* SetupView.swift */; };
 		1CA5F289A00F40C95155E4E7 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA91B0EA89040E33702FCFDF /* Components.swift */; };
@@ -27,6 +28,7 @@
 		B7BC8BDB64BD635A33E0421A /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C98735EBF25290620673100 /* Theme.swift */; };
 		BAB62597E70E7862084B8866 /* ServicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C770326FF5E45ECAD21A5727 /* ServicesView.swift */; };
 		DD6B3FF27E6CE47DD6AEF231 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AD6643B6DF20601FB95228 /* RootView.swift */; };
+		E46DAC61ACDB9F1FBC523906 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA7B8E48422A6988E21809A /* SessionsView.swift */; };
 		E813E52934C368019D094B74 /* PeripheralsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2F44FE93BC5EA58A0CD348 /* PeripheralsModels.swift */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +37,7 @@
 		1A4ED095D2199FF299B302E2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3B82ED80E955E4479EDE48A9 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		3F2F44FE93BC5EA58A0CD348 /* PeripheralsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeripheralsModels.swift; sourceTree = "<group>"; };
+		426182EDE427B1163E539FFD /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		448986A5AE3A93E376BC897D /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		478886ACBF4BAEE4414F51B9 /* ServiceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDetailView.swift; sourceTree = "<group>"; };
 		4876916A76984E4397C9D3B7 /* PeripheralsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeripheralsView.swift; sourceTree = "<group>"; };
@@ -42,6 +45,7 @@
 		51AAE64334025D33949AC402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		710868DDF0F713AC1CCD8491 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		76EFB762F279BAB92C83D977 /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
+		7DA7B8E48422A6988E21809A /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsView.swift; sourceTree = "<group>"; };
 		8D29125181F1BA5873AA2C4D /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		B8361E113CF82B2D4968631E /* NixOSControl.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NixOSControl.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE22EBC7DC7151EEA32255A8 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -124,6 +128,8 @@
 				4876916A76984E4397C9D3B7 /* PeripheralsView.swift */,
 				478886ACBF4BAEE4414F51B9 /* ServiceDetailView.swift */,
 				C770326FF5E45ECAD21A5727 /* ServicesView.swift */,
+				426182EDE427B1163E539FFD /* SessionDetailView.swift */,
+				7DA7B8E48422A6988E21809A /* SessionsView.swift */,
 				1A4ED095D2199FF299B302E2 /* SettingsView.swift */,
 				8D29125181F1BA5873AA2C4D /* SetupView.swift */,
 				F8C6134BA95288FBECEBBF0D /* StorageView.swift */,
@@ -234,6 +240,8 @@
 				DD6B3FF27E6CE47DD6AEF231 /* RootView.swift in Sources */,
 				9C300B787CF21F10647D39D3 /* ServiceDetailView.swift in Sources */,
 				BAB62597E70E7862084B8866 /* ServicesView.swift in Sources */,
+				01FDDE210AC16AA46295E64A /* SessionDetailView.swift in Sources */,
+				E46DAC61ACDB9F1FBC523906 /* SessionsView.swift in Sources */,
 				50CB8F538E49520D1723E504 /* SettingsView.swift in Sources */,
 				0BA6345920E1D854214A9475 /* SetupView.swift in Sources */,
 				4E60EC71EB23FBA672997173 /* StorageView.swift in Sources */,

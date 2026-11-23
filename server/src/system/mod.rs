@@ -2,6 +2,7 @@ pub mod addresses;
 pub mod cpu;
 pub mod generations;
 pub mod services;
+pub mod sessions;
 pub mod status;
 pub mod storage;
 pub mod tailscale;
@@ -12,7 +13,7 @@ use std::time::Duration;
 
 use crate::commands::{CommandRunner, RealCommandRunner};
 use crate::config::AppConfig;
-use crate::models::{Generation, ServiceUnit, Status, StorageSnapshot};
+use crate::models::{Generation, HistoryEntry, LoginSession, ServiceUnit, Status, StorageSnapshot};
 
 /// Filesystem roots used by the system probe. Tests replace these with fixture
 /// directories.
@@ -49,6 +50,25 @@ pub trait SystemProbe: Send + Sync {
     fn system_logs(&self, lines: usize) -> Result<Vec<String>, String>;
     fn pool_status(&self, name: &str) -> Result<String, String>;
     fn power(&self, action: &str) -> Result<(), String>;
+
+    /// Current systemd-logind sessions. Defaults to none so test probes only
+    /// need to implement what they exercise.
+    fn login_sessions(&self) -> Vec<LoginSession> {
+        Vec::new()
+    }
+
+    fn login_session_logs(&self, _id: &str, _lines: usize) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
+
+    fn login_session_history(
+        &self,
+        _user: &str,
+        _since_epoch: Option<i64>,
+        _limit: usize,
+    ) -> Vec<HistoryEntry> {
+        Vec::new()
+    }
 }
 
 /// Real host implementation. Commands never involve a shell and every call has
@@ -168,6 +188,23 @@ impl SystemProbe for LocalSystem {
             Duration::from_secs(10),
         );
         command_result(result)
+    }
+
+    fn login_sessions(&self) -> Vec<LoginSession> {
+        sessions::collect_login_sessions(self.runner.as_ref())
+    }
+
+    fn login_session_logs(&self, id: &str, lines: usize) -> Result<Vec<String>, String> {
+        sessions::session_logs(self.runner.as_ref(), id, lines)
+    }
+
+    fn login_session_history(
+        &self,
+        user: &str,
+        since_epoch: Option<i64>,
+        limit: usize,
+    ) -> Vec<HistoryEntry> {
+        sessions::shell_history(user, since_epoch, limit)
     }
 }
 

@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod api;
 pub mod commands;
 pub mod config;

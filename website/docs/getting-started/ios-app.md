@@ -76,6 +76,14 @@ The Apple Magic Keyboard does not appear there: it is not a Logitech device and
 the receiver cannot enroll it. See
 [Peripherals](../guides/peripherals.md) for details.
 
+## Sessions
+
+Open the **Sessions** tab to see what happened on the machine. The list combines
+actions taken through the web console and this app (service start/stop/restart,
+rebuilds, power changes) with the host's current console, SSH and RDP logins.
+Each entry shows its start time, status and action count; open one to read the
+individual actions, rebuild output, session journal and recent shell history.
+
 ## Other LAN access
 
 WireGuard mode uses the same server settings as direct LAN access. Enable them

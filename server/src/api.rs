@@ -1,7 +1,9 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::body::{Body, Bytes};
+use axum::extract::connect_info::ConnectInfo;
 use axum::extract::{DefaultBodyLimit, Path, Query, Request, State};
 use axum::http::{header, HeaderValue, Method, StatusCode};
 use axum::middleware::{self, Next};
@@ -12,11 +14,17 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tower_http::catch_panic::CatchPanicLayer;
 
+use crate::activity::{ActivityStore, NewActivity};
 use crate::config::AppConfig;
 use crate::jobs::JobLauncher;
+use crate::models::{
+    HistoryEntry, LoginSession, SessionAction, SessionDetail, SessionSummary, SessionsResponse,
+};
 use crate::peripherals::PeripheralProbe;
 use crate::system::SystemProbe;
-use crate::util::{parse_lines_param, valid_pool_name, valid_token, valid_unit_name};
+use crate::util::{
+    parse_lines_param, valid_pool_name, valid_session_id, valid_token, valid_unit_name,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,6 +32,7 @@ pub struct AppState {
     pub system: Arc<dyn SystemProbe>,
     pub jobs: Arc<dyn JobLauncher>,
     pub peripherals: Arc<dyn PeripheralProbe>,
+    pub activity: Arc<ActivityStore>,
     pub version: String,
 }
 
@@ -41,12 +50,18 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/system/rebuild", post(rebuild))
         .route("/api/system/power", post(power))
         .route("/api/logs", get(system_logs))
+        .route("/api/sessions", get(sessions))
+        .route("/api/sessions/{id}", get(session_detail))
         .route("/api/jobs", get(jobs))
         .route("/api/jobs/{id}", get(job))
         .route("/api/jobs/{id}/cancel", post(job_cancel))
         .fallback(not_found)
         .with_state(state.clone())
         .layer(DefaultBodyLimit::max(1024 * 1024))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            record_activity,
+        ))
         .layer(middleware::from_fn_with_state(state.clone(), require_auth))
         .layer(middleware::from_fn(security_headers))
         .layer(middleware::from_fn(cors_peripherals))
@@ -162,6 +177,165 @@ async fn log_requests(request: Request, next: Next) -> Response {
     response
 }
 
+/// Record mutating requests in the activity audit trail. The response body is
+/// inspected for an error message and rebuild job id, then passed through
+/// unchanged.
+async fn record_activity(State(state): State<AppState>, request: Request, next: Next) -> Response {
+    let method = request.method().clone();
+    if method == Method::GET || method == Method::HEAD || method == Method::OPTIONS {
+        return next.run(request).await;
+    }
+
+    let path = request.uri().path().to_string();
+    let started = Instant::now();
+    let (source, client, actor_key) = actor_info(&request);
+
+    // Rebuild and power requests carry the chosen action in a small JSON body.
+    // Read it before the handler consumes the request so the audit entry can
+    // show what was requested.
+    let mut body_action = None;
+    let request = if path == "/api/system/rebuild" || path == "/api/system/power" {
+        let (parts, body) = request.into_parts();
+        let bytes = match axum::body::to_bytes(body, 1024 * 1024 + 1).await {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return error_response(StatusCode::PAYLOAD_TOO_LARGE, "request body too large")
+            }
+        };
+        body_action = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("action")
+                    .and_then(|action| action.as_str())
+                    .map(str::to_string)
+            });
+        Request::from_parts(parts, Body::from(bytes))
+    } else {
+        request
+    };
+
+    let response = next.run(request).await;
+    let status = response.status();
+    let (parts, body) = response.into_parts();
+    // Mutating endpoints return either a small status object or a job snapshot
+    // whose captured output is capped at 64 KiB by the job manager. Two
+    // megabytes leaves room for JSON escaping while keeping the buffer bounded.
+    let bytes = axum::body::to_bytes(body, 2 * 1024 * 1024)
+        .await
+        .unwrap_or_default();
+    let payload: Option<serde_json::Value> = serde_json::from_slice(&bytes).ok();
+    let error = payload
+        .as_ref()
+        .and_then(|value| value.get("error"))
+        .and_then(|value| value.as_str())
+        .map(str::to_string);
+    let job_id = if path == "/api/system/rebuild" {
+        payload
+            .as_ref()
+            .and_then(|value| value.get("id"))
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+    } else {
+        None
+    };
+
+    let (action, target) = describe_action(&method, &path, body_action);
+    let status_tone = match status.as_u16() {
+        401 | 403 => "denied",
+        200..=299 => "ok",
+        _ => "failed",
+    };
+    let detail = match (&error, &job_id) {
+        (Some(error), _) => Some(error.clone()),
+        (None, Some(job_id)) => Some(format!("job {job_id}")),
+        (None, None) => None,
+    };
+
+    state.activity.record(NewActivity {
+        actor_key,
+        source,
+        action,
+        target,
+        status: status_tone.to_string(),
+        detail,
+        job_id,
+        client,
+        method: method.to_string(),
+        path,
+        status_code: status.as_u16(),
+        duration_ms: started.elapsed().as_millis() as u64,
+    });
+
+    Response::from_parts(parts, Body::from(bytes))
+}
+
+/// Classify the caller by user agent and address. The iOS app sends a
+/// `NixOSControl` user agent; browsers send `Mozilla`/`WebKit`; anything else
+/// is treated as a generic API client.
+fn actor_info(request: &Request) -> (String, Option<String>, String) {
+    let user_agent = request
+        .headers()
+        .get(header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
+    let lowered = user_agent.to_ascii_lowercase();
+    let source = if lowered.contains("nixoscontrol") {
+        "ios"
+    } else if lowered.contains("mozilla") || lowered.contains("webkit") {
+        "web"
+    } else {
+        "api"
+    };
+
+    let forwarded = request
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(',').next())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let real_ip = request
+        .headers()
+        .get("x-real-ip")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let peer = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|ConnectInfo(address)| address.ip().to_string());
+
+    let client = forwarded
+        .map(str::to_string)
+        .or_else(|| real_ip.map(str::to_string))
+        .or(peer);
+
+    let agent: String = user_agent.chars().take(80).collect();
+    let actor_key = format!("{source}|{}|{agent}", client.as_deref().unwrap_or("-"));
+    (source.to_string(), client, actor_key)
+}
+
+fn describe_action(
+    method: &Method,
+    path: &str,
+    body_action: Option<String>,
+) -> (String, Option<String>) {
+    let segments: Vec<&str> = path
+        .trim_start_matches("/api/")
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+
+    match segments.as_slice() {
+        ["services", unit, action] => (action.to_string(), Some(unit.to_string())),
+        ["system", "rebuild"] => ("rebuild".to_string(), body_action),
+        ["system", "power"] => ("power".to_string(), body_action),
+        ["jobs", id, "cancel"] => ("cancel".to_string(), Some(format!("job {id}"))),
+        _ => (method.as_str().to_ascii_lowercase(), Some(path.to_string())),
+    }
+}
+
 fn handle_panic(payload: Box<dyn std::any::Any + Send + 'static>) -> Response {
     let message = if let Some(message) = payload.downcast_ref::<&str>() {
         (*message).to_string()
@@ -271,6 +445,207 @@ async fn service_action(
 #[derive(Debug, Default, Deserialize)]
 struct LinesQuery {
     lines: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct LimitQuery {
+    limit: Option<String>,
+}
+
+fn parse_limit(value: Option<&str>, fallback: usize, max: usize) -> usize {
+    let parsed = value.and_then(|value| value.trim().parse::<usize>().ok());
+    match parsed {
+        Some(value) if value > 0 => value.min(max),
+        _ => fallback,
+    }
+}
+
+fn login_source(session: &LoginSession) -> &'static str {
+    let service = session.service.to_ascii_lowercase();
+    if service.contains("sshd") || service.contains("ssh") {
+        "ssh"
+    } else if service.contains("xrdp") {
+        "rdp"
+    } else {
+        "console"
+    }
+}
+
+fn login_summary(session: &LoginSession) -> SessionSummary {
+    let source = login_source(session);
+    let place = session
+        .tty
+        .clone()
+        .or_else(|| session.seat.clone())
+        .or_else(|| {
+            if session.kind.is_empty() {
+                None
+            } else {
+                Some(session.kind.clone())
+            }
+        })
+        .unwrap_or_else(|| "session".to_string());
+    let title = format!("{} · {}", session.user, place);
+    let summary = match (&session.remote_host, session.remote) {
+        (Some(host), _) => format!("Remote login from {host}"),
+        (None, true) => "Remote login".to_string(),
+        (None, false) => format!(
+            "{} login on {}",
+            if session.kind.is_empty() {
+                "Local"
+            } else {
+                session.kind.as_str()
+            },
+            place
+        ),
+    };
+
+    SessionSummary {
+        id: format!("login-{}", session.id),
+        kind: "login".to_string(),
+        source: source.to_string(),
+        title,
+        user: Some(session.user.clone()),
+        tty: session.tty.clone(),
+        seat: session.seat.clone(),
+        remote_host: session.remote_host.clone(),
+        service: if session.service.is_empty() {
+            None
+        } else {
+            Some(session.service.clone())
+        },
+        state: if session.active {
+            "active".to_string()
+        } else if session.state.is_empty() {
+            "ended".to_string()
+        } else {
+            session.state.clone()
+        },
+        started_at: session.started_at.clone(),
+        last_active_at: session.started_at.clone(),
+        action_count: 0,
+        status: "ok".to_string(),
+        summary,
+    }
+}
+
+async fn sessions(State(state): State<AppState>, Query(query): Query<LimitQuery>) -> Response {
+    let limit = parse_limit(query.limit.as_deref(), 50, 200);
+    let mut summaries = state.activity.sessions(limit);
+
+    let system = state.system.clone();
+    if let Ok(sessions) = blocking(move || system.login_sessions()).await {
+        summaries.extend(sessions.iter().map(login_summary));
+    }
+
+    summaries.sort_by(|left, right| right.last_active_at.cmp(&left.last_active_at));
+    summaries.truncate(limit);
+    json_response(
+        StatusCode::OK,
+        &SessionsResponse {
+            sessions: summaries,
+        },
+    )
+}
+
+async fn session_detail(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Query(query): Query<LinesQuery>,
+) -> Response {
+    let lines = parse_lines_param(query.lines.as_deref().unwrap_or(""), 300);
+
+    if let Some(raw_id) = id.strip_prefix("login-") {
+        let raw_id = raw_id.to_string();
+        if !valid_session_id(&raw_id) {
+            return error_response(StatusCode::BAD_REQUEST, "invalid session id");
+        }
+
+        let system = state.system.clone();
+        let lookup = raw_id.clone();
+        let sessions = match blocking(move || system.login_sessions()).await {
+            Ok(sessions) => sessions,
+            Err(()) => return internal_error(),
+        };
+        let Some(session) = sessions.into_iter().find(|session| session.id == lookup) else {
+            return error_response(StatusCode::NOT_FOUND, "session not found");
+        };
+
+        let since = chrono::DateTime::parse_from_rfc3339(&session.started_at)
+            .ok()
+            .map(|value| value.timestamp());
+        let user = session.user.clone();
+
+        let system = state.system.clone();
+        let log_id = raw_id.clone();
+        let logs = match blocking(move || system.login_session_logs(&log_id, lines)).await {
+            Ok(Ok(lines)) => lines,
+            _ => Vec::new(),
+        };
+
+        let system = state.system.clone();
+        let history_user = user.clone();
+        let commands: Vec<HistoryEntry> =
+            blocking(move || system.login_session_history(&history_user, since, 300))
+                .await
+                .unwrap_or_default();
+
+        let mut summary = login_summary(&session);
+        summary.action_count = commands.len();
+        if !commands.is_empty() {
+            summary.summary = format!("{} · {} commands", summary.summary, commands.len());
+        }
+
+        return json_response(
+            StatusCode::OK,
+            &SessionDetail {
+                summary,
+                actions: Vec::new(),
+                logs,
+                commands,
+            },
+        );
+    }
+
+    let Some(summary) = state.activity.session_summary(&id) else {
+        return error_response(StatusCode::NOT_FOUND, "session not found");
+    };
+    let events = state.activity.session_events(&id).unwrap_or_default();
+    let actions: Vec<SessionAction> = events
+        .into_iter()
+        .map(|event| {
+            let output = event
+                .job_id
+                .as_ref()
+                .and_then(|job_id| state.jobs.snapshot(job_id))
+                .map(|job| job.output)
+                .filter(|text| !text.trim().is_empty());
+            SessionAction {
+                id: event.id,
+                at: event.at,
+                action: event.action,
+                target: event.target,
+                status: event.status,
+                detail: event.detail,
+                job_id: event.job_id,
+                output,
+                method: Some(event.method),
+                path: Some(event.path),
+                status_code: Some(event.status_code),
+                duration_ms: Some(event.duration_ms),
+            }
+        })
+        .collect();
+
+    json_response(
+        StatusCode::OK,
+        &SessionDetail {
+            summary,
+            actions,
+            logs: Vec::new(),
+            commands: Vec::new(),
+        },
+    )
 }
 
 async fn service_logs(

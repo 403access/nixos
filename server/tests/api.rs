@@ -5,12 +5,13 @@ use axum::body::Body;
 use axum::http::{HeaderMap, Method, Request, StatusCode};
 use axum::Router;
 use http_body_util::BodyExt;
+use nixos_control::activity::ActivityStore;
 use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
 use nixos_control::jobs::{Job, JobLauncher};
 use nixos_control::models::{
-    CpuInfo, DatasetInfo, FilesystemInfo, Generation, PoolInfo, ServiceUnit, Status,
-    StorageSnapshot,
+    CpuInfo, DatasetInfo, FilesystemInfo, Generation, HistoryEntry, LoginSession, PoolInfo,
+    ServiceUnit, Status, StorageSnapshot,
 };
 use nixos_control::peripherals::{
     BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
@@ -293,6 +294,42 @@ impl SystemProbe for MockSystem {
         self.record(format!("power {action}"));
         Ok(())
     }
+
+    fn login_sessions(&self) -> Vec<LoginSession> {
+        vec![LoginSession {
+            id: "2".to_string(),
+            user: "oliver".to_string(),
+            uid: Some(1000),
+            seat: Some("seat0".to_string()),
+            tty: Some("tty1".to_string()),
+            remote: false,
+            remote_host: None,
+            service: "login".to_string(),
+            kind: "tty".to_string(),
+            class: "user".to_string(),
+            state: "active".to_string(),
+            active: true,
+            started_at: "2026-01-01T00:00:00Z".to_string(),
+        }]
+    }
+
+    fn login_session_logs(&self, id: &str, lines: usize) -> Result<Vec<String>, String> {
+        self.record(format!("session logs {id} {lines}"));
+        Ok(vec!["2026-01-01 session line".to_string()])
+    }
+
+    fn login_session_history(
+        &self,
+        user: &str,
+        _since_epoch: Option<i64>,
+        _limit: usize,
+    ) -> Vec<HistoryEntry> {
+        self.record(format!("session history {user}"));
+        vec![HistoryEntry {
+            at: Some("2026-01-01T00:01:00Z".to_string()),
+            command: "nixos-rebuild switch".to_string(),
+        }]
+    }
 }
 
 struct Fixture {
@@ -327,6 +364,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             system: Arc::new(system.clone()),
             jobs: Arc::new(jobs.clone()),
             peripherals: Arc::new(peripherals),
+            activity: Arc::new(ActivityStore::new(None)),
             version: "test-version".to_string(),
         },
         system,
@@ -951,4 +989,104 @@ async fn peripherals_allows_a_cors_preflight_without_a_token() {
             .and_then(|value| value.to_str().ok()),
         Some("*")
     );
+}
+
+#[tokio::test]
+async fn records_service_actions_in_a_session() {
+    let fixture = fixture();
+    let (status, _, _) = post(&fixture, "/api/services/nginx.service/restart", None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, _, body) = get(&fixture, "/api/sessions").await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    let sessions = value["sessions"].as_array().unwrap();
+    let app = sessions
+        .iter()
+        .find(|session| session["kind"] == "app")
+        .expect("app session");
+    assert_eq!(app["action_count"], 1);
+    assert_eq!(app["status"], "ok");
+    assert_eq!(app["source"], "api");
+    assert!(app["summary"]
+        .as_str()
+        .unwrap()
+        .contains("restart nginx.service"));
+
+    let id = app["id"].as_str().unwrap();
+    let (status, _, detail) = get(&fixture, &format!("/api/sessions/{id}")).await;
+    assert_eq!(status, StatusCode::OK);
+    let detail = json(&detail);
+    assert_eq!(detail["actions"][0]["action"], "restart");
+    assert_eq!(detail["actions"][0]["target"], "nginx.service");
+}
+
+#[tokio::test]
+async fn marks_failed_actions_in_a_session() {
+    let mut fixture = fixture();
+    fixture.state.system = Arc::new(MockSystem {
+        action_error: Some("unit is masked".to_string()),
+        ..Default::default()
+    });
+
+    let (status, _, _) = post(&fixture, "/api/services/nginx.service/start", None).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+
+    let (_, _, body) = get(&fixture, "/api/sessions").await;
+    let value = json(&body);
+    let app = value["sessions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|session| session["kind"] == "app")
+        .expect("app session");
+    assert_eq!(app["status"], "failed");
+    assert_eq!(app["action_count"], 1);
+}
+
+#[tokio::test]
+async fn lists_login_sessions_with_logs_and_history() {
+    let fixture = fixture();
+
+    let (status, _, body) = get(&fixture, "/api/sessions").await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    let login = value["sessions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|session| session["kind"] == "login")
+        .expect("login session");
+    assert_eq!(login["id"], "login-2");
+    assert_eq!(login["user"], "oliver");
+    assert_eq!(login["source"], "console");
+
+    let (status, _, detail) = get(&fixture, "/api/sessions/login-2?lines=50").await;
+    assert_eq!(status, StatusCode::OK);
+    let detail = json(&detail);
+    assert_eq!(detail["logs"][0], "2026-01-01 session line");
+    assert_eq!(detail["commands"][0]["command"], "nixos-rebuild switch");
+    assert_eq!(detail["action_count"], 1);
+}
+
+#[tokio::test]
+async fn unknown_sessions_return_not_found() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/sessions/app-does-not-exist").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(json(&body)["error"], "session not found");
+}
+
+#[tokio::test]
+async fn sessions_endpoint_requires_a_token() {
+    let fixture = fixture();
+    let (status, _, _) = send(
+        build_router(fixture.state.clone()),
+        Method::GET,
+        "/api/sessions",
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }

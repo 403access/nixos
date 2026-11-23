@@ -15,6 +15,12 @@ const server = Bun.serve({
       const upstream = new URL(url.pathname + url.search, target);
       const headers = new Headers(request.headers);
       headers.delete("host");
+      if (!headers.has("x-forwarded-for")) {
+        const client = server.requestIP(request);
+        if (client?.address) {
+          headers.set("x-forwarded-for", client.address);
+        }
+      }
 
       try {
         return await fetch(upstream, {

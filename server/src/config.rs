@@ -9,6 +9,9 @@ pub struct AppConfig {
     /// Directory used as the working directory for `nixos-rebuild` when it
     /// exists. Kept configurable so tests do not depend on the host.
     pub nixos_dir: PathBuf,
+    /// Optional JSONL file that receives the action audit trail. When unset the
+    /// log stays in memory only.
+    pub activity_file: Option<PathBuf>,
 }
 
 impl AppConfig {
@@ -24,6 +27,7 @@ impl AppConfig {
             allow_rebuild,
             allow_power,
             nixos_dir: PathBuf::from("/etc/nixos"),
+            activity_file: None,
         }
     }
 }

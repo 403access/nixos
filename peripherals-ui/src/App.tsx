@@ -7,12 +7,14 @@ import type { AppTab } from "./types";
 import DashboardView from "./views/DashboardView";
 import PeripheralsView from "./views/PeripheralsView";
 import ServicesView from "./views/ServicesView";
+import SessionsView from "./views/SessionsView";
 import SettingsView from "./views/SettingsView";
 import StorageView from "./views/StorageView";
 import SystemView from "./views/SystemView";
 
 const NAV: Array<{ id: AppTab; label: string; icon: string }> = [
   { id: "dashboard", label: "Dashboard", icon: "◈" },
+  { id: "sessions", label: "Sessions", icon: "◷" },
   { id: "services", label: "Services", icon: "⚙" },
   { id: "storage", label: "Storage", icon: "▤" },
   { id: "system", label: "System", icon: "⌁" },
@@ -69,6 +71,9 @@ function Shell() {
     switch (tab) {
       case "dashboard":
         void store.refreshStatus();
+        break;
+      case "sessions":
+        void store.loadSessions();
         break;
       case "services":
         void store.loadServices();
@@ -159,6 +164,7 @@ function Shell() {
         </header>
 
         {tab === "dashboard" ? <DashboardView onNavigate={setTab} /> : null}
+        {tab === "sessions" ? <SessionsView /> : null}
         {tab === "services" ? <ServicesView /> : null}
         {tab === "storage" ? <StorageView /> : null}
         {tab === "system" ? <SystemView /> : null}

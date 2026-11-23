@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use clap::{ArgAction, Parser};
 
+use nixos_control::activity::ActivityStore;
 use nixos_control::api::{build_router, AppState};
 use nixos_control::config::AppConfig;
 use nixos_control::jobs::JobManager;
@@ -36,6 +37,10 @@ struct Args {
     /// Allow reboot and shutdown actions.
     #[arg(long, default_value_t = true, action = ArgAction::Set)]
     allow_power: bool,
+
+    /// JSONL file that keeps the action audit trail across restarts. Optional.
+    #[arg(long)]
+    activity_file: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -53,16 +58,19 @@ async fn main() {
     } else {
         Some(args.flake)
     };
-    let config = AppConfig::new(token_file, flake, args.allow_rebuild, args.allow_power);
+    let mut config = AppConfig::new(token_file, flake, args.allow_rebuild, args.allow_power);
+    config.activity_file = args.activity_file;
 
     let system = Arc::new(LocalSystem::new(&config, VERSION));
     let jobs = Arc::new(JobManager::new());
     let peripherals = Arc::new(LocalPeripherals::new());
+    let activity = Arc::new(ActivityStore::new(config.activity_file.clone()));
     let state = AppState {
         config,
         system,
         jobs,
         peripherals,
+        activity,
         version: VERSION.to_string(),
     };
     let app = build_router(state);
@@ -76,7 +84,12 @@ async fn main() {
     };
 
     log::info!("nixos-control {} listening on {}", VERSION, args.listen);
-    if let Err(error) = axum::serve(listener, app).await {
+    if let Err(error) = axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    {
         log::error!("server error: {error}");
         std::process::exit(1);
     }

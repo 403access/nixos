@@ -93,6 +93,57 @@ Content-Type: application/json
 
 Allowed actions: `reboot`, `shutdown`, `poweroff`.
 
+## Sessions
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
+| `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |
+
+Every mutating request is recorded and grouped into a session per client. The
+audit trail is kept in `/var/lib/nixos-control/activity.jsonl`, so it survives
+server restarts. Host sessions come from `loginctl`; their detail includes the
+session journal and recent shell history.
+
+```json
+{
+  "sessions": [
+    {
+      "id": "login-2",
+      "kind": "login",
+      "source": "ssh",
+      "title": "oliver · tty1",
+      "user": "oliver",
+      "remote_host": "192.168.1.20",
+      "service": "sshd",
+      "state": "active",
+      "started_at": "2026-11-22T23:00:00Z",
+      "last_active_at": "2026-11-22T23:00:00Z",
+      "action_count": 4,
+      "status": "ok",
+      "summary": "Remote login from 192.168.1.20 · 4 commands"
+    },
+    {
+      "id": "app-19a2c4d5e6f-0",
+      "kind": "app",
+      "source": "web",
+      "title": "Web console",
+      "remote_host": "100.64.0.7",
+      "state": "online",
+      "started_at": "2026-11-22T23:04:11Z",
+      "last_active_at": "2026-11-22T23:05:02Z",
+      "action_count": 2,
+      "status": "ok",
+      "summary": "restart nginx.service · rebuild switch"
+    }
+  ]
+}
+```
+
+Application session detail returns an `actions` array, with captured `job_id`
+and `output` for rebuilds. Login session detail returns `logs` from the journal
+and `commands` from the user's shell history.
+
 ## Peripherals
 
 | Method | Path | Purpose |

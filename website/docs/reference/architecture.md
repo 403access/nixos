@@ -8,7 +8,7 @@ description: Components, trust boundaries and data flow.
 
 NixOS Control has four parts:
 
-1. **iOS app** — a SwiftUI client with five tabs. It stores the server URL in
+1. **iOS app** — a SwiftUI client with six tabs. It stores the server URL in
    `UserDefaults` and the bearer token in the Keychain.
 2. **Web dashboard (optional)** — a Bun + TypeScript + React client in
    `peripherals-ui/` for the Logitech receiver.
@@ -24,6 +24,7 @@ iPhone ──HTTPS──► tailscale serve :443 ──HTTP──► nixos-contr
                                                         │
                                                         ├── systemctl
                                                         ├── journalctl
+                                                        ├── loginctl
                                                         ├── zfs / zpool
                                                         └── nixos-rebuild
 ```
@@ -74,6 +75,10 @@ perform every action the module allows.
   original Go implementation is archived under `archive/server-go/`.
 - Rebuild jobs run asynchronously and are kept in memory. Restarting the server
   loses job history.
+- Mutating API requests are appended to
+  `/var/lib/nixos-control/activity.jsonl` and grouped into sessions per client.
+  Host login sessions and their journals are read from `loginctl` and
+  `journalctl`.
 - The peripherals probe reads HID++ from `/dev/hidraw*` in a blocking worker and
   is read-only.
 - Status and logs are polled by the app; there is no streaming endpoint.

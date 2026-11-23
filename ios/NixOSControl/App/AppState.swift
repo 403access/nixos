@@ -27,7 +27,9 @@ final class AppState: ObservableObject {
     @Published private(set) var storage: StorageSnapshot?
     @Published private(set) var generations: [Generation] = []
     @Published private(set) var peripherals: PeripheralsReport?
+    @Published private(set) var sessions: [SessionSummary] = []
     @Published private(set) var isLoadingPeripherals = false
+    @Published private(set) var isLoadingSessions = false
     @Published private(set) var peripheralsError: String?
     @Published private(set) var activeJob: Job?
     @Published private(set) var serverVersion: String?
@@ -143,6 +145,7 @@ final class AppState: ObservableObject {
             lastError = nil
             peripherals = nil
             peripheralsError = nil
+            sessions = []
             await refreshStatus()
             return nil
         } catch {
@@ -165,6 +168,8 @@ final class AppState: ObservableObject {
         peripherals = nil
         isLoadingPeripherals = false
         peripheralsError = nil
+        sessions = []
+        isLoadingSessions = false
         activeJob = nil
         serverVersion = nil
         connectionState = .unknown
@@ -246,6 +251,36 @@ final class AppState: ObservableObject {
             peripheralsError = nil
         } catch {
             peripheralsError = error.localizedDescription
+        }
+    }
+
+    func loadSessions() async {
+        guard let client, !isLoadingSessions else { return }
+        isLoadingSessions = true
+        defer { isLoadingSessions = false }
+
+        do {
+            let response: SessionsResponse = try await client.get(
+                "/api/sessions",
+                query: [URLQueryItem(name: "limit", value: "100")]
+            )
+            sessions = response.sessions
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func fetchSession(_ id: String, lines: Int = 300) async -> SessionDetail? {
+        guard let client else { return nil }
+        do {
+            return try await client.get(
+                "/api/sessions/\(APIClient.encodePathComponent(id))",
+                query: [URLQueryItem(name: "lines", value: String(lines))]
+            )
+        } catch {
+            lastError = error.localizedDescription
+            return nil
         }
     }
 

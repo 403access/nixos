@@ -14,6 +14,8 @@ import type {
   Job,
   ProbeReport,
   ServiceUnit,
+  SessionDetail,
+  SessionSummary,
   StorageSnapshot,
   SystemStatus,
 } from "./types";
@@ -30,6 +32,7 @@ type LoadingKey =
   | "storage"
   | "generations"
   | "peripherals"
+  | "sessions"
   | "jobs";
 
 const STORAGE_KEY = "nixos-control.settings";
@@ -40,6 +43,7 @@ const EMPTY_LOADING: Record<LoadingKey, boolean> = {
   storage: false,
   generations: false,
   peripherals: false,
+  sessions: false,
   jobs: false,
 };
 
@@ -50,6 +54,7 @@ interface Store {
   storage: StorageSnapshot | null;
   generations: Generation[];
   peripherals: ProbeReport | null;
+  sessions: SessionSummary[];
   jobs: Job[];
   activeJob: Job | null;
   loading: Record<LoadingKey, boolean>;
@@ -65,6 +70,8 @@ interface Store {
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
   loadPeripherals(): Promise<void>;
+  loadSessions(): Promise<void>;
+  fetchSession(id: string, lines: number): Promise<SessionDetail | null>;
   loadJobs(): Promise<void>;
   fetchJob(id: string): Promise<Job | null>;
   performServiceAction(unit: string, action: string): Promise<string | null>;
@@ -86,6 +93,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
   const [storage, setStorage] = useState<StorageSnapshot | null>(null);
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [peripherals, setPeripherals] = useState<ProbeReport | null>(null);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(EMPTY_LOADING);
@@ -184,6 +192,46 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
     }
   }, [settings, setLoadingKey]);
 
+  const loadSessions = useCallback(async () => {
+    if (!settings) {
+      return;
+    }
+    setLoadingKey("sessions", true);
+    try {
+      const response = await api.getSessions(
+        settings.serverUrl,
+        settings.token,
+        100,
+      );
+      setSessions(response.sessions);
+      setError(null);
+    } catch (cause) {
+      setError(api.errorMessage(cause));
+    } finally {
+      setLoadingKey("sessions", false);
+    }
+  }, [settings, setLoadingKey]);
+
+  const fetchSession = useCallback(
+    async (id: string, lines: number) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        return await api.getSession(
+          settings.serverUrl,
+          settings.token,
+          id,
+          lines,
+        );
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
+
   const loadJobs = useCallback(async () => {
     if (!settings) {
       return;
@@ -247,6 +295,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       setStorage(null);
       setGenerations([]);
       setPeripherals(null);
+      setSessions([]);
       setJobs([]);
       setActiveJob(null);
       setPeripheralsError(null);
@@ -266,6 +315,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
     setStorage(null);
     setGenerations([]);
     setPeripherals(null);
+    setSessions([]);
     setJobs([]);
     setActiveJob(null);
     setError(null);
@@ -419,6 +469,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       storage,
       generations,
       peripherals,
+      sessions,
       jobs,
       activeJob,
       loading,
@@ -434,6 +485,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       loadStorage,
       loadGenerations,
       loadPeripherals,
+      loadSessions,
+      fetchSession,
       loadJobs,
       fetchJob,
       performServiceAction,
@@ -452,6 +505,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       storage,
       generations,
       peripherals,
+      sessions,
       jobs,
       activeJob,
       loading,
@@ -467,6 +521,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       loadStorage,
       loadGenerations,
       loadPeripherals,
+      loadSessions,
+      fetchSession,
       loadJobs,
       fetchJob,
       performServiceAction,

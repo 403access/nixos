@@ -141,6 +141,54 @@ export interface LogsResponse {
   lines: string[];
 }
 
+export interface SessionSummary {
+  id: string;
+  kind: "app" | "login";
+  source: string;
+  title: string;
+  user?: string | null;
+  tty?: string | null;
+  seat?: string | null;
+  remote_host?: string | null;
+  service?: string | null;
+  state: string;
+  started_at: string;
+  last_active_at: string;
+  action_count: number;
+  status: string;
+  summary: string;
+}
+
+export interface SessionsResponse {
+  sessions: SessionSummary[];
+}
+
+export interface SessionAction {
+  id: string;
+  at: string;
+  action: string;
+  target?: string | null;
+  status: string;
+  detail?: string | null;
+  job_id?: string | null;
+  output?: string | null;
+  method?: string | null;
+  path?: string | null;
+  status_code?: number | null;
+  duration_ms?: number | null;
+}
+
+export interface SessionCommand {
+  at?: string | null;
+  command: string;
+}
+
+export interface SessionDetail extends SessionSummary {
+  actions: SessionAction[];
+  logs: string[];
+  commands: SessionCommand[];
+}
+
 export interface PoolStatusResponse {
   name: string;
   status: string;
@@ -201,6 +249,7 @@ export interface ProbeReport {
 
 export type AppTab =
   | "dashboard"
+  | "sessions"
   | "services"
   | "storage"
   | "system"

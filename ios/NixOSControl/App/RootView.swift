@@ -2,6 +2,7 @@ import SwiftUI
 
 enum AppTab: Hashable {
     case dashboard
+    case sessions
     case services
     case storage
     case system
@@ -14,6 +15,8 @@ struct RootView: View {
         #if DEBUG
         if let tab = ProcessInfo.processInfo.environment["NIXOS_CONTROL_TAB"] {
             switch tab {
+            case "sessions":
+                return .sessions
             case "services":
                 return .services
             case "storage":
@@ -37,6 +40,10 @@ struct RootView: View {
                     DashboardView(selection: $selection)
                         .tabItem { Label("Dashboard", systemImage: "gauge") }
                         .tag(AppTab.dashboard)
+
+                    SessionsView()
+                        .tabItem { Label("Sessions", systemImage: "clock.arrow.circlepath") }
+                        .tag(AppTab.sessions)
 
                     ServicesView()
                         .tabItem { Label("Services", systemImage: "gearshape.2") }
