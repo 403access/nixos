@@ -93,6 +93,13 @@ log is enabled; older entries fall back to shell history.
 their package closures, including added, removed and changed packages with
 version and size deltas.
 
+## Resources
+
+**Dashboard → Resources** shows CPU, resident memory and disk I/O by service,
+application and individual process. Switch between the three views and sort by
+CPU, memory, disk read or disk write. Values refresh every five seconds; CPU is
+relative to one core and can exceed 100% on multi-core machines.
+
 ## Other LAN access
 
 WireGuard mode uses the same server settings as direct LAN access. Enable them

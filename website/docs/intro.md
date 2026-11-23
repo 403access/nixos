@@ -41,6 +41,8 @@ panel to the internet.
   state, with charts and recent history in the side panel.
 - **Services** — search and filter systemd units, start/stop/restart,
   enable/disable at boot, and read journal logs.
+- **Resources** — CPU, memory and disk I/O attribution for services, apps and
+  processes.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and
   filesystem usage.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job

@@ -10,6 +10,7 @@ use nixos_control::config::AppConfig;
 use nixos_control::history::{StatusHistory, DEFAULT_HISTORY_CAPACITY};
 use nixos_control::jobs::JobManager;
 use nixos_control::peripherals::LocalPeripherals;
+use nixos_control::resources::{ResourceMonitor, ResourceProbe, SAMPLE_INTERVAL};
 use nixos_control::system::{LocalSystem, SystemProbe};
 use nixos_control::VERSION;
 
@@ -70,6 +71,8 @@ async fn main() {
     let activity = Arc::new(ActivityStore::new(config.activity_file.clone()));
     let history = Arc::new(StatusHistory::new(DEFAULT_HISTORY_CAPACITY));
     let sampler_history = history.clone();
+    let resource_monitor = Arc::new(ResourceMonitor::new());
+    let resources: Arc<dyn ResourceProbe> = resource_monitor.clone();
     let state = AppState {
         config,
         system,
@@ -77,6 +80,7 @@ async fn main() {
         peripherals,
         activity,
         history,
+        resources,
         version: VERSION.to_string(),
     };
     let app = build_router(state);
@@ -92,6 +96,18 @@ async fn main() {
                     sampler_history.record(&status);
                 }
                 Err(error) => log::warn!("status history sampler failed: {error}"),
+            }
+        }
+    });
+
+    // Attribute CPU, memory and disk I/O to processes, services and apps.
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(SAMPLE_INTERVAL);
+        loop {
+            interval.tick().await;
+            let monitor = resource_monitor.clone();
+            if let Err(error) = tokio::task::spawn_blocking(move || monitor.sample()).await {
+                log::warn!("resource sampler failed: {error}");
             }
         }
     });

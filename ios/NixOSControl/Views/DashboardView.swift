@@ -16,6 +16,7 @@ struct DashboardView: View {
 
                     if let status = app.status {
                         metrics(status)
+                        resourcesLink
                         peripheralsLink
                         servicesCard(status)
                         poolsCard(status)
@@ -292,6 +293,36 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private var resourcesLink: some View {
+        NavigationLink {
+            ResourcesView()
+        } label: {
+            Card("Resources", systemImage: "chart.bar.xaxis") {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Apps and services")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(Theme.textPrimary)
+                        Text("CPU, memory and disk I/O by consumer")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                        if let usage = app.resources, let top = usage.services.first {
+                            Text("Top: \(top.name) · \(String(format: "%.1f%%", top.cpuPercent)) CPU")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textMuted)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textMuted)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var peripheralsLink: some View {

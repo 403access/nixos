@@ -143,6 +143,43 @@ export interface StatusHistoryResponse {
   samples: StatusSample[];
 }
 
+export interface ResourceEntry {
+  name: string;
+  kind: string;
+  unit: string;
+  tasks: number;
+  cpu_percent: number;
+  memory_bytes: number;
+  read_bps: number;
+  write_bps: number;
+}
+
+export interface ResourceProcess {
+  pid: number;
+  name: string;
+  command: string;
+  unit: string;
+  kind: string;
+  cpu_percent: number;
+  memory_bytes: number;
+  read_bps: number;
+  write_bps: number;
+}
+
+export interface ResourceUsage {
+  at: string;
+  interval_ms: number;
+  cpu_count: number;
+  memory_total: number;
+  total_cpu_percent: number;
+  total_memory_bytes: number;
+  total_read_bps: number;
+  total_write_bps: number;
+  services: ResourceEntry[];
+  apps: ResourceEntry[];
+  processes: ResourceProcess[];
+}
+
 export interface GenerationDiffEntry {
   name: string;
   change: "added" | "removed" | "changed" | string;
@@ -293,6 +330,7 @@ export type AppTab =
   | "dashboard"
   | "sessions"
   | "services"
+  | "resources"
   | "storage"
   | "system"
   | "peripherals"

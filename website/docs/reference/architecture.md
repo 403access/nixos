@@ -84,6 +84,9 @@ perform every action the module allows.
 - The server samples host status every 10 seconds into an in-memory ring buffer
   (up to six hours) for the dashboard charts. The history is not persisted
   across restarts.
+- A resource sampler reads `/proc` every five seconds and aggregates CPU,
+  resident memory and block I/O by cgroup unit and executable. This powers the
+  Resources view; it is read-only.
 - The peripherals probe reads HID++ from `/dev/hidraw*` in a blocking worker and
   is read-only.
 - Status and logs are polled by the app; there is no streaming endpoint.

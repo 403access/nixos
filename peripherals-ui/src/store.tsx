@@ -14,6 +14,7 @@ import type {
   GenerationDiff,
   Job,
   ProbeReport,
+  ResourceUsage,
   ServiceUnit,
   SessionDetail,
   SessionSummary,
@@ -69,6 +70,7 @@ interface Store {
   clearSettings(): void;
   refreshStatus(): Promise<void>;
   fetchStatusHistory(minutes: number, limit?: number): Promise<StatusSample[]>;
+  fetchResources(): Promise<ResourceUsage | null>;
   loadServices(): Promise<void>;
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
@@ -152,6 +154,21 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
     },
     [settings],
   );
+
+  const fetchResources = useCallback(async () => {
+    if (!settings) {
+      return null;
+    }
+    try {
+      return await api.getResources(settings.serverUrl, settings.token);
+    } catch (cause) {
+      if (cause instanceof api.ApiError && cause.status === 503) {
+        return null;
+      }
+      setError(api.errorMessage(cause));
+      return null;
+    }
+  }, [settings]);
 
   const loadServices = useCallback(async () => {
     if (!settings) {
@@ -527,6 +544,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       clearSettings,
       refreshStatus,
       fetchStatusHistory,
+      fetchResources,
       loadServices,
       loadStorage,
       loadGenerations,
@@ -565,6 +583,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       clearSettings,
       refreshStatus,
       fetchStatusHistory,
+      fetchResources,
       loadServices,
       loadStorage,
       loadGenerations,

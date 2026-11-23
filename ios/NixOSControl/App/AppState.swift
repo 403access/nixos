@@ -28,8 +28,10 @@ final class AppState: ObservableObject {
     @Published private(set) var generations: [Generation] = []
     @Published private(set) var peripherals: PeripheralsReport?
     @Published private(set) var sessions: [SessionSummary] = []
+    @Published private(set) var resources: ResourceUsage?
     @Published private(set) var isLoadingPeripherals = false
     @Published private(set) var isLoadingSessions = false
+    @Published private(set) var isLoadingResources = false
     @Published private(set) var peripheralsError: String?
     @Published private(set) var activeJob: Job?
     @Published private(set) var serverVersion: String?
@@ -146,6 +148,7 @@ final class AppState: ObservableObject {
             peripherals = nil
             peripheralsError = nil
             sessions = []
+            resources = nil
             await refreshStatus()
             return nil
         } catch {
@@ -170,6 +173,8 @@ final class AppState: ObservableObject {
         peripheralsError = nil
         sessions = []
         isLoadingSessions = false
+        resources = nil
+        isLoadingResources = false
         activeJob = nil
         serverVersion = nil
         connectionState = .unknown
@@ -282,6 +287,22 @@ final class AppState: ObservableObject {
             )
             sessions = response.sessions
             lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func loadResources() async {
+        guard let client, !isLoadingResources else { return }
+        isLoadingResources = true
+        defer { isLoadingResources = false }
+
+        do {
+            resources = try await client.get("/api/resources")
+            lastError = nil
+        } catch let error as APIError where error.statusCode == 503 {
+            // The server is still taking its first resource sample.
+            return
         } catch {
             lastError = error.localizedDescription
         }

@@ -10,6 +10,7 @@ import type {
   ServiceUnit,
   SessionDetail,
   SessionsResponse,
+  ResourceUsage,
   StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
@@ -107,6 +108,13 @@ export function getStatusHistory(
     token,
     withQuery("/api/status/history", { minutes, limit }),
   );
+}
+
+export function getResources(
+  serverUrl: string,
+  token: string,
+): Promise<ResourceUsage> {
+  return request<ResourceUsage>(serverUrl, token, "/api/resources");
 }
 
 export function getServices(

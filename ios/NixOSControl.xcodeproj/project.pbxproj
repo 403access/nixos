@@ -23,6 +23,7 @@
 		7857083C70588E95896C2859 /* Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76EFB762F279BAB92C83D977 /* Format.swift */; };
 		7944BD829F74CFDFA2B2BB2C /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B82ED80E955E4479EDE48A9 /* APIModels.swift */; };
 		94362275A30E5E3E5184DF7D /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8D539F2C5475CD3725444A /* Keychain.swift */; };
+		9A4614F04E0A7B8B836EF1A6 /* ResourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76017B5E09830D30B978218 /* ResourcesView.swift */; };
 		9C300B787CF21F10647D39D3 /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478886ACBF4BAEE4414F51B9 /* ServiceDetailView.swift */; };
 		AE8054F791B900FE92BFD0FA /* NixOSControlApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07734709A334DECB144E22A /* NixOSControlApp.swift */; };
 		B0760A2B73AE83558223F180 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 51AAE64334025D33949AC402 /* Assets.xcassets */; };
@@ -49,6 +50,7 @@
 		7DA7B8E48422A6988E21809A /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsView.swift; sourceTree = "<group>"; };
 		8D29125181F1BA5873AA2C4D /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		9F40E96BFEB194855DADBCBB /* GenerationDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationDiffView.swift; sourceTree = "<group>"; };
+		B76017B5E09830D30B978218 /* ResourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourcesView.swift; sourceTree = "<group>"; };
 		B8361E113CF82B2D4968631E /* NixOSControl.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NixOSControl.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE22EBC7DC7151EEA32255A8 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		C770326FF5E45ECAD21A5727 /* ServicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesView.swift; sourceTree = "<group>"; };
@@ -129,6 +131,7 @@
 				9F40E96BFEB194855DADBCBB /* GenerationDiffView.swift */,
 				4E66D570D356FBB072472CC3 /* LogsView.swift */,
 				4876916A76984E4397C9D3B7 /* PeripheralsView.swift */,
+				B76017B5E09830D30B978218 /* ResourcesView.swift */,
 				478886ACBF4BAEE4414F51B9 /* ServiceDetailView.swift */,
 				C770326FF5E45ECAD21A5727 /* ServicesView.swift */,
 				426182EDE427B1163E539FFD /* SessionDetailView.swift */,
@@ -241,6 +244,7 @@
 				AE8054F791B900FE92BFD0FA /* NixOSControlApp.swift in Sources */,
 				E813E52934C368019D094B74 /* PeripheralsModels.swift in Sources */,
 				4B23758537BE832521227DE7 /* PeripheralsView.swift in Sources */,
+				9A4614F04E0A7B8B836EF1A6 /* ResourcesView.swift in Sources */,
 				DD6B3FF27E6CE47DD6AEF231 /* RootView.swift in Sources */,
 				9C300B787CF21F10647D39D3 /* ServiceDetailView.swift in Sources */,
 				BAB62597E70E7862084B8866 /* ServicesView.swift in Sources */,

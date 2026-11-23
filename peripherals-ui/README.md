@@ -15,6 +15,8 @@ view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
   panel.
 - **Services** — search, filter, start/stop/restart/reload/enable/disable and
   journal logs.
+- **Resources** — CPU, memory and disk I/O by service, app and process, with
+  sortable tables and per-consumer details.
 - **Storage** — pools, datasets, filesystems and `zpool status`.
 - **System** — machine information, `nixos-rebuild` jobs with live output,
   power actions, generations and generation diffs, and the system journal.

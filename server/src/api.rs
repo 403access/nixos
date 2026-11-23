@@ -22,6 +22,7 @@ use crate::models::{
     HistoryEntry, LoginSession, SessionAction, SessionDetail, SessionSummary, SessionsResponse,
 };
 use crate::peripherals::PeripheralProbe;
+use crate::resources::ResourceProbe;
 use crate::system::SystemProbe;
 use crate::util::{
     parse_lines_param, valid_pool_name, valid_session_id, valid_token, valid_unit_name,
@@ -35,6 +36,7 @@ pub struct AppState {
     pub peripherals: Arc<dyn PeripheralProbe>,
     pub activity: Arc<ActivityStore>,
     pub history: Arc<StatusHistory>,
+    pub resources: Arc<dyn ResourceProbe>,
     pub version: String,
 }
 
@@ -43,6 +45,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/health", get(health))
         .route("/api/status", get(status))
         .route("/api/status/history", get(status_history))
+        .route("/api/resources", get(resources))
         .route("/api/peripherals", get(peripherals))
         .route("/api/services", get(service_units))
         .route("/api/services/{unit}/{action}", post(service_action))
@@ -421,6 +424,16 @@ async fn status_history(
         .clamp(1, 2160);
     let samples = state.history.samples(minutes, limit);
     json_response(StatusCode::OK, &StatusHistoryResponse { samples })
+}
+
+async fn resources(State(state): State<AppState>) -> Response {
+    match state.resources.snapshot() {
+        Some(usage) => json_response(StatusCode::OK, &usage),
+        None => error_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "resource sampler is starting",
+        ),
+    }
 }
 
 async fn peripherals(State(state): State<AppState>) -> Response {

@@ -17,6 +17,7 @@ use nixos_control::models::{
 use nixos_control::peripherals::{
     BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
 };
+use nixos_control::resources::{ProcessEntry, ResourceEntry, ResourceProbe, ResourceUsage};
 use nixos_control::system::SystemProbe;
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -115,6 +116,69 @@ impl PeripheralProbe for MockPeripherals {
             (Some(report), None) => Ok(report.clone()),
             (None, None) => Err("no receiver".to_string()),
         }
+    }
+}
+
+#[derive(Clone)]
+struct MockResources {
+    usage: Option<ResourceUsage>,
+}
+
+impl MockResources {
+    fn sample() -> Self {
+        Self {
+            usage: Some(ResourceUsage {
+                at: "2026-01-01T00:00:00Z".to_string(),
+                interval_ms: 5000,
+                cpu_count: 8,
+                memory_total: 32 * 1024 * 1024 * 1024,
+                total_cpu_percent: 42.5,
+                total_memory_bytes: 3 * 1024 * 1024 * 1024,
+                total_read_bps: 1024.0,
+                total_write_bps: 2048.0,
+                services: vec![ResourceEntry {
+                    name: "nixos-control".to_string(),
+                    kind: "service".to_string(),
+                    unit: "nixos-control.service".to_string(),
+                    tasks: 5,
+                    cpu_percent: 12.5,
+                    memory_bytes: 16 * 1024 * 1024,
+                    read_bps: 100.0,
+                    write_bps: 200.0,
+                }],
+                apps: vec![ResourceEntry {
+                    name: "qemu-system-x86_64".to_string(),
+                    kind: "app".to_string(),
+                    unit: "machine-qemu-8-win11-stock.scope".to_string(),
+                    tasks: 17,
+                    cpu_percent: 30.0,
+                    memory_bytes: 2 * 1024 * 1024 * 1024,
+                    read_bps: 900.0,
+                    write_bps: 1800.0,
+                }],
+                processes: vec![ProcessEntry {
+                    pid: 54655,
+                    name: "qemu-system-x86_64".to_string(),
+                    command: "qemu-system-x86_64 -name guest=win11-stock".to_string(),
+                    unit: "machine-qemu-8-win11-stock.scope".to_string(),
+                    kind: "machine".to_string(),
+                    cpu_percent: 30.0,
+                    memory_bytes: 2 * 1024 * 1024 * 1024,
+                    read_bps: 900.0,
+                    write_bps: 1800.0,
+                }],
+            }),
+        }
+    }
+
+    fn empty() -> Self {
+        Self { usage: None }
+    }
+}
+
+impl ResourceProbe for MockResources {
+    fn snapshot(&self) -> Option<ResourceUsage> {
+        self.usage.clone()
     }
 }
 
@@ -407,6 +471,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             peripherals: Arc::new(peripherals),
             activity: Arc::new(ActivityStore::new(None)),
             history: Arc::new(StatusHistory::new(10)),
+            resources: Arc::new(MockResources::sample()),
             version: "test-version".to_string(),
         },
         system,
@@ -651,6 +716,28 @@ async fn status_history_clamps_query_parameters() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(json(&body)["samples"].as_array().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn resources_are_returned() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/resources").await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["cpu_count"], 8);
+    assert_eq!(value["services"][0]["name"], "nixos-control");
+    assert_eq!(value["apps"][0]["name"], "qemu-system-x86_64");
+    assert_eq!(value["processes"][0]["pid"], 54655);
+    assert_eq!(value["services"][0]["cpu_percent"], 12.5);
+}
+
+#[tokio::test]
+async fn resources_report_a_starting_sampler() {
+    let mut fixture = fixture();
+    fixture.state.resources = Arc::new(MockResources::empty());
+    let (status, _, body) = get(&fixture, "/api/resources").await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(json(&body)["error"], "resource sampler is starting");
 }
 
 #[tokio::test]

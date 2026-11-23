@@ -266,3 +266,44 @@ struct SessionDetail: Decodable {
     let logs: [String]
     let commands: [SessionCommand]
 }
+
+struct ResourceEntry: Decodable, Identifiable {
+    let name: String
+    let kind: String
+    let unit: String
+    let tasks: Int
+    let cpuPercent: Double
+    let memoryBytes: Int64
+    let readBps: Double
+    let writeBps: Double
+
+    var id: String { unit + "|" + name }
+}
+
+struct ResourceProcess: Decodable, Identifiable {
+    let pid: Int
+    let name: String
+    let command: String
+    let unit: String
+    let kind: String
+    let cpuPercent: Double
+    let memoryBytes: Int64
+    let readBps: Double
+    let writeBps: Double
+
+    var id: Int { pid }
+}
+
+struct ResourceUsage: Decodable {
+    let at: String
+    let intervalMs: Int
+    let cpuCount: Int
+    let memoryTotal: Int64
+    let totalCpuPercent: Double
+    let totalMemoryBytes: Int64
+    let totalReadBps: Double
+    let totalWriteBps: Double
+    let services: [ResourceEntry]
+    let apps: [ResourceEntry]
+    let processes: [ResourceProcess]
+}

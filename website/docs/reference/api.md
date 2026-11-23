@@ -21,6 +21,7 @@ The server listens on `127.0.0.1:8787` by default and returns JSON.
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
+| `GET` | `/api/resources` | CPU, memory and disk I/O by consumer |
 | `GET` | `/api/logs?lines=300` | System journal |
 
 ### `GET /api/health`
@@ -64,6 +65,66 @@ GET /api/status/history?minutes=60&limit=720
 ```
 
 History is not persisted across server restarts.
+
+### `GET /api/resources`
+
+Returns the latest resource attribution sample. The server reads `/proc` every
+five seconds and reports CPU, resident memory and block I/O for systemd
+services/scopes, applications grouped by executable, and individual processes.
+
+```json
+{
+  "at": "2026-11-23T04:12:30Z",
+  "interval_ms": 5000,
+  "cpu_count": 8,
+  "memory_total": 33508700160,
+  "total_cpu_percent": 42.5,
+  "total_memory_bytes": 3221225472,
+  "total_read_bps": 1024.0,
+  "total_write_bps": 2048.0,
+  "services": [
+    {
+      "name": "nixos-control",
+      "kind": "service",
+      "unit": "nixos-control.service",
+      "tasks": 10,
+      "cpu_percent": 0.4,
+      "memory_bytes": 14680064,
+      "read_bps": 0.0,
+      "write_bps": 0.0
+    }
+  ],
+  "apps": [
+    {
+      "name": "qemu-system-x86_64",
+      "kind": "app",
+      "unit": "machine-qemu-8-win11-stock.scope",
+      "tasks": 17,
+      "cpu_percent": 39.2,
+      "memory_bytes": 1939865600,
+      "read_bps": 0.0,
+      "write_bps": 0.0
+    }
+  ],
+  "processes": [
+    {
+      "pid": 54655,
+      "name": "qemu-system-x86_64",
+      "command": "qemu-system-x86_64 -name guest=win11-stock",
+      "unit": "machine-qemu-8-win11-stock.scope",
+      "kind": "machine",
+      "cpu_percent": 39.2,
+      "memory_bytes": 1939865600,
+      "read_bps": 0.0,
+      "write_bps": 0.0
+    }
+  ]
+}
+```
+
+CPU percentages are relative to one core and can exceed 100%. Memory is RSS
+summed per process; disk values are actual block I/O. The first sample after a
+server start has no CPU/I/O deltas yet.
 
 ## Services
 

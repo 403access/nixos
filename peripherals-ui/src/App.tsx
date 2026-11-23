@@ -6,6 +6,7 @@ import { NixOSControlProvider, useNixOSControl } from "./store";
 import type { AppTab } from "./types";
 import DashboardView from "./views/DashboardView";
 import PeripheralsView from "./views/PeripheralsView";
+import ResourcesView from "./views/ResourcesView";
 import ServicesView from "./views/ServicesView";
 import SessionsView from "./views/SessionsView";
 import SettingsView from "./views/SettingsView";
@@ -16,6 +17,7 @@ const NAV: Array<{ id: AppTab; label: string; icon: string }> = [
   { id: "dashboard", label: "Dashboard", icon: "◈" },
   { id: "sessions", label: "Sessions", icon: "◷" },
   { id: "services", label: "Services", icon: "⚙" },
+  { id: "resources", label: "Resources", icon: "▥" },
   { id: "storage", label: "Storage", icon: "▤" },
   { id: "system", label: "System", icon: "⌁" },
   { id: "peripherals", label: "Peripherals", icon: "⌨" },
@@ -166,6 +168,7 @@ function Shell() {
         {tab === "dashboard" ? <DashboardView onNavigate={setTab} /> : null}
         {tab === "sessions" ? <SessionsView /> : null}
         {tab === "services" ? <ServicesView /> : null}
+        {tab === "resources" ? <ResourcesView /> : null}
         {tab === "storage" ? <StorageView /> : null}
         {tab === "system" ? <SystemView /> : null}
         {tab === "peripherals" ? <PeripheralsView /> : null}

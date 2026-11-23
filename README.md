@@ -17,6 +17,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state. Click CPU, memory, load or root disk for charts and recent history in the side panel.
 - **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell commands including timestamps, execution time and exit status.
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
+- **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
@@ -556,6 +557,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
+| `GET` | `/api/resources` | CPU, memory and disk I/O per service, app and process |
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
 | `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
 | `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |
