@@ -60,6 +60,7 @@
       ./install
       ./nixos-control.nix
       ./nixos-control-web.nix
+      ./input-leap-client.nix
       ./jotta-cli.nix
       ./zfs.nix
       ./desktop

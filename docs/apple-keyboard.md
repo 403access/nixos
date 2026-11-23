@@ -1,6 +1,6 @@
 # Apple keyboard on the NixOS host
 
-Host: ASUS **PRIME Z270-A** desktop, NixOS 25.05. Updated **2026-11-22**.
+Host: ASUS **PRIME Z270-A** desktop, NixOS 25.05. Updated **2026-11-23**.
 
 ## Current hardware finding
 
@@ -126,12 +126,139 @@ The Mac's Apple keyboard then types into the NixOS xrdp session. A ready-made
 imported, use **Add PC** with the same values.
 
 This is a separate xrdp desktop, not the physical console. The Mac must stay on,
-and the NixOS host must keep xrdp running. If you need the physical display or
-seamless keyboard/mouse sharing instead, use Deskflow/Input Leap or add a USB
-Bluetooth dongle.
+and the NixOS host must keep xrdp running. For the physical display and seamless
+keyboard/mouse sharing, see
+[Bridge from the Mac (InputLeap)](#bridge-from-the-mac-inputleap--physical-console)
+below, or add a USB Bluetooth dongle.
 
 The Peripherals app will not list the Apple keyboard: it is not on the Logitech
 receiver.
+
+## Bridge from the Mac (InputLeap) — physical console
+
+This is the working no-hardware setup. The Apple keyboard stays paired to the
+Mac; the Mac forwards its keyboard and mouse to the **physical** NixOS display,
+at the lightdm greeter and inside the XFCE session. No RDP or VNC window is
+involved: you look at the NixOS monitor and type on the Apple keyboard.
+
+| Part | Value |
+| --- | --- |
+| Mac (InputLeap server) | `192.168.178.33` |
+| Mac screen name | `MacBook-Air-von-Oliver.local` |
+| NixOS screen name | `nixos` |
+| Layout | NixOS monitor on the **left**, Mac on the right |
+| Port | `24800/tcp` |
+| NixOS client | `input-leap-client.service` (root, `Restart=always`) |
+
+Deskflow is the upstream successor and NixOS packages `deskflow` 1.21.2, but its
+macOS DMG needs an interactive licence screen that cannot be accepted
+unattended. InputLeap 3.0.3 has the same protocol, a plain macOS arm64 tarball,
+and the same 3.0.3 package on NixOS, so both ends are version-matched.
+
+### Mac side
+
+1. Install the app (Intel Macs use the `macOS-x86_64` asset instead):
+
+   ```bash
+   curl -LO https://github.com/input-leap/input-leap/releases/download/v3.0.3/macOS-Apple_Silicon-debug-v3.0.3.tar.gz
+   tar -xzf macOS-Apple_Silicon-debug-v3.0.3.tar.gz
+   tar -xzf macOS-Apple_Silicon-debug/InputLeap-macOS-Apple_Silicon.tar.gz
+   cp -R InputLeap.app /Applications/
+   xattr -dr com.apple.quarantine /Applications/InputLeap.app
+   # The release bundle is unsigned; ad-hoc sign it so launchd will run it.
+   codesign --force --deep --sign - /Applications/InputLeap.app
+   open /Applications/InputLeap.app
+   ```
+
+2. Grant **System Settings → Privacy & Security → Accessibility** and
+   **Input Monitoring** to InputLeap. Without both, the pointer never crosses.
+
+3. Write the screen layout to
+   `~/Library/Application Support/InputLeap/input-leap.conf`:
+
+   ```text
+   section: screens
+       MacBook-Air-von-Oliver.local:
+       nixos:
+   end
+
+   section: links
+       MacBook-Air-von-Oliver.local:
+           left = nixos
+       nixos:
+           right = MacBook-Air-von-Oliver.local
+   end
+
+   section: options
+       relativeMouseMoves = false
+       screenSaverSync = true
+       clipboardSharing = true
+       clipboardSharingSize = 100000000
+   end
+   ```
+
+   The server screen name must match `--name` of the running server (the GUI
+   uses `<LocalHostName>.local`). The client screen name must match `--name`
+   of the NixOS client (`nixos`).
+
+4. In the InputLeap window, Server tab: enable **Use existing configuration**
+   and point it at that file, then click **Start**. The window should say
+   *InputLeap is running.*
+
+The server's self-signed certificate SHA-256 is pinned on the NixOS side. If
+the Mac ever regenerates it, read the new value from the Server tab
+(**SSL Fingerprint**) and update `serverFingerprint` in
+`input-leap-client.nix`.
+
+### NixOS side
+
+[`input-leap-client.nix`](../input-leap-client.nix) is imported by
+`configuration.nix` and runs the client as root, because the greeter's X cookie
+`/var/run/lightdm/root/:0` is readable by root only. Before every start it:
+
+- pins the Mac certificate in `/root/.config/InputLeap/SSL/Fingerprints/TrustedServers.txt`;
+- merges the greeter and `nixos` X cookies into `/run/input-leap/xauthority`
+  and picks whichever reaches `:0`;
+- starts `input-leapc --use-x11 --name nixos --display :0`.
+
+`Restart=always` matters: when you log in, lightdm replaces the greeter's X
+server, which kills the client. The unit restarts it two seconds later against
+the new session cookie, so the keyboard keeps working after login.
+
+Deploy changes with:
+
+```bash
+sudo nixos-rebuild switch
+```
+
+### Daily use
+
+- Mac → NixOS: move the trackpad pointer off the **left** edge of the Mac
+  screen. Type on the Apple keyboard; the characters appear on the NixOS
+  monitor.
+- NixOS → Mac: push the pointer to the **right** edge of the NixOS screen
+  (Logitech mouse), or move the Mac trackpad back to the right.
+
+### Verify
+
+```bash
+systemctl status input-leap-client
+journalctl -u input-leap-client -n 30 --no-pager
+# "connected to server" plus "entering screen" lines mean the bridge works.
+
+lsof -nP -iTCP:24800          # on the Mac: LISTEN and ESTABLISHED
+```
+
+### Troubleshooting
+
+| Symptom | Cause / fix |
+| --- | --- |
+| Pointer never leaves the Mac | Accessibility or Input Monitoring not granted; toggle them and click **Reload**. |
+| `Connection refused` on NixOS | The Mac server is not started, or InputLeap is closed. Click **Start** on the Server tab. |
+| `Fingerprint does not match` | The Mac certificate changed; update `serverFingerprint` and rebuild. |
+| `X display has unexpectedly disconnected` | Normal at login; the unit restarts itself within ~2 s. |
+| Works at the greeter, not in the session | Check the desktop profile is X11 (XFCE). `--use-x11` injects via XTEST and cannot reach native Wayland clients. |
+| `ssl certificate doesn't exist` | Harmless: the server runs with `--disable-client-cert-checking`, so the client certificate is optional. |
 
 ## Pair the Apple keyboard
 

@@ -320,7 +320,7 @@ sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
 services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
 docs/backup.md             Snapshot and offsite backup status for tank
-docs/apple-keyboard.md     Host Bluetooth support and Apple keyboard pairing
+docs/apple-keyboard.md     Apple keyboard: Bluetooth pairing, RDP and InputLeap bridges
 docs/peripherals.md        Logitech receiver, HID++ probe, API and UIs
 docs/image-studio.md       MCP server + web image builder architecture and API
 image-studio/README.md     NixOS/Windows image builder, MCP tools and bundles
