@@ -57,6 +57,36 @@ let
           done
     '';
   };
+
+  # Apply the wallpaper to sessions that are already running (for example
+  # after a theme rebuild), not just at the next login.
+  applyWallpaperSessions = pkgs.writeShellApplication {
+    name = "desktop-xfce-wallpaper-sessions";
+    runtimeInputs = [ pkgs.coreutils pkgs.procps pkgs.util-linux pkgs.gnugrep ];
+    text = ''
+      hook=${lib.escapeShellArg "${applyWallpaper}/bin/desktop-xfce-wallpaper"}
+
+      for pid in $(pgrep -x xfce4-session); do
+        [ -r "/proc/$pid/environ" ] || continue
+        user=$(stat -c %U "/proc/$pid")
+        [ "$user" != root ] || continue
+        envs=$(tr '\0' '\n' < "/proc/$pid/environ")
+        display=$(printf '%s\n' "$envs" | sed -n 's/^DISPLAY=//p')
+        xauth=$(printf '%s\n' "$envs" | sed -n 's/^XAUTHORITY=//p')
+        dbus=$(printf '%s\n' "$envs" | sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p')
+        [ -n "$display" ] || continue
+
+        set -- env "DISPLAY=$display"
+        if [ -n "$xauth" ]; then
+          set -- "$@" "XAUTHORITY=$xauth"
+        fi
+        if [ -n "$dbus" ]; then
+          set -- "$@" "DBUS_SESSION_BUS_ADDRESS=$dbus"
+        fi
+        runuser -u "$user" -- "$@" "$hook" || true
+      done
+    '';
+  };
 in
 lib.mkIf (cfg.enable && cfg.profile == "xfce") {
   services.xserver.enable = true;
@@ -89,6 +119,18 @@ lib.mkIf (cfg.enable && cfg.profile == "xfce") {
     NoDisplay=true
     X-GNOME-Autostart-enabled=true
   '';
+
+  # Restarting this unit on a rebuild reapplies the wallpaper to any live
+  # XFCE session.  The unit changes whenever the selected wallpaper does.
+  systemd.services.nixos-xfce-wallpaper = {
+    description = "Apply the selected wallpaper to running XFCE sessions";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "display-manager.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${applyWallpaperSessions}/bin/desktop-xfce-wallpaper-sessions";
+    };
+  };
 
   environment.sessionVariables = {
     QT_QPA_PLATFORMTHEME = "qt6ct";
