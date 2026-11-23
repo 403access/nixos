@@ -218,7 +218,7 @@ fn read_processes() -> Vec<RawProcess> {
         let cgroup = fs::read_to_string(base.join("cgroup"))
             .ok()
             .and_then(|contents| parse_cgroup(&contents))
-            .unwrap_or_else(|| "/init.scope".to_string());
+            .unwrap_or_else(|| "/".to_string());
         let (unit, kind, unit_name) = unit_info(&cgroup);
 
         let executable = fs::read_link(base.join("exe")).ok().and_then(|path| {
@@ -335,6 +335,14 @@ fn decode_cgroup(value: &str) -> String {
 }
 
 fn unit_info(path: &str) -> (String, String, String) {
+    if path.trim_matches('/').is_empty() {
+        // Kernel threads live in the root cgroup.
+        return (
+            "kernel".to_string(),
+            "kernel".to_string(),
+            "kernel".to_string(),
+        );
+    }
     let components: Vec<&str> = path
         .trim_start_matches('/')
         .split('/')
@@ -540,6 +548,14 @@ mod tests {
 
     #[test]
     fn derives_unit_names_and_kinds() {
+        assert_eq!(
+            unit_info("/"),
+            (
+                "kernel".to_string(),
+                "kernel".to_string(),
+                "kernel".to_string()
+            )
+        );
         assert_eq!(
             unit_info("/system.slice/nginx.service"),
             (
