@@ -180,16 +180,16 @@ and the same 3.0.3 package on NixOS, so both ends are version-matched.
    section: screens
        MacBook-Air-von-Oliver.local:
        nixos:
-       windows:
+       Windows-VM:
    end
 
    section: links
        MacBook-Air-von-Oliver.local:
            left = nixos
-           right = windows
+           right = Windows-VM
        nixos:
            right = MacBook-Air-von-Oliver.local
-       windows:
+       Windows-VM:
            left = MacBook-Air-von-Oliver.local
    end
 
@@ -199,14 +199,15 @@ and the same 3.0.3 package on NixOS, so both ends are version-matched.
        clipboardSharing = true
        clipboardSharingSize = 100000000
        keystroke(control+alt+1) = switchToScreen(nixos)
-       keystroke(control+alt+2) = switchToScreen(windows)
+       keystroke(control+alt+2) = switchToScreen(Windows-VM)
        keystroke(control+alt+0) = switchToScreen(MacBook-Air-von-Oliver.local)
    end
    ```
 
    The server screen name must match `--name` of the running server (the GUI
    uses `<LocalHostName>.local`). The client screen names must match the names
-   the clients register: `nixos` and `windows`.
+   the clients register: `nixos` and the Windows computer name
+   (`Windows-VM`).
 
 4. In the InputLeap window, Server tab: enable **Use existing configuration**
    and point it at that file, then click **Start**. The window should say
@@ -249,9 +250,12 @@ SPICE window. That removes the extra hop and the SPICE pointer latency.
    non-redistributable MSVC debug CRT; 3.0.2 is the latest Windows release and
    speaks the same protocol as the 3.0.3 server.)
 2. Launch InputLeap → **Client**, Server IP `192.168.178.33`, Screen name
-   `windows`, then **Start**. Accept the server certificate prompt.
-3. Add the client to the login autostart (a shortcut in `shell:startup`, or the
-   GUI's start-at-login option).
+   `Windows-VM` (the default is the computer name; it must match the Mac
+   layout), then **Start**. Accept the server certificate prompt.
+3. The installer registers the **InputLeap** service (`input-leapd`,
+   auto-start). It keeps the client running as SYSTEM, including after a
+   reboot, once the client has been started from the GUI once — no
+   `shell:startup` entry is needed. The GUI itself can stay closed.
 
 With the server layout above:
 
