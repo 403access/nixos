@@ -25,20 +25,24 @@ let
                                The full-screen terminal closes and the desktop
                                appears. Log out of XFCE to come back here.
 
-         2. virt-manager       Manage the Windows 11 VM, once the desktop is up
+         2. start-vm           Show the Windows 11 VM in a window on this
+                               display, without starting the desktop.
+                               Alt+Tab switches back to this terminal.
+
+         3. virt-manager       Manage the Windows 11 VM, once the desktop is up
                                (or click the Virtual Machine Manager icon).
 
-         3. bridge-status      Show whether the Mac keyboard/mouse bridge is
+         4. bridge-status      Show whether the Mac keyboard/mouse bridge is
                                connected.
 
-         4. nixos-control      Show the web dashboard URL and the control
+         5. nixos-control      Show the web dashboard URL and the control
                                service state.
 
-         5. stop-desktop       Stop the desktop and return to this console.
+         6. stop-desktop       Stop the desktop and return to this console.
 
-         6. reboot / poweroff  Restart or shut down the machine.
+         7. reboot / poweroff  Restart or shut down the machine.
 
-         7. console-help       Print this message again.
+         8. console-help       Print this message again.
 
        Other access:
          - SSH is always available:  ssh nixos@192.168.178.5
@@ -117,6 +121,41 @@ let
     fi
   '';
 
+  startVm = pkgs.writeShellScriptBin "start-vm" ''
+    set -u
+    domain="win11-stock"
+
+    # Allow starting the viewer over SSH as well.
+    if [ -z "''${DISPLAY:-}" ]; then
+      export DISPLAY=:0
+      export XAUTHORITY="$HOME/.Xauthority"
+    fi
+
+    run_dir="''${XDG_RUNTIME_DIR:-/tmp}"
+    pidfile="$run_dir/nixos-vm-viewer.pid"
+
+    if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
+      echo "The Windows 11 viewer is already open."
+      exit 0
+    fi
+
+    state=$(virsh -c qemu:///system domstate "$domain" 2>/dev/null | head -n 1)
+    if [ "$state" != "running" ]; then
+      echo "Starting $domain..."
+      virsh -c qemu:///system start "$domain" >/dev/null || {
+        echo "Could not start $domain." >&2
+        exit 1
+      }
+      sleep 3
+    fi
+
+    echo "Opening the Windows 11 display (Alt+Tab returns to this terminal)..."
+    setsid ${pkgs.virt-viewer}/bin/virt-viewer \
+      --connect qemu:///system --wait "$domain" \
+      >"$run_dir/nixos-vm-viewer.log" 2>&1 &
+    printf '%s\n' "$!" > "$pidfile"
+  '';
+
   bridgeStatus = pkgs.writeShellScriptBin "bridge-status" ''
     set -u
     echo "Mac keyboard/mouse bridge (InputLeap client):"
@@ -189,8 +228,10 @@ in
   environment.systemPackages = [
     pkgs.openbox
     pkgs.xfce.xfce4-terminal
+    pkgs.virt-viewer
     consoleShell
     startDesktop
+    startVm
     stopDesktop
     bridgeStatus
     controlInfo

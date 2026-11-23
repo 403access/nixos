@@ -251,6 +251,7 @@ display.
 | Command | What it does |
 | --- | --- |
 | `start-desktop` | Start XFCE on the console display; also works over SSH. |
+| `start-vm` | Start (if needed) and show the Windows 11 SPICE console in a window; Alt+Tab returns to the terminal. |
 | `stop-desktop` | Stop XFCE and return to the console. |
 | `virt-manager` | Windows 11 VM manager (needs the desktop, or opens on the console display). |
 | `bridge-status` | Show the InputLeap client unit state. |
@@ -263,6 +264,12 @@ From the Mac, the desktop can also be started remotely:
 ```bash
 ssh nixos@192.168.178.5 start-desktop
 ```
+
+The Windows 11 VM does not need XFCE. `start-vm` starts the `win11-stock`
+domain if necessary and opens its libvirt SPICE console with `virt-viewer` as a
+normal window on the console display, so NixOS can stay in terminal mode while
+Windows is visible on the monitor. Close the window (or Alt+Tab back and stop
+the viewer) to return to the terminal; the VM keeps running.
 
 Text consoles on `Ctrl+Alt+F2` … `F6` stay available. They have no Mac bridge
 (InputLeap cannot inject there), so use the Logitech K800 or SSH on them.
