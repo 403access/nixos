@@ -42,7 +42,7 @@ panel to the internet.
 - **Services** — search and filter systemd units, start/stop/restart,
   enable/disable at boot, and read journal logs.
 - **Resources** — CPU, memory and disk I/O attribution for services, apps and
-  processes.
+  processes, with time-series charts.
 - **Logs** — structured journal entries with severity, search and metadata.
 - **Themes** — desktop profile and GTK theme gallery with screenshots and
   one-click apply.

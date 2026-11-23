@@ -180,6 +180,29 @@ export interface ResourceUsage {
   processes: ResourceProcess[];
 }
 
+export interface ResourceSeriesPoint {
+  at: string;
+  cpu_percent: number;
+  memory_bytes: number;
+  read_bps: number;
+  write_bps: number;
+}
+
+export interface ResourceSeries {
+  key: string;
+  name: string;
+  kind: string;
+  points: ResourceSeriesPoint[];
+}
+
+export interface ResourceHistory {
+  from: string;
+  to: string;
+  kind: string;
+  series: ResourceSeries[];
+  totals: ResourceSeriesPoint[];
+}
+
 export interface CurrentTheme {
   profile: string;
   flavour: string;

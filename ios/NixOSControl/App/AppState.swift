@@ -344,6 +344,31 @@ final class AppState: ObservableObject {
         }
     }
 
+    func fetchResourceHistory(
+        kind: String,
+        minutes: Int,
+        metric: String,
+        top: Int = 8,
+        entities: [String] = []
+    ) async -> ResourceHistory? {
+        guard let client else { return nil }
+        var query = [
+            URLQueryItem(name: "kind", value: kind),
+            URLQueryItem(name: "minutes", value: String(minutes)),
+            URLQueryItem(name: "metric", value: metric),
+            URLQueryItem(name: "top", value: String(top)),
+        ]
+        if !entities.isEmpty {
+            query.append(URLQueryItem(name: "entities", value: entities.joined(separator: ",")))
+        }
+        do {
+            return try await client.get("/api/resources/history", query: query)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
     func fetchSession(_ id: String, lines: Int = 300) async -> SessionDetail? {
         guard let client else { return nil }
         do {

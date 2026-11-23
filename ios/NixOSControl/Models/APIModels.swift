@@ -327,6 +327,31 @@ struct ResourceUsage: Decodable {
     let processes: [ResourceProcess]
 }
 
+struct ResourceSeriesPoint: Decodable {
+    let at: String
+    let cpuPercent: Double
+    let memoryBytes: Int64
+    let readBps: Double
+    let writeBps: Double
+}
+
+struct ResourceSeries: Decodable, Identifiable {
+    let key: String
+    let name: String
+    let kind: String
+    let points: [ResourceSeriesPoint]
+
+    var id: String { key }
+}
+
+struct ResourceHistory: Decodable {
+    let from: String
+    let to: String
+    let kind: String
+    let series: [ResourceSeries]
+    let totals: [ResourceSeriesPoint]
+}
+
 struct CurrentTheme: Decodable {
     let profile: String
     let flavour: String

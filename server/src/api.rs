@@ -48,6 +48,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/status", get(status))
         .route("/api/status/history", get(status_history))
         .route("/api/resources", get(resources))
+        .route("/api/resources/history", get(resource_history))
         .route("/api/themes", get(theme_catalog))
         .route("/api/themes/apply", post(apply_theme))
         .route("/api/peripherals", get(peripherals))
@@ -444,6 +445,65 @@ async fn resources(State(state): State<AppState>) -> Response {
             "resource sampler is starting",
         ),
     }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ResourceHistoryQuery {
+    kind: Option<String>,
+    minutes: Option<String>,
+    metric: Option<String>,
+    top: Option<String>,
+    entities: Option<String>,
+}
+
+async fn resource_history(
+    State(state): State<AppState>,
+    Query(query): Query<ResourceHistoryQuery>,
+) -> Response {
+    let kind = match query.kind.as_deref().unwrap_or("services") {
+        "services" => "services",
+        "apps" => "apps",
+        _ => return error_response(StatusCode::BAD_REQUEST, "kind must be services or apps"),
+    };
+    let minutes = query
+        .minutes
+        .as_deref()
+        .and_then(|value| value.trim().parse::<i64>().ok())
+        .unwrap_or(15)
+        .clamp(1, 60);
+    let metric = match query.metric.as_deref().unwrap_or("cpu") {
+        metric @ ("cpu" | "memory" | "read" | "write") => metric,
+        _ => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "metric must be cpu, memory, read or write",
+            )
+        }
+    };
+    let top = query
+        .top
+        .as_deref()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(6)
+        .clamp(1, 12);
+    let entities: Vec<String> = query
+        .entities
+        .as_deref()
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .take(12)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let history = state
+        .resources
+        .history(kind, minutes, metric, &entities, top);
+    json_response(StatusCode::OK, &history)
 }
 
 async fn theme_catalog(State(state): State<AppState>) -> Response {

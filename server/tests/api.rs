@@ -18,7 +18,10 @@ use nixos_control::models::{
 use nixos_control::peripherals::{
     BatteryInfo, DeviceInfo, FirmwareEntry, PeripheralProbe, ProbeReport, ReceiverInfo, SignalInfo,
 };
-use nixos_control::resources::{ProcessEntry, ResourceEntry, ResourceProbe, ResourceUsage};
+use nixos_control::resources::{
+    ProcessEntry, ResourceEntry, ResourceHistory, ResourceProbe, ResourceSeries,
+    ResourceSeriesPoint, ResourceUsage,
+};
 use nixos_control::system::SystemProbe;
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -180,6 +183,58 @@ impl MockResources {
 impl ResourceProbe for MockResources {
     fn snapshot(&self) -> Option<ResourceUsage> {
         self.usage.clone()
+    }
+
+    fn history(
+        &self,
+        kind: &str,
+        _minutes: i64,
+        _metric: &str,
+        _entities: &[String],
+        _top: usize,
+    ) -> ResourceHistory {
+        ResourceHistory {
+            from: "2026-01-01T00:00:00Z".to_string(),
+            to: "2026-01-01T00:00:10Z".to_string(),
+            kind: kind.to_string(),
+            series: vec![ResourceSeries {
+                key: "nixos-control.service".to_string(),
+                name: "nixos-control".to_string(),
+                kind: "service".to_string(),
+                points: vec![
+                    ResourceSeriesPoint {
+                        at: "2026-01-01T00:00:00Z".to_string(),
+                        cpu_percent: 10.0,
+                        memory_bytes: 16 * 1024 * 1024,
+                        read_bps: 1.0,
+                        write_bps: 2.0,
+                    },
+                    ResourceSeriesPoint {
+                        at: "2026-01-01T00:00:10Z".to_string(),
+                        cpu_percent: 20.0,
+                        memory_bytes: 18 * 1024 * 1024,
+                        read_bps: 3.0,
+                        write_bps: 4.0,
+                    },
+                ],
+            }],
+            totals: vec![
+                ResourceSeriesPoint {
+                    at: "2026-01-01T00:00:00Z".to_string(),
+                    cpu_percent: 40.0,
+                    memory_bytes: 1024 * 1024 * 1024,
+                    read_bps: 10.0,
+                    write_bps: 20.0,
+                },
+                ResourceSeriesPoint {
+                    at: "2026-01-01T00:00:10Z".to_string(),
+                    cpu_percent: 41.0,
+                    memory_bytes: 1024 * 1024 * 1024,
+                    read_bps: 11.0,
+                    write_bps: 21.0,
+                },
+            ],
+        }
     }
 }
 
@@ -1402,5 +1457,37 @@ async fn theme_apply_validates_and_respects_allow_rebuild() {
     assert_eq!(
         json(&body)["error"],
         "theme changes are disabled on this server"
+    );
+}
+
+#[tokio::test]
+async fn resource_history_is_returned() {
+    let fixture = fixture();
+    let (status, _, body) = get(
+        &fixture,
+        "/api/resources/history?kind=services&minutes=15&metric=cpu&top=6",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["kind"], "services");
+    assert_eq!(value["series"][0]["name"], "nixos-control");
+    assert_eq!(value["series"][0]["points"].as_array().unwrap().len(), 2);
+    assert_eq!(value["series"][0]["points"][1]["cpu_percent"], 20.0);
+    assert_eq!(value["totals"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn resource_history_validates_parameters() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/resources/history?kind=processes").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json(&body)["error"], "kind must be services or apps");
+
+    let (status, _, body) = get(&fixture, "/api/resources/history?metric=nope").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json(&body)["error"],
+        "metric must be cpu, memory, read or write"
     );
 }

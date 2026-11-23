@@ -15,6 +15,7 @@ import type {
   Job,
   LogsResponse,
   ProbeReport,
+  ResourceHistory,
   ResourceUsage,
   ServiceUnit,
   SessionDetail,
@@ -74,6 +75,13 @@ interface Store {
   refreshStatus(): Promise<void>;
   fetchStatusHistory(minutes: number, limit?: number): Promise<StatusSample[]>;
   fetchResources(): Promise<ResourceUsage | null>;
+  fetchResourceHistory(params: {
+    kind: "services" | "apps";
+    minutes: number;
+    metric: "cpu" | "memory" | "read" | "write";
+    top?: number;
+    entities?: string[];
+  }): Promise<ResourceHistory | null>;
   fetchThemes(): Promise<ThemeCatalog | null>;
   applyTheme(update: {
     profile?: string;
@@ -177,6 +185,31 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, [settings]);
+
+  const fetchResourceHistory = useCallback(
+    async (params: {
+      kind: "services" | "apps";
+      minutes: number;
+      metric: "cpu" | "memory" | "read" | "write";
+      top?: number;
+      entities?: string[];
+    }) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        return await api.getResourceHistory(
+          settings.serverUrl,
+          settings.token,
+          params,
+        );
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
 
   const fetchThemes = useCallback(async () => {
     if (!settings) {
@@ -584,6 +617,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       refreshStatus,
       fetchStatusHistory,
       fetchResources,
+      fetchResourceHistory,
       fetchThemes,
       applyTheme,
       loadServices,
@@ -625,6 +659,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       refreshStatus,
       fetchStatusHistory,
       fetchResources,
+      fetchResourceHistory,
       fetchThemes,
       applyTheme,
       loadServices,

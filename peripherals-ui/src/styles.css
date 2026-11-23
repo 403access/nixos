@@ -2771,3 +2771,15 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.resource-history-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.resource-history-controls .select {
+  min-width: 140px;
+}

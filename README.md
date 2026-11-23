@@ -17,7 +17,7 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 - **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state. Click CPU, memory, load or root disk for charts and recent history in the side panel.
 - **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell commands including timestamps, execution time and exit status.
 - **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
-- **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes.
+- **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes, with time-series charts for the last hour.
 - **Logs** — parsed system and service journals with severity filters, search, follow-tail, repeat collapsing and expandable metadata.
 - **Themes** — desktop theme gallery with screenshots, details and one-click apply.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, and filesystem usage.
@@ -566,6 +566,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
 | `GET` | `/api/resources` | CPU, memory and disk I/O per service, app and process |
+| `GET` | `/api/resources/history?kind=services&minutes=15&metric=cpu` | Per-entity time series |
 | `GET` | `/api/themes` | Desktop theme catalog and current selection |
 | `POST` | `/api/themes/apply` | Apply a profile or GTK theme (starts a rebuild) |
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |

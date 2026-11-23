@@ -12,6 +12,9 @@ const CLOCK_TICKS: f64 = 100.0;
 const TOP_ENTRIES: usize = 40;
 const TOP_PROCESSES: usize = 100;
 const COMMAND_LIMIT: usize = 300;
+/// One hour at the five-second sample interval.
+const HISTORY_CAPACITY: usize = 720;
+const MAX_HISTORY_SERIES: usize = 12;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ResourceEntry {
@@ -56,6 +59,53 @@ pub struct ResourceUsage {
 
 pub trait ResourceProbe: Send + Sync {
     fn snapshot(&self) -> Option<ResourceUsage>;
+    fn history(
+        &self,
+        _kind: &str,
+        _minutes: i64,
+        _metric: &str,
+        _entities: &[String],
+        _top: usize,
+    ) -> ResourceHistory {
+        ResourceHistory::default()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ResourceSeriesPoint {
+    pub at: String,
+    pub cpu_percent: f64,
+    pub memory_bytes: i64,
+    pub read_bps: f64,
+    pub write_bps: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ResourceSeries {
+    pub key: String,
+    pub name: String,
+    pub kind: String,
+    pub points: Vec<ResourceSeriesPoint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ResourceHistory {
+    pub from: String,
+    pub to: String,
+    pub kind: String,
+    pub series: Vec<ResourceSeries>,
+    pub totals: Vec<ResourceSeriesPoint>,
+}
+
+#[derive(Clone)]
+struct HistorySample {
+    at: String,
+    total_cpu_percent: f64,
+    total_memory_bytes: i64,
+    total_read_bps: f64,
+    total_write_bps: f64,
+    services: Vec<ResourceEntry>,
+    apps: Vec<ResourceEntry>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -70,6 +120,7 @@ struct Inner {
     previous: HashMap<i32, Counters>,
     sampled_at: Option<Instant>,
     snapshot: Option<ResourceUsage>,
+    history: std::collections::VecDeque<HistorySample>,
 }
 
 pub struct ResourceMonitor {
@@ -159,6 +210,18 @@ impl ResourceMonitor {
             memory_total,
             (elapsed_secs * 1000.0) as u64,
         );
+        inner.history.push_back(HistorySample {
+            at: usage.at.clone(),
+            total_cpu_percent: usage.total_cpu_percent,
+            total_memory_bytes: usage.total_memory_bytes,
+            total_read_bps: usage.total_read_bps,
+            total_write_bps: usage.total_write_bps,
+            services: usage.services.clone(),
+            apps: usage.apps.clone(),
+        });
+        while inner.history.len() > HISTORY_CAPACITY {
+            inner.history.pop_front();
+        }
         inner.snapshot = Some(usage.clone());
         Some(usage)
     }
@@ -170,11 +233,52 @@ impl ResourceMonitor {
             .snapshot
             .clone()
     }
+
+    pub fn history(
+        &self,
+        kind: &str,
+        minutes: i64,
+        metric: &str,
+        entities: &[String],
+        top: usize,
+    ) -> ResourceHistory {
+        let now = Utc::now();
+        let cutoff = (now - chrono::Duration::minutes(minutes.clamp(1, 60)))
+            .to_rfc3339_opts(SecondsFormat::Secs, true);
+        let inner = self.inner.lock().expect("resource monitor poisoned");
+        let samples: Vec<HistorySample> = inner
+            .history
+            .iter()
+            .filter(|sample| sample.at >= cutoff)
+            .cloned()
+            .collect();
+        if samples.is_empty() {
+            let at = now.to_rfc3339_opts(SecondsFormat::Secs, true);
+            return ResourceHistory {
+                from: at.clone(),
+                to: at,
+                kind: kind.to_string(),
+                ..ResourceHistory::default()
+            };
+        }
+        build_history(&samples, kind, metric, entities, top)
+    }
 }
 
 impl ResourceProbe for ResourceMonitor {
     fn snapshot(&self) -> Option<ResourceUsage> {
         ResourceMonitor::snapshot(self)
+    }
+
+    fn history(
+        &self,
+        kind: &str,
+        minutes: i64,
+        metric: &str,
+        entities: &[String],
+        top: usize,
+    ) -> ResourceHistory {
+        ResourceMonitor::history(self, kind, minutes, metric, entities, top)
     }
 }
 
@@ -517,6 +621,156 @@ fn top_processes(mut processes: Vec<ProcessEntry>) -> Vec<ProcessEntry> {
     values
 }
 
+fn entries_for<'a>(sample: &'a HistorySample, kind: &str) -> &'a [ResourceEntry] {
+    if kind == "apps" {
+        &sample.apps
+    } else {
+        &sample.services
+    }
+}
+
+fn entity_key(entry: &ResourceEntry, kind: &str) -> String {
+    if kind == "apps" {
+        entry.name.clone()
+    } else {
+        entry.unit.clone()
+    }
+}
+
+fn metric_value(entry: &ResourceEntry, metric: &str) -> f64 {
+    match metric {
+        "memory" => entry.memory_bytes as f64,
+        "read" => entry.read_bps,
+        "write" => entry.write_bps,
+        _ => entry.cpu_percent,
+    }
+}
+
+fn series_point(sample: &HistorySample, entry: Option<&ResourceEntry>) -> ResourceSeriesPoint {
+    ResourceSeriesPoint {
+        at: sample.at.clone(),
+        cpu_percent: entry.map(|entry| entry.cpu_percent).unwrap_or(0.0),
+        memory_bytes: entry.map(|entry| entry.memory_bytes).unwrap_or(0),
+        read_bps: entry.map(|entry| entry.read_bps).unwrap_or(0.0),
+        write_bps: entry.map(|entry| entry.write_bps).unwrap_or(0.0),
+    }
+}
+
+fn build_history(
+    samples: &[HistorySample],
+    kind: &str,
+    metric: &str,
+    entities: &[String],
+    top: usize,
+) -> ResourceHistory {
+    let kind = if kind == "apps" { "apps" } else { "services" };
+    let top = top.clamp(1, MAX_HISTORY_SERIES);
+    let mut selected: Vec<(String, String, String)> = Vec::new();
+
+    if entities.is_empty() {
+        let mut ranking: HashMap<String, (String, String, f64)> = HashMap::new();
+        for sample in samples {
+            for entry in entries_for(sample, kind) {
+                let key = entity_key(entry, kind);
+                let score = metric_value(entry, metric);
+                let candidate = ranking
+                    .entry(key)
+                    .or_insert_with(|| (entry.name.clone(), entry.kind.clone(), score));
+                if score > candidate.2 {
+                    candidate.0 = entry.name.clone();
+                    candidate.1 = entry.kind.clone();
+                    candidate.2 = score;
+                }
+            }
+        }
+        let mut ranked: Vec<(String, String, String, f64)> = ranking
+            .into_iter()
+            .map(|(key, (name, entity_kind, score))| (key, name, entity_kind, score))
+            .collect();
+        ranked.sort_by(|left, right| right.3.total_cmp(&left.3));
+        for (key, name, entity_kind, _) in ranked.into_iter().take(top) {
+            selected.push((key, name, entity_kind));
+        }
+    } else {
+        let mut seen = std::collections::HashSet::new();
+        for key in entities
+            .iter()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            if !seen.insert(key.to_string()) {
+                continue;
+            }
+            let found = samples.iter().find_map(|sample| {
+                entries_for(sample, kind)
+                    .iter()
+                    .find(|entry| entity_key(entry, kind) == key)
+                    .map(|entry| (entry.name.clone(), entry.kind.clone()))
+            });
+            let (name, entity_kind) = found.unwrap_or_else(|| {
+                (
+                    key.to_string(),
+                    if kind == "apps" {
+                        "app".to_string()
+                    } else {
+                        "service".to_string()
+                    },
+                )
+            });
+            selected.push((key.to_string(), name, entity_kind));
+            if selected.len() >= MAX_HISTORY_SERIES {
+                break;
+            }
+        }
+    }
+
+    let series = selected
+        .into_iter()
+        .map(|(key, name, entity_kind)| {
+            let points = samples
+                .iter()
+                .map(|sample| {
+                    let entry = entries_for(sample, kind)
+                        .iter()
+                        .find(|entry| entity_key(entry, kind) == key);
+                    series_point(sample, entry)
+                })
+                .collect();
+            ResourceSeries {
+                key,
+                name,
+                kind: entity_kind,
+                points,
+            }
+        })
+        .collect();
+
+    let totals = samples
+        .iter()
+        .map(|sample| ResourceSeriesPoint {
+            at: sample.at.clone(),
+            cpu_percent: sample.total_cpu_percent,
+            memory_bytes: sample.total_memory_bytes,
+            read_bps: sample.total_read_bps,
+            write_bps: sample.total_write_bps,
+        })
+        .collect();
+
+    ResourceHistory {
+        from: samples
+            .first()
+            .map(|sample| sample.at.clone())
+            .unwrap_or_default(),
+        to: samples
+            .last()
+            .map(|sample| sample.at.clone())
+            .unwrap_or_default(),
+        kind: kind.to_string(),
+        series,
+        totals,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -590,6 +844,85 @@ mod tests {
                 "firefox-1".to_string()
             )
         );
+    }
+
+    fn sample_entry(name: &str, unit: &str, cpu: f64, memory: i64) -> ResourceEntry {
+        ResourceEntry {
+            name: name.to_string(),
+            kind: "service".to_string(),
+            unit: unit.to_string(),
+            tasks: 1,
+            cpu_percent: cpu,
+            memory_bytes: memory,
+            read_bps: 0.0,
+            write_bps: 0.0,
+        }
+    }
+
+    fn history_sample(at: &str, services: Vec<ResourceEntry>) -> HistorySample {
+        HistorySample {
+            at: at.to_string(),
+            total_cpu_percent: services.iter().map(|entry| entry.cpu_percent).sum(),
+            total_memory_bytes: services.iter().map(|entry| entry.memory_bytes).sum(),
+            total_read_bps: 0.0,
+            total_write_bps: 0.0,
+            services,
+            apps: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn builds_top_entity_history() {
+        let samples = vec![
+            history_sample(
+                "2026-01-01T00:00:00Z",
+                vec![
+                    sample_entry("nginx", "nginx.service", 10.0, 100),
+                    sample_entry("db", "db.service", 30.0, 50),
+                ],
+            ),
+            history_sample(
+                "2026-01-01T00:00:05Z",
+                vec![
+                    sample_entry("nginx", "nginx.service", 20.0, 120),
+                    sample_entry("db", "db.service", 5.0, 60),
+                ],
+            ),
+        ];
+
+        let history = build_history(&samples, "services", "cpu", &[], 1);
+        assert_eq!(history.kind, "services");
+        assert_eq!(history.series.len(), 1);
+        assert_eq!(history.series[0].key, "db.service");
+        assert_eq!(history.series[0].points.len(), 2);
+        assert_eq!(history.series[0].points[0].cpu_percent, 30.0);
+        assert_eq!(history.totals.len(), 2);
+        assert_eq!(history.from, "2026-01-01T00:00:00Z");
+        assert_eq!(history.to, "2026-01-01T00:00:05Z");
+    }
+
+    #[test]
+    fn history_can_select_explicit_entities() {
+        let samples = vec![
+            history_sample(
+                "2026-01-01T00:00:00Z",
+                vec![sample_entry("nginx", "nginx.service", 10.0, 100)],
+            ),
+            history_sample(
+                "2026-01-01T00:00:05Z",
+                vec![sample_entry("nginx", "nginx.service", 20.0, 120)],
+            ),
+        ];
+        let history = build_history(
+            &samples,
+            "services",
+            "cpu",
+            &["nginx.service".to_string()],
+            1,
+        );
+        assert_eq!(history.series.len(), 1);
+        assert_eq!(history.series[0].name, "nginx");
+        assert_eq!(history.series[0].points[1].memory_bytes, 120);
     }
 
     #[test]

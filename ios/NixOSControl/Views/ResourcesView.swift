@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 enum ResourceMode: String, CaseIterable, Identifiable {
     case services = "Services"
@@ -6,6 +7,35 @@ enum ResourceMode: String, CaseIterable, Identifiable {
     case processes = "Processes"
 
     var id: String { rawValue }
+}
+
+enum ResourceHistoryKind: String, CaseIterable, Identifiable {
+    case services = "Services"
+    case apps = "Apps"
+
+    var id: String { rawValue }
+
+    var apiValue: String {
+        self == .apps ? "apps" : "services"
+    }
+}
+
+enum ResourceHistoryMetric: String, CaseIterable, Identifiable {
+    case cpu = "CPU"
+    case memory = "Memory"
+    case read = "Disk read"
+    case write = "Disk write"
+
+    var id: String { rawValue }
+
+    var apiValue: String {
+        switch self {
+        case .cpu: return "cpu"
+        case .memory: return "memory"
+        case .read: return "read"
+        case .write: return "write"
+        }
+    }
 }
 
 enum ResourceSort: String, CaseIterable, Identifiable {
@@ -28,11 +58,22 @@ private struct ResourceRow: Identifiable {
     let write: Double
 }
 
+private struct ResourceChartPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let value: Double
+    let series: String
+}
+
 struct ResourcesView: View {
     @EnvironmentObject private var app: AppState
     @State private var mode: ResourceMode = .services
     @State private var sort: ResourceSort = .cpu
     @State private var search = ""
+    @State private var history: ResourceHistory?
+    @State private var historyKind: ResourceHistoryKind = .services
+    @State private var historyMetric: ResourceHistoryMetric = .cpu
+    @State private var historyMinutes = 15
 
     var body: some View {
         List {
@@ -43,6 +84,7 @@ struct ResourcesView: View {
 
             if let usage = app.resources {
                 summary(usage)
+                historySection()
 
                 Section {
                     Picker("Group", selection: $mode) {
@@ -100,7 +142,10 @@ struct ResourcesView: View {
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await app.loadResources() }
+                    Task {
+                        await app.loadResources()
+                        await loadHistory()
+                    }
                 } label: {
                     if app.isLoadingResources {
                         ProgressView()
@@ -113,6 +158,7 @@ struct ResourcesView: View {
         }
         .refreshable {
             await app.loadResources()
+            await loadHistory()
         }
         .task {
             await app.loadResources()
@@ -122,6 +168,32 @@ struct ResourcesView: View {
                     break
                 }
                 await app.loadResources()
+            }
+        }
+        .task {
+            await loadHistory()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                if Task.isCancelled {
+                    break
+                }
+                await loadHistory()
+            }
+        }
+        .onChange(of: historyKind) { _, _ in
+            Task { await loadHistory() }
+        }
+        .onChange(of: historyMetric) { _, _ in
+            Task { await loadHistory() }
+        }
+        .onChange(of: historyMinutes) { _, _ in
+            Task { await loadHistory() }
+        }
+        .onChange(of: mode) { _, value in
+            if value == .apps {
+                historyKind = .apps
+            } else if value == .services {
+                historyKind = .services
             }
         }
     }
@@ -143,6 +215,132 @@ struct ResourcesView: View {
         }
         .listRowBackground(Theme.surface)
         .listRowSeparatorTint(Theme.border)
+    }
+
+    @ViewBuilder
+    private func historySection() -> some View {
+        let points = chartPoints
+
+        Section {
+            Picker("Entities", selection: $historyKind) {
+                ForEach(ResourceHistoryKind.allCases) { kind in
+                    Text(kind.rawValue).tag(kind)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Picker("Metric", selection: $historyMetric) {
+                ForEach(ResourceHistoryMetric.allCases) { metric in
+                    Text(metric.rawValue).tag(metric)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Picker("Range", selection: $historyMinutes) {
+                Text("5 min").tag(5)
+                Text("15 min").tag(15)
+                Text("30 min").tag(30)
+                Text("60 min").tag(60)
+            }
+            .pickerStyle(.menu)
+
+            if points.isEmpty {
+                HStack {
+                    Spacer()
+                    ProgressView("Collecting history…")
+                    Spacer()
+                }
+                .padding(.vertical, 12)
+            } else {
+                Chart(points) { point in
+                    LineMark(
+                        x: .value("Time", point.date),
+                        y: .value("Value", point.value)
+                    )
+                    .foregroundStyle(by: .value("Entity", point.series))
+                    .interpolationMethod(.catmullRom)
+                }
+                .chartLegend(position: .bottom, alignment: .leading, spacing: 8)
+                .chartYAxis {
+                    AxisMarks(position: .leading) { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(formatMetric(number))
+                                    .font(.system(size: 8, design: .monospaced))
+                            }
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.hour().minute())
+                    }
+                }
+                .frame(height: 220)
+                .padding(.vertical, 4)
+            }
+        } header: {
+            Text("Usage over time")
+        } footer: {
+            Text("Top \(historyKind.rawValue.lowercased()) by \(historyMetric.rawValue.lowercased()). Five-second samples, kept for up to one hour.")
+                .font(.caption2)
+                .foregroundStyle(Theme.textMuted)
+        }
+        .listRowBackground(Theme.surface)
+        .listRowSeparatorTint(Theme.border)
+    }
+
+    private var chartPoints: [ResourceChartPoint] {
+        guard let history else {
+            return []
+        }
+        return history.series.flatMap { series in
+            series.points.compactMap { point in
+                guard let date = SessionFormat.date(point.at) else {
+                    return nil
+                }
+                return ResourceChartPoint(
+                    date: date,
+                    value: metricValue(point),
+                    series: series.name
+                )
+            }
+        }
+    }
+
+    private func metricValue(_ point: ResourceSeriesPoint) -> Double {
+        switch historyMetric {
+        case .cpu:
+            return point.cpuPercent
+        case .memory:
+            return Double(point.memoryBytes)
+        case .read:
+            return point.readBps
+        case .write:
+            return point.writeBps
+        }
+    }
+
+    private func formatMetric(_ value: Double) -> String {
+        switch historyMetric {
+        case .cpu:
+            return String(format: "%.0f%%", value)
+        case .memory:
+            return ByteFormat.string(Int64(value))
+        case .read, .write:
+            return "\(ByteFormat.string(Int64(value)))/s"
+        }
+    }
+
+    private func loadHistory() async {
+        history = await app.fetchResourceHistory(
+            kind: historyKind.apiValue,
+            minutes: historyMinutes,
+            metric: historyMetric.apiValue,
+            top: 8
+        )
     }
 
     @ViewBuilder

@@ -11,6 +11,7 @@ import type {
   SessionDetail,
   SessionsResponse,
   ResourceUsage,
+  ResourceHistory,
   StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
@@ -117,6 +118,30 @@ export function getResources(
   token: string,
 ): Promise<ResourceUsage> {
   return request<ResourceUsage>(serverUrl, token, "/api/resources");
+}
+
+export function getResourceHistory(
+  serverUrl: string,
+  token: string,
+  params: {
+    kind: "services" | "apps";
+    minutes: number;
+    metric: "cpu" | "memory" | "read" | "write";
+    top?: number;
+    entities?: string[];
+  },
+): Promise<ResourceHistory> {
+  return request<ResourceHistory>(
+    serverUrl,
+    token,
+    withQuery("/api/resources/history", {
+      kind: params.kind,
+      minutes: params.minutes,
+      metric: params.metric,
+      top: params.top,
+      entities: params.entities?.join(","),
+    }),
+  );
 }
 
 export function getThemes(

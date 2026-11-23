@@ -128,6 +128,43 @@ CPU percentages are relative to one core and can exceed 100%. Memory is RSS
 summed per process; disk values are actual block I/O. The first sample after a
 server start has no CPU/I/O deltas yet.
 
+### `GET /api/resources/history`
+
+Returns per-entity time series from the in-memory resource history. Samples are
+taken every five seconds and kept for up to one hour.
+
+```http
+GET /api/resources/history?kind=services&minutes=15&metric=cpu&top=8
+```
+
+- `kind`: `services` or `apps`
+- `minutes`: 1–60
+- `metric`: `cpu`, `memory`, `read` or `write` (also selects the top entities)
+- `top`: 1–12
+- `entities`: optional comma-separated keys (`unit` for services, `name` for
+  apps) to return specific timelines
+
+```json
+{
+  "from": "2026-11-23T04:10:00Z",
+  "to": "2026-11-23T04:25:00Z",
+  "kind": "services",
+  "series": [
+    {
+      "key": "nixos-control.service",
+      "name": "nixos-control",
+      "kind": "service",
+      "points": [
+        {"at": "2026-11-23T04:10:00Z", "cpu_percent": 0.4, "memory_bytes": 14680064, "read_bps": 0.0, "write_bps": 0.0}
+      ]
+    }
+  ],
+  "totals": [
+    {"at": "2026-11-23T04:10:00Z", "cpu_percent": 42.5, "memory_bytes": 3221225472, "read_bps": 1024.0, "write_bps": 2048.0}
+  ]
+}
+```
+
 ## Services
 
 | Method | Path | Purpose |

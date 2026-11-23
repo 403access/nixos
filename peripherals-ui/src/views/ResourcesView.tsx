@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { LineChart, type ChartSeries } from "../chart";
 import {
+  Card,
   EmptyState,
   ErrorBanner,
   InfoRow,
@@ -14,10 +16,33 @@ import {
   formatPreciseTimestamp,
 } from "../components";
 import { useNixOSControl } from "../store";
-import type { ResourceEntry, ResourceProcess, ResourceUsage } from "../types";
+import type {
+  ResourceEntry,
+  ResourceHistory,
+  ResourceProcess,
+  ResourceSeriesPoint,
+  ResourceUsage,
+} from "../types";
 
 type Mode = "services" | "apps" | "processes";
 type SortKey = "cpu" | "memory" | "read" | "write";
+type HistoryMetric = "cpu" | "memory" | "read" | "write";
+type HistoryKind = "services" | "apps";
+
+const CHART_COLORS = [
+  "#5aa9ff",
+  "#fbbf24",
+  "#4fd1c5",
+  "#c084fc",
+  "#f472b6",
+  "#facc15",
+  "#94a3b8",
+  "#fb923c",
+  "#34d399",
+  "#60a5fa",
+  "#a78bfa",
+  "#f97316",
+];
 
 interface Row {
   key: string;
@@ -48,6 +73,34 @@ function kindTone(kind: string): "good" | "warn" | "bad" | "muted" | "accent" {
 
 function formatRate(value: number): string {
   return `${formatBytes(value)}/s`;
+}
+
+function metricValue(
+  point: ResourceSeriesPoint,
+  metric: HistoryMetric,
+): number {
+  switch (metric) {
+    case "memory":
+      return point.memory_bytes;
+    case "read":
+      return point.read_bps;
+    case "write":
+      return point.write_bps;
+    default:
+      return point.cpu_percent;
+  }
+}
+
+function formatMetric(metric: HistoryMetric, value: number): string {
+  switch (metric) {
+    case "memory":
+      return formatBytes(value);
+    case "read":
+    case "write":
+      return formatRate(value);
+    default:
+      return formatPercent(value, 1);
+  }
 }
 
 function rowsFor(usage: ResourceUsage, mode: Mode): Row[] {
@@ -83,13 +136,17 @@ function rowsFor(usage: ResourceUsage, mode: Mode): Row[] {
 }
 
 export default function ResourcesView() {
-  const { fetchResources, error } = useNixOSControl();
+  const { fetchResources, fetchResourceHistory, error } = useNixOSControl();
   const [usage, setUsage] = useState<ResourceUsage | null>(null);
   const [mode, setMode] = useState<Mode>("services");
   const [sort, setSort] = useState<SortKey>("cpu");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Row | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [history, setHistory] = useState<ResourceHistory | null>(null);
+  const [historyKind, setHistoryKind] = useState<HistoryKind>("services");
+  const [historyMetric, setHistoryMetric] = useState<HistoryMetric>("cpu");
+  const [historyMinutes, setHistoryMinutes] = useState(15);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +168,45 @@ export default function ResourcesView() {
       window.clearInterval(interval);
     };
   }, [fetchResources, refreshTick]);
+
+  useEffect(() => {
+    if (mode === "apps") {
+      setHistoryKind("apps");
+    } else if (mode === "services") {
+      setHistoryKind("services");
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      const next = await fetchResourceHistory({
+        kind: historyKind,
+        minutes: historyMinutes,
+        metric: historyMetric,
+        top: 8,
+      });
+      if (!cancelled) {
+        setHistory(next);
+      }
+    };
+
+    void load();
+    const interval = window.setInterval(() => {
+      void load();
+    }, 15_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [
+    historyKind,
+    historyMinutes,
+    historyMetric,
+    fetchResourceHistory,
+  ]);
 
   const rows = useMemo(() => {
     if (!usage) {
@@ -144,6 +240,25 @@ export default function ResourcesView() {
   const maxRead = Math.max(1, ...rows.map((row) => row.read));
   const maxWrite = Math.max(1, ...rows.map((row) => row.write));
   const maxCpu = Math.max(100, ...rows.map((row) => row.cpu));
+
+  const historyChart = useMemo(() => {
+    if (!history) {
+      return null;
+    }
+    const labels = history.totals.map((point) => point.at);
+    const series: ChartSeries[] = history.series.map((item, index) => ({
+      label: item.name,
+      color: CHART_COLORS[index % CHART_COLORS.length],
+      values: item.points.map((point) => metricValue(point, historyMetric)),
+    }));
+    return {
+      labels,
+      series,
+      min: 0,
+      max: historyMetric === "memory" ? usage?.memory_total : undefined,
+      formatValue: (value: number) => formatMetric(historyMetric, value),
+    };
+  }, [history, historyMetric, usage?.memory_total]);
 
   return (
     <div className="view-stack">
@@ -181,6 +296,79 @@ export default function ResourcesView() {
               caption={`updated ${formatPreciseTimestamp(usage.at)}`}
             />
           </div>
+
+          <Card
+            title="Usage over time"
+            subtitle="Five-second samples, kept for up to one hour"
+          >
+            <div className="resource-history-controls">
+              <div className="resource-tabs" role="group" aria-label="History entity">
+                {(
+                  [
+                    ["services", "Services"],
+                    ["apps", "Apps"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`button tiny${historyKind === value ? " primary" : " ghost"}`}
+                    onClick={() => setHistoryKind(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="inline-field">
+                Metric
+                <select
+                  className="select"
+                  value={historyMetric}
+                  onChange={(event) =>
+                    setHistoryMetric(event.target.value as HistoryMetric)
+                  }
+                >
+                  <option value="cpu">CPU</option>
+                  <option value="memory">Memory</option>
+                  <option value="read">Disk read</option>
+                  <option value="write">Disk write</option>
+                </select>
+              </label>
+              <label className="inline-field">
+                Range
+                <select
+                  className="select"
+                  value={historyMinutes}
+                  onChange={(event) => setHistoryMinutes(Number(event.target.value))}
+                >
+                  <option value={5}>5 minutes</option>
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={60}>60 minutes</option>
+                </select>
+              </label>
+            </div>
+
+            {historyChart && historyChart.series.length > 0 ? (
+              <LineChart
+                series={historyChart.series}
+                labels={historyChart.labels}
+                min={historyChart.min}
+                max={historyChart.max}
+                formatValue={historyChart.formatValue}
+                ariaLabel={`${historyKind} ${historyMetric} history`}
+              />
+            ) : (
+              <p className="muted">
+                Collecting history… The server samples every 5 seconds.
+              </p>
+            )}
+
+            <p className="muted resource-note">
+              Top {historyKind} by {historyMetric}; click a row below for that
+              entity's own timeline.
+            </p>
+          </Card>
 
           <div className="toolbar-row">
             <div className="resource-tabs" role="group" aria-label="Group by">
@@ -313,6 +501,8 @@ export default function ResourcesView() {
         <ResourceDetail
           row={selected}
           usage={usage}
+          historyMetric={historyMetric}
+          historyMinutes={historyMinutes}
           onClose={() => setSelected(null)}
         />
       ) : null}
@@ -323,12 +513,81 @@ export default function ResourcesView() {
 function ResourceDetail({
   row,
   usage,
+  historyMetric,
+  historyMinutes,
   onClose,
 }: {
   row: Row;
   usage: ResourceUsage;
+  historyMetric: HistoryMetric;
+  historyMinutes: number;
   onClose: () => void;
 }) {
+  const { fetchResourceHistory } = useNixOSControl();
+  const historyKind: HistoryKind = row.kind === "app" ? "apps" : "services";
+  const entityKey = row.kind === "app" ? row.name : row.unit;
+  const [metric, setMetric] = useState<HistoryMetric>(historyMetric);
+  const [entityHistory, setEntityHistory] = useState<ResourceHistory | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setMetric(historyMetric);
+  }, [historyMetric]);
+
+  useEffect(() => {
+    if (row.pid !== undefined) {
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      const next = await fetchResourceHistory({
+        kind: historyKind,
+        minutes: historyMinutes,
+        metric,
+        top: 1,
+        entities: [entityKey],
+      });
+      if (!cancelled) {
+        setEntityHistory(next);
+      }
+    };
+    void load();
+    const interval = window.setInterval(() => {
+      void load();
+    }, 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [
+    row.pid,
+    historyKind,
+    entityKey,
+    historyMinutes,
+    metric,
+    fetchResourceHistory,
+  ]);
+
+  const entityChart = useMemo(() => {
+    const series = entityHistory?.series[0];
+    if (!series) {
+      return null;
+    }
+    return {
+      labels: series.points.map((point) => point.at),
+      series: [
+        {
+          label: series.name,
+          color: CHART_COLORS[0],
+          values: series.points.map((point) => metricValue(point, metric)),
+        },
+      ],
+      min: 0,
+      max: metric === "memory" ? usage.memory_total : undefined,
+      formatValue: (value: number) => formatMetric(metric, value),
+    };
+  }, [entityHistory, metric, usage.memory_total]);
   const processes: ResourceProcess[] =
     row.pid !== undefined
       ? usage.processes.filter((process) => process.pid === row.pid)
@@ -355,6 +614,42 @@ function ResourceDetail({
         <InfoRow label="Disk read" value={formatRate(row.read)} />
         <InfoRow label="Disk write" value={formatRate(row.write)} />
       </div>
+
+      {row.pid === undefined ? (
+        <section className="session-section">
+          <h3>History</h3>
+          <div className="resource-history-controls">
+            <label className="inline-field">
+              Metric
+              <select
+                className="select"
+                value={metric}
+                onChange={(event) =>
+                  setMetric(event.target.value as HistoryMetric)
+                }
+              >
+                <option value="cpu">CPU</option>
+                <option value="memory">Memory</option>
+                <option value="read">Disk read</option>
+                <option value="write">Disk write</option>
+              </select>
+            </label>
+            <span className="muted">Last {historyMinutes} minutes</span>
+          </div>
+          {entityChart ? (
+            <LineChart
+              series={entityChart.series}
+              labels={entityChart.labels}
+              min={entityChart.min}
+              max={entityChart.max}
+              formatValue={entityChart.formatValue}
+              ariaLabel={`${row.name} history`}
+            />
+          ) : (
+            <p className="muted">No history samples yet.</p>
+          )}
+        </section>
+      ) : null}
 
       {row.command ? (
         <section className="session-section">

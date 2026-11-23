@@ -97,7 +97,9 @@ version and size deltas.
 
 **Dashboard → Resources** shows CPU, resident memory and disk I/O by service,
 application and individual process. Switch between the three views and sort by
-CPU, memory, disk read or disk write. Values refresh every five seconds; CPU is
+CPU, memory, disk read or disk write. The **Usage over time** chart shows the
+top services or apps over 5, 15, 30 or 60 minutes for CPU, memory or disk I/O;
+the server samples every five seconds. Values refresh automatically; CPU is
 relative to one core and can exceed 100% on multi-core machines.
 
 ## Logs
