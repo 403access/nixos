@@ -259,6 +259,56 @@ lsof -nP -iTCP:24800          # on the Mac: LISTEN and ESTABLISHED
 | `X display has unexpectedly disconnected` | Normal at login; the unit restarts itself within ~2 s. |
 | Works at the greeter, not in the session | Check the desktop profile is X11 (XFCE). `--use-x11` injects via XTEST and cannot reach native Wayland clients. |
 | `ssl certificate doesn't exist` | Harmless: the server runs with `--disable-client-cert-checking`, so the client certificate is optional. |
+| Physical login bounces back to the greeter | A leftover XFCE session on another display owns the session-manager name; see below. |
+
+### Physical login bounces back to the greeter
+
+Symptom: after entering the password at the physical screen, a text console
+flashes for a moment and the greeter comes back. The text on the console is
+unrelated tty scrollback; the real failure is in the session logs.
+
+Cause: XFCE allows one session per user. A leftover session on another display —
+usually a disconnected xrdp session from an earlier day — owns
+`org.xfce.SessionManager` on the user's shared D-Bus bus (`/run/user/1000/bus`).
+The new `xfce4-session` at the physical console cannot take the name, exits
+immediately with status 0, and lightdm restarts the greeter.
+
+Find the leftover session:
+
+```bash
+loginctl list-sessions
+
+for s in $(loginctl list-sessions --no-legend | awk '{print $1}'); do
+  printf 'session %s: ' "$s"
+  loginctl show-session "$s" -p Name -p Service -p Display -p Remote -p Type \
+    --value | paste -sd' '
+done
+```
+
+Look for `xrdp-sesman` with `Display=:10` and `Remote=yes`, then end it:
+
+```bash
+loginctl terminate-session <id>
+
+pgrep -af xfce4-session   # should print nothing
+busctl --user list | grep -i xfce.Session   # should print nothing
+```
+
+The physical login works again. In the logs, `/var/log/lightdm/lightdm.log`
+shows the user session's `xsession-wrapper .../xsession` exiting with return
+value 0 after about 150 ms, and `journalctl -b | grep xfce4-session` shows only
+the ordinary startup warnings (`_NET_NUMBER_OF_DESKTOPS`, `No GPG agent found`).
+
+Prevention:
+
+1. Log out inside an RDP session instead of only closing the window.
+2. Configure xrdp to kill disconnected sessions (`KillDisconnected` /
+   `DisconnectedTimeLimit` in `sesman.ini`).
+3. Disable xrdp (`services.xrdp.enable = false`) now that the physical console
+   and the InputLeap bridge are the primary path.
+
+The InputLeap bridge is not affected: `input-leap-client.service` runs in the
+system scope and reconnects when the greeter hands the display to the session.
 
 ## Pair the Apple keyboard
 
