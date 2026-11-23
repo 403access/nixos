@@ -4,8 +4,6 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use crate::commands::{CommandRunner, RealCommandRunner};
-
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -29,9 +27,6 @@ pub struct ResourceEntry {
     pub memory_bytes: i64,
     pub read_bps: f64,
     pub write_bps: f64,
-    /// TCP payload received per second, attributed from socket counters.
-    pub network_rx_bps: f64,
-    pub network_tx_bps: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -45,8 +40,6 @@ pub struct ProcessEntry {
     pub memory_bytes: i64,
     pub read_bps: f64,
     pub write_bps: f64,
-    pub network_rx_bps: f64,
-    pub network_tx_bps: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -59,8 +52,6 @@ pub struct ResourceUsage {
     pub total_memory_bytes: i64,
     pub total_read_bps: f64,
     pub total_write_bps: f64,
-    pub total_network_rx_bps: f64,
-    pub total_network_tx_bps: f64,
     pub services: Vec<ResourceEntry>,
     pub apps: Vec<ResourceEntry>,
     pub processes: Vec<ProcessEntry>,
@@ -87,8 +78,6 @@ pub struct ResourceSeriesPoint {
     pub memory_bytes: i64,
     pub read_bps: f64,
     pub write_bps: f64,
-    pub network_rx_bps: f64,
-    pub network_tx_bps: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -115,8 +104,6 @@ struct HistorySample {
     total_memory_bytes: i64,
     total_read_bps: f64,
     total_write_bps: f64,
-    total_network_rx_bps: f64,
-    total_network_tx_bps: f64,
     services: Vec<ResourceEntry>,
     apps: Vec<ResourceEntry>,
 }
@@ -128,24 +115,9 @@ struct Counters {
     write_bytes: u64,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-struct SocketCounters {
-    received: u64,
-    sent: u64,
-}
-
-#[derive(Debug, Clone)]
-struct RawSocket {
-    key: String,
-    pid: i32,
-    received: u64,
-    sent: u64,
-}
-
 #[derive(Default)]
 struct Inner {
     previous: HashMap<i32, Counters>,
-    sockets: HashMap<String, SocketCounters>,
     sampled_at: Option<Instant>,
     snapshot: Option<ResourceUsage>,
     history: std::collections::VecDeque<HistorySample>,
@@ -186,9 +158,6 @@ impl ResourceMonitor {
         let memory_total = read_memory_total();
         let max_ticks = elapsed_secs * CLOCK_TICKS * cpu_count as f64 * 1.5;
 
-        let sockets = read_sockets();
-        let network = network_rates(&sockets, &mut inner.sockets, elapsed_secs);
-
         let mut processes = Vec::with_capacity(raw.len());
         let mut previous = HashMap::with_capacity(raw.len());
         for process in &raw {
@@ -197,8 +166,6 @@ impl ResourceMonitor {
                 read_bytes: process.read_bytes,
                 write_bytes: process.write_bytes,
             };
-            let (network_rx_bps, network_tx_bps) =
-                network.get(&process.pid).copied().unwrap_or((0.0, 0.0));
             let (cpu_percent, read_bps, write_bps) = if elapsed_secs > 0.0 {
                 match inner.previous.get(&process.pid) {
                     Some(old) => {
@@ -231,8 +198,6 @@ impl ResourceMonitor {
                 memory_bytes: process.memory_bytes,
                 read_bps,
                 write_bps,
-                network_rx_bps,
-                network_tx_bps,
             });
         }
 
@@ -251,8 +216,6 @@ impl ResourceMonitor {
             total_memory_bytes: usage.total_memory_bytes,
             total_read_bps: usage.total_read_bps,
             total_write_bps: usage.total_write_bps,
-            total_network_rx_bps: usage.total_network_rx_bps,
-            total_network_tx_bps: usage.total_network_tx_bps,
             services: usage.services.clone(),
             apps: usage.apps.clone(),
         });
@@ -384,125 +347,6 @@ fn read_processes() -> Vec<RawProcess> {
         });
     }
     processes
-}
-
-/// Read every TCP/UDP socket with its owning process and cumulative byte
-/// counters. `ss -i` reports TCP payload counters from `tcp_info`; UDP sockets
-/// have no byte counters and only contribute ownership. Returns an empty list
-/// when `ss` is unavailable or fails, so resource sampling still works.
-fn read_sockets() -> Vec<RawSocket> {
-    let output = RealCommandRunner.run(
-        "ss",
-        &["-t", "-u", "-a", "-n", "-p", "-i"],
-        Duration::from_secs(3),
-    );
-    if !output.is_ok() {
-        return Vec::new();
-    }
-    parse_sockets(&output.output)
-}
-
-fn parse_sockets(output: &str) -> Vec<RawSocket> {
-    let mut sockets: Vec<RawSocket> = Vec::new();
-    for line in output.lines() {
-        if line.starts_with(' ') || line.starts_with('\t') {
-            // `ss -i` prints the tcp_info details on an indented line below
-            // the socket row that owns it.
-            if let Some(socket) = sockets.last_mut() {
-                if let Some((received, sent)) = parse_socket_bytes(line) {
-                    socket.received = received;
-                    socket.sent = sent;
-                }
-            }
-            continue;
-        }
-        if line.trim().is_empty() || line.starts_with("Netid") || line.starts_with("State") {
-            continue;
-        }
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        let Some(proto) = fields.first().copied() else {
-            continue;
-        };
-        if (proto != "tcp" && proto != "udp") || fields.len() < 6 {
-            continue;
-        }
-        let local = fields[4];
-        let peer = fields[5];
-        let users = fields.get(6..).map(|rest| rest.join(" ")).unwrap_or_default();
-        let Some(pid) = parse_socket_pid(&users) else {
-            continue;
-        };
-        sockets.push(RawSocket {
-            key: format!("{proto}|{pid}|{local}|{peer}"),
-            pid,
-            received: 0,
-            sent: 0,
-        });
-    }
-    sockets
-}
-
-fn parse_socket_pid(users: &str) -> Option<i32> {
-    let start = users.find("pid=")? + "pid=".len();
-    let digits: String = users[start..]
-        .chars()
-        .take_while(|character| character.is_ascii_digit())
-        .collect();
-    digits.parse().ok()
-}
-
-fn parse_socket_bytes(line: &str) -> Option<(u64, u64)> {
-    let mut received = None;
-    let mut sent = None;
-    for token in line.split_whitespace() {
-        if let Some(value) = token.strip_prefix("bytes_received:") {
-            received = value.parse().ok();
-        } else if let Some(value) = token.strip_prefix("bytes_sent:") {
-            sent = value.parse().ok();
-        }
-    }
-    Some((received?, sent?))
-}
-
-/// Turn cumulative per-socket counters into per-process byte rates. A socket
-/// that closes and gets reused keeps its key but restarts its counters; the
-/// saturating subtraction then reports zero instead of a bogus spike.
-fn network_rates(
-    sockets: &[RawSocket],
-    previous: &mut HashMap<String, SocketCounters>,
-    elapsed_secs: f64,
-) -> HashMap<i32, (f64, f64)> {
-    let mut next: HashMap<String, SocketCounters> = HashMap::with_capacity(sockets.len());
-    for socket in sockets {
-        next.insert(
-            socket.key.clone(),
-            SocketCounters {
-                received: socket.received,
-                sent: socket.sent,
-            },
-        );
-    }
-
-    let mut rates: HashMap<i32, (f64, f64)> = HashMap::new();
-    if elapsed_secs > 0.0 {
-        let mut seen = std::collections::HashSet::new();
-        for socket in sockets {
-            if !seen.insert(socket.key.as_str()) {
-                continue;
-            }
-            let Some(old) = previous.get(&socket.key) else {
-                continue;
-            };
-            let received = socket.received.saturating_sub(old.received) as f64 / elapsed_secs;
-            let sent = socket.sent.saturating_sub(old.sent) as f64 / elapsed_secs;
-            let entry = rates.entry(socket.pid).or_insert((0.0, 0.0));
-            entry.0 += received;
-            entry.1 += sent;
-        }
-    }
-
-    *previous = next;
-    rates
 }
 
 fn parse_stat(contents: &str) -> Option<(i32, String, u64)> {
@@ -669,14 +513,6 @@ fn build_usage(
     let total_memory_bytes = processes.iter().map(|process| process.memory_bytes).sum();
     let total_read_bps = processes.iter().map(|process| process.read_bps).sum();
     let total_write_bps = processes.iter().map(|process| process.write_bps).sum();
-    let total_network_rx_bps = processes
-        .iter()
-        .map(|process| process.network_rx_bps)
-        .sum();
-    let total_network_tx_bps = processes
-        .iter()
-        .map(|process| process.network_tx_bps)
-        .sum();
 
     let mut services: HashMap<String, ResourceEntry> = HashMap::new();
     let mut apps: HashMap<String, ResourceEntry> = HashMap::new();
