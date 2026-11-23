@@ -221,15 +221,55 @@ the Mac ever regenerates it, read the new value from the Server tab
   and picks whichever reaches `:0`;
 - starts `input-leapc --use-x11 --name nixos --display :0`.
 
-`Restart=always` matters: when you log in, lightdm replaces the greeter's X
-server, which kills the client. The unit restarts it two seconds later against
-the new session cookie, so the keyboard keeps working after login.
+`Restart=always` matters: whenever lightdm restarts the X server or the
+session, the client exits and reconnects against the fresh cookie, so the
+keyboard keeps working without manual steps.
 
 Deploy changes with:
 
 ```bash
 sudo nixos-rebuild switch
 ```
+
+### Boot: console first, desktop on demand
+
+[`console-desktop.nix`](../console-desktop.nix) makes the host boot into a
+full-screen terminal instead of a desktop session. This matters for the bridge:
+InputLeap injects through X only, so a pure Linux text console would leave the
+Apple keyboard and mouse dead. The terminal therefore runs on a minimal X
+display.
+
+- lightdm autologs into the `console` session (openbox plus a full-screen
+  `xfce4-terminal`), so X and the InputLeap client are up seconds after boot.
+- The terminal prints `/etc/motd`, which lists the commands below in the order
+  they are normally used.
+- `start-desktop` starts XFCE on the same display (stopping openbox first,
+  because XFCE starts its own window manager) and closes the console terminal.
+- Logging out of XFCE, closing the terminal, or running `stop-desktop` ends the
+  session; lightdm immediately starts a fresh console session.
+
+| Command | What it does |
+| --- | --- |
+| `start-desktop` | Start XFCE on the console display; also works over SSH. |
+| `stop-desktop` | Stop XFCE and return to the console. |
+| `virt-manager` | Windows 11 VM manager (needs the desktop, or opens on the console display). |
+| `bridge-status` | Show the InputLeap client unit state. |
+| `nixos-control` | Print the web dashboard URL and control service state. |
+| `console-help` | Print the help again (`/etc/motd`). |
+| `reboot`, `poweroff` | Restart or shut down. |
+
+From the Mac, the desktop can also be started remotely:
+
+```bash
+ssh nixos@192.168.178.5 start-desktop
+```
+
+Text consoles on `Ctrl+Alt+F2` … `F6` stay available. They have no Mac bridge
+(InputLeap cannot inject there), so use the Logitech K800 or SSH on them.
+
+Because the console session autologs in, physical access to the machine gives a
+logged-in session. SSH is unaffected: `sshd` stays enabled and reachable at all
+times, and no boot step depends on the bridge or on the desktop starting.
 
 ### Daily use
 
@@ -257,21 +297,21 @@ lsof -nP -iTCP:24800          # on the Mac: LISTEN and ESTABLISHED
 | `Connection refused` on NixOS | The Mac server is not started, or InputLeap is closed. Click **Start** on the Server tab. |
 | `Fingerprint does not match` | The Mac certificate changed; update `serverFingerprint` and rebuild. |
 | `X display has unexpectedly disconnected` | Normal at login; the unit restarts itself within ~2 s. |
-| Works at the greeter, not in the session | Check the desktop profile is X11 (XFCE). `--use-x11` injects via XTEST and cannot reach native Wayland clients. |
+| Works in the console terminal, not in the desktop | Check the desktop profile is X11 (XFCE). `--use-x11` injects via XTEST and cannot reach native Wayland clients. |
 | `ssl certificate doesn't exist` | Harmless: the server runs with `--disable-client-cert-checking`, so the client certificate is optional. |
-| Physical login bounces back to the greeter | A leftover XFCE session on another display owns the session-manager name; see below. |
+| `start-desktop` fails and the console comes back | A leftover XFCE session on another display owns the session-manager name; see below. |
 
-### Physical login bounces back to the greeter
+### `start-desktop` fails and the console comes back
 
-Symptom: after entering the password at the physical screen, a text console
-flashes for a moment and the greeter comes back. The text on the console is
-unrelated tty scrollback; the real failure is in the session logs.
+Symptom: `start-desktop` prints *The desktop failed to start* (or XFCE flashes up
+and disappears), and the console terminal returns. The log in
+`$XDG_RUNTIME_DIR/nixos-desktop.log` shows `xfce4-session` exiting at once.
 
 Cause: XFCE allows one session per user. A leftover session on another display —
 usually a disconnected xrdp session from an earlier day — owns
 `org.xfce.SessionManager` on the user's shared D-Bus bus (`/run/user/1000/bus`).
-The new `xfce4-session` at the physical console cannot take the name, exits
-immediately with status 0, and lightdm restarts the greeter.
+The `xfce4-session` started by `start-desktop` cannot take the name and exits
+immediately with status 0, so XFCE never appears.
 
 Find the leftover session:
 
@@ -294,10 +334,10 @@ pgrep -af xfce4-session   # should print nothing
 busctl --user list | grep -i xfce.Session   # should print nothing
 ```
 
-The physical login works again. In the logs, `/var/log/lightdm/lightdm.log`
-shows the user session's `xsession-wrapper .../xsession` exiting with return
-value 0 after about 150 ms, and `journalctl -b | grep xfce4-session` shows only
-the ordinary startup warnings (`_NET_NUMBER_OF_DESKTOPS`, `No GPG agent found`).
+`start-desktop` works again. In the logs, `/var/log/lightdm/lightdm.log` shows the
+session's `xsession-wrapper .../xsession` exiting with return value 0 after about
+150 ms, and `journalctl -b | grep xfce4-session` shows only the ordinary startup
+warnings (`_NET_NUMBER_OF_DESKTOPS`, `No GPG agent found`).
 
 Prevention:
 
