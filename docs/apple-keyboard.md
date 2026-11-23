@@ -409,9 +409,12 @@ when audio is routed back.
    ```sh
    #!/bin/sh
    exec 2>&1
-   /usr/bin/tail -f /dev/null | /usr/bin/nc 192.168.178.5 4953 | \
+   /usr/bin/nc -d 192.168.178.5 4953 | \
      /opt/homebrew/bin/play -q -t raw -r 48000 -e signed-integer -b 16 -c 2 -
    ```
+
+   `nc -d` keeps the connection without reading stdin, so a closed socket ends
+   the pipeline instead of leaving a writer hanging.
 
 3. Save this as
    `~/Library/LaunchAgents/com.nixos-control.audio-bridge.plist`:

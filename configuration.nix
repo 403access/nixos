@@ -63,6 +63,7 @@
       ./input-leap-client.nix
       ./console-desktop.nix
       ./audio-bridge.nix
+      ./ungoogled-chromium.nix
       ./jotta-cli.nix
       ./zfs.nix
       ./desktop

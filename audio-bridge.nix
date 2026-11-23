@@ -111,8 +111,14 @@ in
   systemd.sockets.airpods-audio = {
     description = "AirPods audio bridge (raw PCM over TCP)";
     wantedBy = [ "sockets.target" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
     listenStreams = [ "192.168.178.5:${toString port}" ];
-    socketConfig.Accept = true;
+    socketConfig = {
+      Accept = true;
+      # The address may not be assigned yet when sockets.target is reached.
+      FreeBind = true;
+    };
   };
 
   systemd.services."airpods-audio@" = {
