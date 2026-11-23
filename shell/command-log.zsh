@@ -25,6 +25,7 @@ if [[ -o interactive ]] && [[ -n "${HOME:-}" ]] && [[ -z "${_NIXOS_CONTROL_HOOK:
 
     dir="$HOME/.local/state/nixos-control"
     (umask 077; command mkdir -p "$dir" 2>/dev/null) || return 0
+    command chmod 700 "$dir" 2>/dev/null || true
 
     cmd=$_NIXOS_CONTROL_CMD
     cwd=$PWD
@@ -39,8 +40,9 @@ if [[ -o interactive ]] && [[ -n "${HOME:-}" ]] && [[ -z "${_NIXOS_CONTROL_HOOK:
     cwd=${cwd//\\/\\\\}
     cwd=${cwd//\"/\\\"}
 
-    print -r -- "{\"ts_ms\":$_NIXOS_CONTROL_START,\"duration_ms\":$duration,\"exit_code\":$exit_status,\"tty\":\"$tty\",\"cwd\":\"$cwd\",\"command\":\"$cmd\"}" \
-      >>"$dir/commands.jsonl" 2>/dev/null || true
+    (umask 077; print -r -- "{\"ts_ms\":$_NIXOS_CONTROL_START,\"duration_ms\":$duration,\"exit_code\":$exit_status,\"tty\":\"$tty\",\"cwd\":\"$cwd\",\"command\":\"$cmd\"}" \
+      >>"$dir/commands.jsonl") 2>/dev/null || true
+    command chmod 600 "$dir/commands.jsonl" 2>/dev/null || true
 
     _NIXOS_CONTROL_CMD=
     _NIXOS_CONTROL_START=

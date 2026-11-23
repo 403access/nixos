@@ -89,6 +89,7 @@ if [ -n "${HOME:-}" ] && [ -z "${_NIXOS_CONTROL_HOOK:-}" ]; then
       _NIXOS_CONTROL_AT_PROMPT=1
       return 0
     }
+    command chmod 700 "$dir" 2>/dev/null || true
 
     cwd=$PWD
     tty=$(command tty 2>/dev/null) || tty=
@@ -102,9 +103,10 @@ if [ -n "${HOME:-}" ] && [ -z "${_NIXOS_CONTROL_HOOK:-}" ]; then
     cwd=${cwd//\\/\\\\}
     cwd=${cwd//\"/\\\"}
 
-    printf '{"ts_ms":%s,"duration_ms":%s,"exit_code":%s,"tty":"%s","cwd":"%s","command":"%s"}\n' \
+    (umask 077; printf '{"ts_ms":%s,"duration_ms":%s,"exit_code":%s,"tty":"%s","cwd":"%s","command":"%s"}\n' \
       "$start" "$duration" "$status" "$tty" "$cwd" "$cmd" \
-      >>"$dir/commands.jsonl" 2>/dev/null || true
+      >>"$dir/commands.jsonl") 2>/dev/null || true
+    command chmod 600 "$dir/commands.jsonl" 2>/dev/null || true
 
     _NIXOS_CONTROL_LAST_HISTCMD=${HISTCMD:-0}
     _NIXOS_CONTROL_AT_PROMPT=1

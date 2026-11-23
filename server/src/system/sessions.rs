@@ -45,8 +45,14 @@ pub fn collect_login_sessions(runner: &dyn CommandRunner) -> Vec<LoginSession> {
             .get(3)
             .filter(|value| **value != "-")
             .map(|value| value.to_string());
-        let tty = fields
-            .get(4)
+        // Newer systemd adds LEADER, CLASS, TTY, IDLE and SINCE columns. The
+        // old five-column format put the TTY at index 4.
+        let tty_field = if fields.len() >= 7 {
+            fields.get(6)
+        } else {
+            fields.get(4)
+        };
+        let tty = tty_field
             .filter(|value| **value != "-")
             .map(|value| value.to_string());
 
@@ -523,9 +529,9 @@ mod tests {
     impl CommandRunner for SessionRunner {
         fn run(&self, program: &str, args: &[&str], _timeout: Duration) -> CommandOutput {
             match (program, args.first().copied()) {
-                ("loginctl", Some("list-sessions")) => {
-                    CommandOutput::success(" 2 1000 oliver seat0 tty1\nc1 1001 guest seat0 -\n")
-                }
+                ("loginctl", Some("list-sessions")) => CommandOutput::success(
+                    "  2 1000 oliver seat0 1234 user tty1 no -\nc1 1001 guest - 1235 user - no -\n",
+                ),
                 ("loginctl", Some("show-session")) if args.contains(&"Timestamp") => {
                     CommandOutput::success("1763852400000000\n")
                 }
