@@ -50,11 +50,16 @@ let
                                switches it; audio-airpods / audio-local are
                                shortcuts for on / off.
 
-         7. stop-desktop       Stop the desktop and return to this console.
+         7. vm-audio-usb       Optional low-latency FL Studio path: attach the
+                               USB audio codec to the Windows VM
+                               (`on` / `off` / `status`). The host's local
+                               audio pauses while it is attached.
 
-         8. reboot / poweroff  Restart or shut down the machine.
+         8. stop-desktop       Stop the desktop and return to this console.
 
-         9. console-help       Print this message again.
+         9. reboot / poweroff  Restart or shut down the machine.
+
+        10. console-help       Print this message again.
 
        Other access:
          - SSH is always available:  ssh nixos@192.168.178.5
@@ -210,6 +215,44 @@ let
       /cert:ignore /sound /clipboard +auto-reconnect
   '';
 
+  vmAudioUsb = pkgs.writeShellScriptBin "vm-audio-usb" ''
+    set -u
+    domain="win11-stock"
+    xml="/tmp/win11-audio-codec.xml"
+
+    cat > "$xml" <<'XML'
+<hostdev mode="subsystem" type="usb" managed="yes">
+  <source>
+    <vendor id="0x08bb"/>
+    <product id="0x2902"/>
+  </source>
+</hostdev>
+XML
+
+    case "''${1:-status}" in
+      on)
+        virsh -c qemu:///system attach-device "$domain" "$xml" --live || exit 1
+        echo "USB audio codec attached to the Windows VM."
+        echo "Select 'USB Audio CODEC' (or ASIO4ALL over it) in FL Studio."
+        ;;
+      off)
+        virsh -c qemu:///system detach-device "$domain" "$xml" --live || exit 1
+        echo "USB audio codec returned to the host."
+        ;;
+      status)
+        if virsh -c qemu:///system dumpxml "$domain" | grep -q "08bb"; then
+          echo "USB audio codec: attached to the Windows VM"
+        else
+          echo "USB audio codec: on the host"
+        fi
+        ;;
+      *)
+        echo "usage: vm-audio-usb [on|off|status]" >&2
+        exit 2
+        ;;
+    esac
+  '';
+
   bridgeStatus = pkgs.writeShellScriptBin "bridge-status" ''
     set -u
     echo "Mac keyboard/mouse bridge (InputLeap client):"
@@ -289,6 +332,7 @@ in
     startVm
     startVmRdp
     stopDesktop
+    vmAudioUsb
     bridgeStatus
     controlInfo
     consoleHelp

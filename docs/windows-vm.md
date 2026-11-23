@@ -516,6 +516,35 @@ goes through RDP encoding, which is generally faster than SPICE.
 - Close the SPICE viewer first (or use Alt+Tab); both can be open for comparison.
 - `start-vm` stays the default; the SPICE path is unchanged.
 
+## FL Studio audio (low latency)
+
+RDP/SPICE audio and the AirPods bridge are playback-grade (100 ms+); do not use
+them for FL Studio monitoring. The optional hardware path uses the host’s
+PCM2902 USB codec (`08bb:2902`):
+
+```bash
+vm-audio-usb on      # attach the USB audio codec to the Windows VM
+vm-audio-usb off     # return it to the host
+vm-audio-usb status
+```
+
+While attached, Windows shows **USB Audio CODEC** (output and microphone).
+Connect the speakers/headphones to that codec, then in FL Studio:
+
+- audio device: `USB Audio CODEC`, with FL Studio ASIO or ASIO4ALL;
+- 48 kHz, 128–256 samples (the PCM2902 is USB Audio Class 1);
+- disable RDP/SPICE audio redirection so nothing tries to route audio remotely.
+
+Notes:
+
+- The host’s local audio is unavailable while the codec is attached; the AirPods
+  bridge is unaffected.
+- The PCM2902 is a basic UAC1 device, not a high-end ASIO interface, but it
+  bypasses RDP, SPICE, PipeWire and Bluetooth completely.
+- For the lowest jitter, use a real USB audio interface and pass it through the
+  same way; heavy FL projects may still be better on a native Windows install.
+- A USB MIDI keyboard can be added as a second `hostdev` in the same way.
+
 ## SSH (terminal only)
 
 The guest does not enable OpenSSH by default. Run the helper CD and choose
