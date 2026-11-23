@@ -1189,6 +1189,54 @@ code {
   flex-wrap: wrap;
 }
 
+.service-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.service-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.service-group-head h2 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.service-group-count {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.service-main .service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.service-main .service-tag {
+  padding: 2px 8px;
+  border: 1px solid rgba(90, 169, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(90, 169, 255, 0.1);
+  color: #a9c8ef;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .status-dot {
   flex: none;
   width: 9px;
