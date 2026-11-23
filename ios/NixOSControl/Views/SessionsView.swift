@@ -215,8 +215,14 @@ struct SessionRow: View {
                         Label(host, systemImage: "network")
                     }
                     Spacer(minLength: 0)
+                }
+                .font(.caption2)
+                .foregroundStyle(Theme.textMuted)
+
+                HStack(spacing: 10) {
                     Text(SessionFormat.ago(session.lastActiveAt))
                     Text(session.actionText)
+                    Spacer(minLength: 0)
                 }
                 .font(.caption2)
                 .foregroundStyle(Theme.textMuted)
