@@ -9,6 +9,7 @@ const repoUrl = 'https://github.com/403access/nixos';
 
 type IconName =
   | 'gauge'
+  | 'activity'
   | 'terminal'
   | 'database'
   | 'refresh'
@@ -26,6 +27,11 @@ function Icon({name}: {name: IconName}) {
         <path d="M4 15a8 8 0 1 1 16 0" />
         <path d="M12 15l3.6-3.6" />
         <circle cx="12" cy="15" r="1.2" />
+      </>
+    ),
+    activity: (
+      <>
+        <path d="M3 12h4l2.5-7 4 14 2.5-7h5" />
       </>
     ),
     terminal: (
@@ -107,17 +113,22 @@ const features: {icon: IconName; title: string; body: string}[] = [
   {
     icon: 'gauge',
     title: 'A dashboard that tells the truth',
-    body: 'Hostname, NixOS and kernel versions, uptime, CPU, memory, load, root disk, ZFS pool health, temperatures, IP addresses and Tailscale state — refreshed on demand.',
+    body: 'Hostname, NixOS and kernel versions, uptime, CPU, memory, load, root disk, ZFS pool health, temperatures, IP addresses and Tailscale state — refreshed on demand. Tap a metric for a one-hour history chart.',
   },
   {
     icon: 'terminal',
     title: 'systemd, under control',
-    body: 'Search and filter every unit. Start, stop, restart, reload, enable or disable services at boot, and read the journal without opening a terminal.',
+    body: 'Search and filter every unit, grouped by role with technology tags. Start, stop, restart, reload, enable or disable services at boot, and read the journal without opening a terminal.',
+  },
+  {
+    icon: 'activity',
+    title: 'See what is eating the machine',
+    body: 'Live CPU, memory, disk and network I/O attributed to services, apps and individual processes. Sort the table, follow the top consumers over time, or open one for its own timeline and process list.',
   },
   {
     icon: 'database',
-    title: 'ZFS at a glance',
-    body: 'Pool usage and health, full zpool status output, datasets and filesystem usage. Know that tank is ONLINE before you need to care.',
+    title: 'ZFS and files, side by side',
+    body: 'Pool usage and health, full zpool status output, datasets and filesystem usage — plus a read-only file browser with search, sorting, filters and breadcrumbs. Know that tank is ONLINE before you need to care.',
   },
   {
     icon: 'refresh',
@@ -138,8 +149,8 @@ const features: {icon: IconName; title: string; body: string}[] = [
 
 const screens: {file: string; label: string; caption: string}[] = [
   {file: 'dashboard', label: 'Dashboard', caption: 'System at a glance'},
-  {file: 'services', label: 'Services', caption: 'systemd units & logs'},
-  {file: 'storage', label: 'Storage', caption: 'ZFS pools & datasets'},
+  {file: 'services', label: 'Services', caption: 'Grouped systemd units & logs'},
+  {file: 'storage', label: 'Storage', caption: 'Pools, datasets & file browser'},
   {file: 'system', label: 'System', caption: 'Generations & rebuilds'},
   {file: 'settings', label: 'Settings', caption: 'Connection & token'},
 ];
@@ -258,7 +269,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a Docker-first toolkit for building a lean Windows 11 ISO.">
+      description="An open-source iPhone app and web console, a tiny Rust API server, selectable Catppuccin desktop profiles, and a Docker-first toolkit for building a lean Windows 11 ISO.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
@@ -274,10 +285,11 @@ export default function Home(): React.JSX.Element {
                 <span className={styles.gradientText}>in your pocket.</span>
               </h1>
               <p className={styles.lede}>
-                NixOS Control is an iPhone app and a tiny Rust API server for
-                monitoring and managing your NixOS host. Dashboards, systemd
-                services, ZFS, generations and rebuilds — without opening a
-                terminal, without a cloud account.
+                NixOS Control is an iPhone app, a matching web console and a tiny
+                Rust API server for monitoring and managing your NixOS host.
+                Dashboards, systemd, ZFS and files, resource attribution,
+                generations and rebuilds — without opening a terminal, without a
+                cloud account.
               </p>
               <div className={styles.actions}>
                 <Link
@@ -303,7 +315,7 @@ export default function Home(): React.JSX.Element {
         <section className={styles.stats} aria-label="At a glance">
           <div className={clsx('container', styles.statsInner)}>
             {[
-              ['5', 'purpose-built screens'],
+              ['6', 'purpose-built tabs'],
               ['0', 'server dependencies'],
               ['256-bit', 'bearer token auth'],
               ['100%', 'self-hosted'],
@@ -346,7 +358,7 @@ export default function Home(): React.JSX.Element {
               <span className={styles.kicker}>Designed for the small screen</span>
               <h2>Every screen you need.</h2>
               <p>
-                Five focused tabs, native SwiftUI, and fixture data in the
+                Six focused tabs, native SwiftUI, and fixture data in the
                 simulator so you can see exactly what ships.
               </p>
             </div>

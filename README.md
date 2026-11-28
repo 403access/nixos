@@ -1,6 +1,6 @@
 # NixOS Control
 
-An iPhone app for monitoring and managing a NixOS machine, backed by a small authenticated API server that runs on the machine itself.
+An iPhone app and a matching web console for monitoring and managing a NixOS machine, backed by a small authenticated API server that runs on the machine itself.
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" width="200" alt="Dashboard">
@@ -14,10 +14,10 @@ An iPhone app for monitoring and managing a NixOS machine, backed by a small aut
 
 ## Features
 
-- **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state. Click CPU, memory, load or root disk for charts and recent history in the side panel.
+- **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory, load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale state. Tap or click CPU, memory, load or root disk for a one-hour history chart.
 - **Sessions** — a combined timeline of actions taken through the web and iOS apps (service changes, rebuilds, power) and the host's current console, SSH and RDP logins, with per-session logs, job output and shell commands including timestamps, execution time and exit status.
-- **Services** — search and filter systemd units, start/stop/restart, enable/disable at boot, and read journal logs.
-- **Resources** — live CPU, memory and disk I/O attribution for services, apps and individual processes, with time-series charts for the last hour.
+- **Services** — search and filter systemd units grouped by role with technology tags, start/stop/restart, enable/disable at boot, and read journal logs.
+- **Resources** — live CPU, memory, disk and network I/O attribution for services, apps and individual processes, with time-series charts for the last hour.
 - **Logs** — parsed system and service journals with severity filters, search, follow-tail, repeat collapsing and expandable metadata.
 - **Themes** — desktop profile, GTK theme and wallpaper gallery with screenshots, details and one-click apply.
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, filesystem usage, and a read-only file explorer that opens beside the list.
@@ -496,7 +496,7 @@ Tap **Save & Connect**.
 
 The app also has a **Peripherals** screen (**Dashboard → Peripherals** or **System → Peripherals**) for the Logitech receiver. It is read-only; see [`docs/peripherals.md`](docs/peripherals.md).
 
-For LAN access without Tailscale, use `http://<LAN-IP>:3050` while the web dashboard from `peripherals-ui/` is running; it proxies `/api` to the loopback API.
+For LAN access without Tailscale, use `http://<LAN-IP>:3050` while the web dashboard from `peripherals-ui/` is running; it proxies `/api` to the loopback API. A `.local` name such as `http://my-mac.local:3050` also works and survives DHCP address changes.
 
 ### WireGuard and LAN access
 
@@ -574,7 +574,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
-| `GET` | `/api/resources` | CPU, memory and disk I/O per service, app and process |
+| `GET` | `/api/resources` | CPU, memory, disk and network I/O per service, app and process |
 | `GET` | `/api/resources/history?kind=services&minutes=15&metric=cpu` | Per-entity time series |
 | `GET` | `/api/themes` | Desktop theme catalog and current selection |
 | `POST` | `/api/themes/apply` | Apply a profile, GTK theme or wallpaper (starts a rebuild) |

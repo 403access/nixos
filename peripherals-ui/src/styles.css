@@ -2315,8 +2315,9 @@ code {
 .resource-row {
   display: grid;
   grid-template-columns:
-    minmax(180px, 1.7fr) 64px minmax(110px, 1fr) minmax(120px, 1fr)
-    minmax(96px, 0.8fr) minmax(96px, 0.8fr);
+    minmax(170px, 1.6fr) 56px minmax(100px, 1fr) minmax(110px, 1fr)
+    minmax(88px, 0.75fr) minmax(88px, 0.75fr) minmax(88px, 0.75fr)
+    minmax(88px, 0.75fr);
   align-items: center;
   gap: 12px;
 }
@@ -2418,7 +2419,7 @@ code {
 
   .resource-head,
   .resource-row {
-    min-width: 760px;
+    min-width: 1040px;
   }
 }
 

@@ -21,7 +21,7 @@ The server listens on `127.0.0.1:8787` by default and returns JSON.
 | `GET` | `/api/health` | Version and hostname |
 | `GET` | `/api/status` | Full system snapshot |
 | `GET` | `/api/status/history?minutes=60` | In-memory status history for charts |
-| `GET` | `/api/resources` | CPU, memory and disk I/O by consumer |
+| `GET` | `/api/resources` | CPU, memory, disk and network I/O by consumer |
 | `GET` | `/api/themes` | Desktop theme catalog and current selection |
 | `POST` | `/api/themes/apply` | Apply a profile or GTK theme |
 | `GET` | `/api/logs?lines=300` | System journal |
@@ -71,8 +71,10 @@ History is not persisted across server restarts.
 ### `GET /api/resources`
 
 Returns the latest resource attribution sample. The server reads `/proc` every
-five seconds and reports CPU, resident memory and block I/O for systemd
-services/scopes, applications grouped by executable, and individual processes.
+five seconds and reports CPU, resident memory, block I/O and network traffic for
+systemd services/scopes, applications grouped by executable, and individual
+processes. Network rates are derived from the TCP socket counters reported by
+`ss -i`, attributed to the owning process; UDP traffic is not counted.
 
 ```json
 {
@@ -84,6 +86,8 @@ services/scopes, applications grouped by executable, and individual processes.
   "total_memory_bytes": 3221225472,
   "total_read_bps": 1024.0,
   "total_write_bps": 2048.0,
+  "total_network_rx_bps": 65536.0,
+  "total_network_tx_bps": 32768.0,
   "services": [
     {
       "name": "nixos-control",
@@ -93,7 +97,9 @@ services/scopes, applications grouped by executable, and individual processes.
       "cpu_percent": 0.4,
       "memory_bytes": 14680064,
       "read_bps": 0.0,
-      "write_bps": 0.0
+      "write_bps": 0.0,
+      "network_rx_bps": 0.0,
+      "network_tx_bps": 0.0
     }
   ],
   "apps": [
@@ -105,7 +111,9 @@ services/scopes, applications grouped by executable, and individual processes.
       "cpu_percent": 39.2,
       "memory_bytes": 1939865600,
       "read_bps": 0.0,
-      "write_bps": 0.0
+      "write_bps": 0.0,
+      "network_rx_bps": 0.0,
+      "network_tx_bps": 0.0
     }
   ],
   "processes": [
@@ -118,15 +126,18 @@ services/scopes, applications grouped by executable, and individual processes.
       "cpu_percent": 39.2,
       "memory_bytes": 1939865600,
       "read_bps": 0.0,
-      "write_bps": 0.0
+      "write_bps": 0.0,
+      "network_rx_bps": 0.0,
+      "network_tx_bps": 0.0
     }
   ]
 }
 ```
 
 CPU percentages are relative to one core and can exceed 100%. Memory is RSS
-summed per process; disk values are actual block I/O. The first sample after a
-server start has no CPU/I/O deltas yet.
+summed per process; disk values are actual block I/O. Network values are TCP
+payload rates attributed from per-socket counters. The first sample after a
+server start has no CPU/I/O or network deltas yet.
 
 ### `GET /api/resources/history`
 
@@ -139,7 +150,8 @@ GET /api/resources/history?kind=services&minutes=15&metric=cpu&top=8
 
 - `kind`: `services` or `apps`
 - `minutes`: 1–60
-- `metric`: `cpu`, `memory`, `read` or `write` (also selects the top entities)
+- `metric`: `cpu`, `memory`, `read`, `write`, `rx` or `tx` (also selects the
+  top entities)
 - `top`: 1–12
 - `entities`: optional comma-separated keys (`unit` for services, `name` for
   apps) to return specific timelines
@@ -155,12 +167,12 @@ GET /api/resources/history?kind=services&minutes=15&metric=cpu&top=8
       "name": "nixos-control",
       "kind": "service",
       "points": [
-        {"at": "2026-11-23T04:10:00Z", "cpu_percent": 0.4, "memory_bytes": 14680064, "read_bps": 0.0, "write_bps": 0.0}
+        {"at": "2026-11-23T04:10:00Z", "cpu_percent": 0.4, "memory_bytes": 14680064, "read_bps": 0.0, "write_bps": 0.0, "network_rx_bps": 0.0, "network_tx_bps": 0.0}
       ]
     }
   ],
   "totals": [
-    {"at": "2026-11-23T04:10:00Z", "cpu_percent": 42.5, "memory_bytes": 3221225472, "read_bps": 1024.0, "write_bps": 2048.0}
+    {"at": "2026-11-23T04:10:00Z", "cpu_percent": 42.5, "memory_bytes": 3221225472, "read_bps": 1024.0, "write_bps": 2048.0, "network_rx_bps": 65536.0, "network_tx_bps": 32768.0}
   ]
 }
 ```

@@ -22,11 +22,13 @@
 		50CB8F538E49520D1723E504 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4ED095D2199FF299B302E2 /* SettingsView.swift */; };
 		513E0262020ED0DBCD4B77D6 /* wallpaper-catppuccin.png in Resources */ = {isa = PBXBuildFile; fileRef = 0AEF881A024A9B544630EEA9 /* wallpaper-catppuccin.png */; };
 		5467DB2517B6C5E7011B161F /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710868DDF0F713AC1CCD8491 /* APIClient.swift */; };
+		548A2D9978B9F48549A6D76A /* ServiceGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8627A5B41E5BEA20C81F9121 /* ServiceGroups.swift */; };
 		576BD8796639D99ABAECF38A /* ThemesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3126E9EA88E2C1F93322F50 /* ThemesView.swift */; };
 		7857083C70588E95896C2859 /* Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76EFB762F279BAB92C83D977 /* Format.swift */; };
 		7944BD829F74CFDFA2B2BB2C /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B82ED80E955E4479EDE48A9 /* APIModels.swift */; };
 		80FAA63F68F4B91B63445FBD /* desktop-plasma.png in Resources */ = {isa = PBXBuildFile; fileRef = 723610832F27B683140A0CB2 /* desktop-plasma.png */; };
 		94362275A30E5E3E5184DF7D /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8D539F2C5475CD3725444A /* Keychain.swift */; };
+		96BA4A79E92BA6EBA1C127C0 /* FileExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298644C18EFFD993755BACAF /* FileExplorerView.swift */; };
 		9A4614F04E0A7B8B836EF1A6 /* ResourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76017B5E09830D30B978218 /* ResourcesView.swift */; };
 		9C300B787CF21F10647D39D3 /* ServiceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478886ACBF4BAEE4414F51B9 /* ServiceDetailView.swift */; };
 		A223A19DB83165C6A6586171 /* wallpaper-whitesur.png in Resources */ = {isa = PBXBuildFile; fileRef = 15906E778701914915DFE644 /* wallpaper-whitesur.png */; };
@@ -37,6 +39,7 @@
 		DD6B3FF27E6CE47DD6AEF231 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2AD6643B6DF20601FB95228 /* RootView.swift */; };
 		E46DAC61ACDB9F1FBC523906 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA7B8E48422A6988E21809A /* SessionsView.swift */; };
 		E813E52934C368019D094B74 /* PeripheralsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F2F44FE93BC5EA58A0CD348 /* PeripheralsModels.swift */; };
+		EBA98A538C759E4D3D4E5EA7 /* DashboardHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 958F8B8C07281622E039FE79 /* DashboardHistoryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +47,7 @@
 		0C98735EBF25290620673100 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		15906E778701914915DFE644 /* wallpaper-whitesur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "wallpaper-whitesur.png"; sourceTree = "<group>"; };
 		1A4ED095D2199FF299B302E2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		298644C18EFFD993755BACAF /* FileExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExplorerView.swift; sourceTree = "<group>"; };
 		3B82ED80E955E4479EDE48A9 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		3F2F44FE93BC5EA58A0CD348 /* PeripheralsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeripheralsModels.swift; sourceTree = "<group>"; };
 		426182EDE427B1163E539FFD /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
@@ -56,7 +60,9 @@
 		723610832F27B683140A0CB2 /* desktop-plasma.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "desktop-plasma.png"; sourceTree = "<group>"; };
 		76EFB762F279BAB92C83D977 /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
 		7DA7B8E48422A6988E21809A /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsView.swift; sourceTree = "<group>"; };
+		8627A5B41E5BEA20C81F9121 /* ServiceGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceGroups.swift; sourceTree = "<group>"; };
 		8D29125181F1BA5873AA2C4D /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		958F8B8C07281622E039FE79 /* DashboardHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardHistoryView.swift; sourceTree = "<group>"; };
 		9F40E96BFEB194855DADBCBB /* GenerationDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationDiffView.swift; sourceTree = "<group>"; };
 		B76017B5E09830D30B978218 /* ResourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourcesView.swift; sourceTree = "<group>"; };
 		B8361E113CF82B2D4968631E /* NixOSControl.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NixOSControl.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -122,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				76EFB762F279BAB92C83D977 /* Format.swift */,
+				8627A5B41E5BEA20C81F9121 /* ServiceGroups.swift */,
 				0C98735EBF25290620673100 /* Theme.swift */,
 			);
 			path = Support;
@@ -141,7 +148,9 @@
 			isa = PBXGroup;
 			children = (
 				FA91B0EA89040E33702FCFDF /* Components.swift */,
+				958F8B8C07281622E039FE79 /* DashboardHistoryView.swift */,
 				BE22EBC7DC7151EEA32255A8 /* DashboardView.swift */,
+				298644C18EFFD993755BACAF /* FileExplorerView.swift */,
 				9F40E96BFEB194855DADBCBB /* GenerationDiffView.swift */,
 				4E66D570D356FBB072472CC3 /* LogsView.swift */,
 				4876916A76984E4397C9D3B7 /* PeripheralsView.swift */,
@@ -255,7 +264,9 @@
 				39A1165871D5E31B85B8FFFC /* AppState.swift in Sources */,
 				1CA5F289A00F40C95155E4E7 /* Components.swift in Sources */,
 				3AA07778C2FDB951EEE89EB4 /* ConnectionMethod.swift in Sources */,
+				EBA98A538C759E4D3D4E5EA7 /* DashboardHistoryView.swift in Sources */,
 				37CA2164AAFCE31CBA9BF21E /* DashboardView.swift in Sources */,
+				96BA4A79E92BA6EBA1C127C0 /* FileExplorerView.swift in Sources */,
 				7857083C70588E95896C2859 /* Format.swift in Sources */,
 				3CECB66B48FCAA297621B83D /* GenerationDiffView.swift in Sources */,
 				94362275A30E5E3E5184DF7D /* Keychain.swift in Sources */,
@@ -266,6 +277,7 @@
 				9A4614F04E0A7B8B836EF1A6 /* ResourcesView.swift in Sources */,
 				DD6B3FF27E6CE47DD6AEF231 /* RootView.swift in Sources */,
 				9C300B787CF21F10647D39D3 /* ServiceDetailView.swift in Sources */,
+				548A2D9978B9F48549A6D76A /* ServiceGroups.swift in Sources */,
 				BAB62597E70E7862084B8866 /* ServicesView.swift in Sources */,
 				01FDDE210AC16AA46295E64A /* SessionDetailView.swift in Sources */,
 				E46DAC61ACDB9F1FBC523906 /* SessionsView.swift in Sources */,

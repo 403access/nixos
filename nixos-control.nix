@@ -195,7 +195,7 @@ in
 
       environment = {
         HOME = "/root";
-        PATH = lib.mkForce "${config.system.path}/bin:${config.system.path}/sbin";
+        PATH = lib.mkForce "${lib.makeBinPath [ pkgs.iproute2 ]}:${config.system.path}/bin:${config.system.path}/sbin";
       } // lib.optionalAttrs (config.nix.nixPath != []) {
         NIX_PATH = lib.concatStringsSep ":" config.nix.nixPath;
       };

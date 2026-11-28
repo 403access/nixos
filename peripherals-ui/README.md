@@ -15,8 +15,8 @@ view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
   panel.
 - **Services** — search, filter, start/stop/restart/reload/enable/disable and
   journal logs.
-- **Resources** — CPU, memory and disk I/O by service, app and process, with
-  sortable tables, time-series charts and per-consumer details.
+- **Resources** — CPU, memory, disk and network I/O by service, app and process,
+  with sortable tables, time-series charts and per-consumer details.
 - **Logs** — parsed journals with severity filters, search, follow-tail,
   collapsible repeats and expandable metadata.
 - **Themes** — desktop profile and GTK theme gallery with screenshots, details

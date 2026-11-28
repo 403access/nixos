@@ -4,6 +4,7 @@
 ios/**/xcuserdata/
 ios/**/*.xcuserstate
 ios/build/
+ios/build-*/
 ios/DerivedData/
 
 # Nix build results

@@ -16,8 +16,9 @@ import Link from '@docusaurus/Link';
 
 # NixOS Control
 
-An iPhone app for monitoring and managing a NixOS machine, backed by a small
-authenticated API server that runs on the machine itself.
+An iPhone app and a matching web console for monitoring and managing a NixOS
+machine, backed by a small authenticated API server that runs on the machine
+itself.
 
 <div style={{display: 'flex', gap: '12px', justifyContent: 'center', alignItems: 'flex-start'}}>
   <img src={dashboard} style={{width: '19%', height: 'auto', borderRadius: '8px'}} alt="Dashboard" />
@@ -38,16 +39,17 @@ panel to the internet.
 
 - **Dashboard** — hostname, NixOS/kernel version, uptime, CPU usage, memory,
   load, root disk, ZFS pool health, temperatures, IP addresses, and Tailscale
-  state, with charts and recent history in the side panel.
-- **Services** — search and filter systemd units, start/stop/restart,
-  enable/disable at boot, and read journal logs.
-- **Resources** — CPU, memory and disk I/O attribution for services, apps and
-  processes, with time-series charts.
+  state, with one-hour history charts behind each metric.
+- **Services** — search and filter systemd units grouped by role with technology
+  tags, start/stop/restart, enable/disable at boot, and read journal logs.
+- **Resources** — CPU, memory, disk and network I/O attribution for services,
+  apps and processes, with time-series charts and per-consumer detail.
 - **Logs** — structured journal entries with severity, search and metadata.
 - **Themes** — desktop profile and GTK theme gallery with screenshots and
   one-click apply.
-- **Storage** — ZFS pool usage and health, `zpool status`, datasets, and
-  filesystem usage.
+- **Storage** — ZFS pool usage and health, `zpool status`, datasets,
+  filesystem usage, and a read-only file browser with search, sorting and
+  filters.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job
   output and cancellation, reboot, and shutdown.
 - **Peripherals** — read the Logitech receiver and paired devices over HID++:

@@ -106,7 +106,8 @@ async fn main() {
         }
     });
 
-    // Attribute CPU, memory and disk I/O to processes, services and apps.
+    // Attribute CPU, memory and disk I/O to processes, services and apps,
+    // and network traffic from the sockets each process owns.
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(SAMPLE_INTERVAL);
         loop {

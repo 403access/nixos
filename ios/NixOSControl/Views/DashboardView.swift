@@ -3,6 +3,7 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var app: AppState
     @Binding var selection: AppTab
+    @State private var history: DashboardMetric?
 
     var body: some View {
         NavigationStack {
@@ -57,6 +58,12 @@ struct DashboardView: View {
             }
             .refreshable {
                 await app.refreshStatus()
+            }
+            .sheet(item: $history) { metric in
+                if let status = app.status {
+                    DashboardHistoryView(metric: metric, status: status)
+                        .environmentObject(app)
+                }
             }
             .task {
                 await app.loadThemes()
@@ -135,37 +142,60 @@ struct DashboardView: View {
             columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
             spacing: 12
         ) {
-            MetricTile(
-                title: "CPU",
-                value: PercentFormat.one(status.cpu.usagePercent),
-                caption: "\(status.cpu.cores) cores",
-                icon: "cpu",
-                tint: Theme.accent,
-                progress: status.cpu.usagePercent / 100
-            )
-            MetricTile(
-                title: "Memory",
-                value: ByteFormat.string(status.memory.used),
-                caption: "of \(ByteFormat.string(status.memory.total))",
-                icon: "memorychip",
-                tint: Theme.teal,
-                progress: usageFraction(status.memory.used, status.memory.total)
-            )
-            MetricTile(
-                title: "Load average",
-                value: status.load.map { String(format: "%.2f", $0) }.joined(separator: "  "),
-                caption: "1 / 5 / 15 minutes",
-                icon: "waveform.path.ecg",
-                tint: Theme.warning
-            )
-            MetricTile(
-                title: "Root disk",
-                value: PercentFormat.one(status.rootDisk.usePercent),
-                caption: "\(ByteFormat.string(status.rootDisk.used)) of \(ByteFormat.string(status.rootDisk.total))",
-                icon: "internaldrive",
-                tint: Theme.success,
-                progress: status.rootDisk.usePercent / 100
-            )
+            Button {
+                history = .cpu
+            } label: {
+                MetricTile(
+                    title: "CPU",
+                    value: PercentFormat.one(status.cpu.usagePercent),
+                    caption: "\(status.cpu.cores) cores",
+                    icon: "cpu",
+                    tint: Theme.accent,
+                    progress: status.cpu.usagePercent / 100
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                history = .memory
+            } label: {
+                MetricTile(
+                    title: "Memory",
+                    value: ByteFormat.string(status.memory.used),
+                    caption: "of \(ByteFormat.string(status.memory.total))",
+                    icon: "memorychip",
+                    tint: Theme.teal,
+                    progress: usageFraction(status.memory.used, status.memory.total)
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                history = .load
+            } label: {
+                MetricTile(
+                    title: "Load average",
+                    value: status.load.map { String(format: "%.2f", $0) }.joined(separator: "  "),
+                    caption: "1 / 5 / 15 minutes",
+                    icon: "waveform.path.ecg",
+                    tint: Theme.warning
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                history = .disk
+            } label: {
+                MetricTile(
+                    title: "Root disk",
+                    value: PercentFormat.one(status.rootDisk.usePercent),
+                    caption: "\(ByteFormat.string(status.rootDisk.used)) of \(ByteFormat.string(status.rootDisk.total))",
+                    icon: "internaldrive",
+                    tint: Theme.success,
+                    progress: status.rootDisk.usePercent / 100
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -308,7 +338,7 @@ struct DashboardView: View {
                         Text("Apps and services")
                             .font(.subheadline.bold())
                             .foregroundStyle(Theme.textPrimary)
-                        Text("CPU, memory and disk I/O by consumer")
+                        Text("CPU, memory, disk and network by consumer")
                             .font(.caption)
                             .foregroundStyle(Theme.textSecondary)
                         if let usage = app.resources, let top = usage.services.first {

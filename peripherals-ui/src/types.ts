@@ -170,6 +170,8 @@ export interface ResourceEntry {
   memory_bytes: number;
   read_bps: number;
   write_bps: number;
+  network_rx_bps: number;
+  network_tx_bps: number;
 }
 
 export interface ResourceProcess {
@@ -182,6 +184,8 @@ export interface ResourceProcess {
   memory_bytes: number;
   read_bps: number;
   write_bps: number;
+  network_rx_bps: number;
+  network_tx_bps: number;
 }
 
 export interface ResourceUsage {
@@ -193,6 +197,8 @@ export interface ResourceUsage {
   total_memory_bytes: number;
   total_read_bps: number;
   total_write_bps: number;
+  total_network_rx_bps: number;
+  total_network_tx_bps: number;
   services: ResourceEntry[];
   apps: ResourceEntry[];
   processes: ResourceProcess[];
@@ -204,6 +210,8 @@ export interface ResourceSeriesPoint {
   memory_bytes: number;
   read_bps: number;
   write_bps: number;
+  network_rx_bps: number;
+  network_tx_bps: number;
 }
 
 export interface ResourceSeries {
@@ -220,6 +228,14 @@ export interface ResourceHistory {
   series: ResourceSeries[];
   totals: ResourceSeriesPoint[];
 }
+
+export type ResourceHistoryMetric =
+  | "cpu"
+  | "memory"
+  | "read"
+  | "write"
+  | "rx"
+  | "tx";
 
 export interface CurrentTheme {
   profile: string;

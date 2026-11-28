@@ -27,6 +27,25 @@ struct SystemStatus: Decodable {
     let capabilities: Capabilities
 }
 
+struct StatusSample: Decodable, Identifiable {
+    let at: String
+    let cpu: CPUInfo
+    let load: [Double]
+    let memory: MemoryInfo
+    let rootDisk: DiskUsage
+    let services: ServiceCounts
+    let generation: Int
+    let uptimeSeconds: Int64
+    let temperatures: [Temperature]
+    let pools: [PoolSummary]
+
+    var id: String { at }
+}
+
+struct StatusHistoryResponse: Decodable {
+    let samples: [StatusSample]
+}
+
 struct CPUInfo: Decodable {
     let model: String
     let cores: Int
@@ -137,6 +156,27 @@ struct StorageSnapshot: Decodable {
     let pools: [PoolSummary]
     let datasets: [DatasetInfo]
     let filesystems: [FilesystemInfo]
+}
+
+struct FileEntry: Decodable, Identifiable {
+    let name: String
+    let path: String
+    let kind: String
+    let size: Int64
+    let modified: String?
+    let hidden: Bool
+
+    var id: String { path }
+    var isDirectory: Bool { kind == "dir" }
+}
+
+struct FileListing: Decodable {
+    let root: String
+    let path: String
+    let parent: String?
+    let entries: [FileEntry]
+    let total: Int
+    let truncated: Bool
 }
 
 struct GenerationsResponse: Decodable {
@@ -295,6 +335,8 @@ struct ResourceEntry: Decodable, Identifiable {
     let memoryBytes: Int64
     let readBps: Double
     let writeBps: Double
+    let networkRxBps: Double
+    let networkTxBps: Double
 
     var id: String { unit + "|" + name }
 }
@@ -309,6 +351,8 @@ struct ResourceProcess: Decodable, Identifiable {
     let memoryBytes: Int64
     let readBps: Double
     let writeBps: Double
+    let networkRxBps: Double
+    let networkTxBps: Double
 
     var id: Int { pid }
 }
@@ -322,6 +366,8 @@ struct ResourceUsage: Decodable {
     let totalMemoryBytes: Int64
     let totalReadBps: Double
     let totalWriteBps: Double
+    let totalNetworkRxBps: Double
+    let totalNetworkTxBps: Double
     let services: [ResourceEntry]
     let apps: [ResourceEntry]
     let processes: [ResourceProcess]
@@ -333,6 +379,8 @@ struct ResourceSeriesPoint: Decodable {
     let memoryBytes: Int64
     let readBps: Double
     let writeBps: Double
+    let networkRxBps: Double
+    let networkTxBps: Double
 }
 
 struct ResourceSeries: Decodable, Identifiable {

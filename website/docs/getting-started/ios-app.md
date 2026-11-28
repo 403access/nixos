@@ -38,7 +38,7 @@ The setup screen lets you choose how the phone reaches the server:
 | --- | --- | --- |
 | **Tailscale** | `https://<machine>.<tailnet>.ts.net` | You use Tailscale Serve with automatic HTTPS |
 | **WireGuard** | `http://<LAN-IP>:8787` | Your FRITZ!Box already provides a WireGuard VPN |
-| **LAN proxy** | `http://<LAN-IP>:3050` | The web dashboard is running on the host and proxies `/api` to loopback |
+| **LAN proxy** | `http://<LAN-IP>:3050` | The web dashboard is running on the host and proxies `/api` to loopback. A `.local` name such as `http://my-mac.local:3050` also works and survives DHCP changes |
 
 The LAN proxy option uses the Bun web dashboard as a reverse proxy, so the Rust
 API can stay on `127.0.0.1`. It requires the web dashboard from
@@ -95,12 +95,35 @@ version and size deltas.
 
 ## Resources
 
-**Dashboard → Resources** shows CPU, resident memory and disk I/O by service,
-application and individual process. Switch between the three views and sort by
-CPU, memory, disk read or disk write. The **Usage over time** chart shows the
-top services or apps over 5, 15, 30 or 60 minutes for CPU, memory or disk I/O;
-the server samples every five seconds. Values refresh automatically; CPU is
-relative to one core and can exceed 100% on multi-core machines.
+**Dashboard → Resources** shows CPU, resident memory, disk I/O and network I/O
+by service, application and individual process. Switch between the three views
+and sort by CPU, memory, disk read, disk write, network in or network out. The
+**Usage over time** chart shows the top services or apps over 5, 15, 30 or 60
+minutes for CPU, memory, disk or network; the server samples every five seconds.
+Tap any consumer for its own timeline and the processes behind it.
+Values refresh automatically; CPU is relative to one core and can exceed 100% on
+multi-core machines. Network rates come from per-socket TCP counters, so UDP
+traffic is not included.
+
+## Services
+
+The **Services** tab groups units by role (NixOS Control, Virtualization, Desktop,
+Network, Storage, Containers and so on) with tags for the technology behind each
+one. Filter by status or group, search units, descriptions, groups and tags, and
+open a unit to start, stop, restart or enable it and read its journal.
+
+## Storage
+
+The **Storage** tab lists ZFS pools, datasets and mounted filesystems. Tap a
+filesystem to browse it read-only: navigate with breadcrumbs, search the current
+folder and below, sort by name, size, modified time or type, filter files or
+folders, and show hidden entries. Pools open their `zpool status` output.
+
+## Dashboard history
+
+Tap the CPU, memory, load average or root disk tile on the **Dashboard** for a
+one-hour server-side history chart with min/average/max, the current values and
+the most recent samples.
 
 ## Logs
 
@@ -144,7 +167,7 @@ fixture server:
 
 - `NIXOS_CONTROL_SERVER`
 - `NIXOS_CONTROL_TOKEN`
-- `NIXOS_CONTROL_TAB` (`dashboard`, `services`, `storage`, `system`, `settings`)
+- `NIXOS_CONTROL_TAB` (`dashboard`, `sessions`, `services`, `storage`, `system`, `settings`)
 
 They are ignored in release builds.
 

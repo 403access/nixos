@@ -17,6 +17,7 @@ import type {
   LogsResponse,
   ProbeReport,
   ResourceHistory,
+  ResourceHistoryMetric,
   ResourceUsage,
   ServiceUnit,
   SessionDetail,
@@ -80,7 +81,7 @@ interface Store {
   fetchResourceHistory(params: {
     kind: "services" | "apps";
     minutes: number;
-    metric: "cpu" | "memory" | "read" | "write";
+    metric: ResourceHistoryMetric;
     top?: number;
     entities?: string[];
   }): Promise<ResourceHistory | null>;
@@ -203,7 +204,7 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
     async (params: {
       kind: "services" | "apps";
       minutes: number;
-      metric: "cpu" | "memory" | "read" | "write";
+      metric: ResourceHistoryMetric;
       top?: number;
       entities?: string[];
     }) => {

@@ -442,6 +442,55 @@ final class AppState: ObservableObject {
         }
     }
 
+    func fetchFiles(
+        root: String,
+        path: String? = nil,
+        query: String = "",
+        sort: String = "name",
+        order: String = "asc",
+        filter: String = "all",
+        hidden: Bool = false
+    ) async -> FileListing? {
+        guard let client else { return nil }
+        var items = [
+            URLQueryItem(name: "root", value: root),
+            URLQueryItem(name: "sort", value: sort),
+            URLQueryItem(name: "order", value: order),
+            URLQueryItem(name: "filter", value: filter),
+            URLQueryItem(name: "hidden", value: hidden ? "true" : "false"),
+        ]
+        if let path, !path.isEmpty {
+            items.append(URLQueryItem(name: "path", value: path))
+        }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            items.append(URLQueryItem(name: "q", value: trimmed))
+        }
+        do {
+            return try await client.get("/api/storage/files", query: items)
+        } catch {
+            lastError = error.localizedDescription
+            return nil
+        }
+    }
+
+    func fetchStatusHistory(minutes: Int = 60, limit: Int = 720) async -> [StatusSample] {
+        guard let client else { return [] }
+        do {
+            let response: StatusHistoryResponse = try await client.get(
+                "/api/status/history",
+                query: [
+                    URLQueryItem(name: "minutes", value: String(minutes)),
+                    URLQueryItem(name: "limit", value: String(limit)),
+                ]
+            )
+            return response.samples
+        } catch {
+            lastError = error.localizedDescription
+            return []
+        }
+    }
+
     // MARK: - Actions
 
     func performServiceAction(_ unit: String, action: String) async -> String? {

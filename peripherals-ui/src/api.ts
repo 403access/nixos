@@ -12,6 +12,7 @@ import type {
   SessionsResponse,
   ResourceUsage,
   ResourceHistory,
+  ResourceHistoryMetric,
   RdpResetResult,
   FileListing,
   StatusHistoryResponse,
@@ -128,7 +129,7 @@ export function getResourceHistory(
   params: {
     kind: "services" | "apps";
     minutes: number;
-    metric: "cpu" | "memory" | "read" | "write";
+    metric: ResourceHistoryMetric;
     top?: number;
     entities?: string[];
   },

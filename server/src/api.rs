@@ -480,11 +480,11 @@ async fn resource_history(
         .unwrap_or(15)
         .clamp(1, 60);
     let metric = match query.metric.as_deref().unwrap_or("cpu") {
-        metric @ ("cpu" | "memory" | "read" | "write") => metric,
+        metric @ ("cpu" | "memory" | "read" | "write" | "rx" | "tx") => metric,
         _ => {
             return error_response(
                 StatusCode::BAD_REQUEST,
-                "metric must be cpu, memory, read or write",
+                "metric must be cpu, memory, read, write, rx or tx",
             )
         }
     };

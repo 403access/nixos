@@ -103,8 +103,9 @@ xcodebuild -project NixOSControl.xcodeproj \
 
 ## Web dashboard
 
-`peripherals-ui/` is a Bun + TypeScript + React dashboard for the Logitech
-receiver.
+`peripherals-ui/` is a Bun + TypeScript + React dashboard that mirrors the iOS
+app: Dashboard with history charts, Services, Resources, Logs, Themes, Storage
+(including the file browser), System and Peripherals.
 
 ```bash
 cd peripherals-ui

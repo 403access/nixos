@@ -12,12 +12,20 @@ struct ServicesView: View {
     @EnvironmentObject private var app: AppState
     @State private var search = ""
     @State private var filter: ServiceFilter = .all
+    @State private var groupFilter: ServiceGroup?
     @State private var pendingAction: PendingAction?
     @State private var actionError: String?
 
     private struct PendingAction {
         let service: ServiceUnit
         let action: String
+    }
+
+    private struct ServiceSection: Identifiable {
+        let group: ServiceGroup
+        let items: [GroupedService]
+
+        var id: ServiceGroup { group }
     }
 
     var body: some View {
@@ -32,7 +40,7 @@ struct ServicesView: View {
                         }
                     }
                     .listRowBackground(Theme.surface)
-                } else if filteredServices.isEmpty {
+                } else if groupedServices.isEmpty {
                     Section {
                         VStack(spacing: 8) {
                             Image(systemName: "gearshape.2")
@@ -47,36 +55,47 @@ struct ServicesView: View {
                     }
                     .listRowBackground(Theme.surface)
                 } else {
-                    ForEach(filteredServices) { service in
-                        NavigationLink(value: service) {
-                            ServiceRow(service: service)
-                        }
-                        .listRowBackground(Theme.surface)
-                        .listRowSeparatorTint(Theme.border)
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            if service.isActive {
-                                Button {
-                                    perform(service, "restart")
-                                } label: {
-                                    Label("Restart", systemImage: "arrow.clockwise")
+                    ForEach(groupedServices) { section in
+                        Section {
+                            ForEach(section.items) { item in
+                                NavigationLink(value: item.service) {
+                                    ServiceRow(service: item.service, tags: item.meta.tags)
                                 }
-                                .tint(Theme.accent)
-                            } else {
-                                Button {
-                                    perform(service, "start")
-                                } label: {
-                                    Label("Start", systemImage: "play.fill")
+                                .listRowBackground(Theme.surface)
+                                .listRowSeparatorTint(Theme.border)
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                    if item.service.isActive {
+                                        Button {
+                                            perform(item.service, "restart")
+                                        } label: {
+                                            Label("Restart", systemImage: "arrow.clockwise")
+                                        }
+                                        .tint(Theme.accent)
+                                    } else {
+                                        Button {
+                                            perform(item.service, "start")
+                                        } label: {
+                                            Label("Start", systemImage: "play.fill")
+                                        }
+                                        .tint(Theme.success)
+                                    }
                                 }
-                                .tint(Theme.success)
+                                .swipeActions(edge: .trailing) {
+                                    if item.service.isActive {
+                                        Button(role: .destructive) {
+                                            pendingAction = PendingAction(service: item.service, action: "stop")
+                                        } label: {
+                                            Label("Stop", systemImage: "stop.fill")
+                                        }
+                                    }
+                                }
                             }
-                        }
-                        .swipeActions(edge: .trailing) {
-                            if service.isActive {
-                                Button(role: .destructive) {
-                                    pendingAction = PendingAction(service: service, action: "stop")
-                                } label: {
-                                    Label("Stop", systemImage: "stop.fill")
-                                }
+                        } header: {
+                            HStack {
+                                Text(section.group.rawValue)
+                                Spacer()
+                                Text("\(section.items.count)")
+                                    .foregroundStyle(Theme.textMuted)
                             }
                         }
                     }
@@ -98,10 +117,19 @@ struct ServicesView: View {
                                 Text(filter.rawValue).tag(filter)
                             }
                         }
+
+                        Divider()
+
+                        Picker("Group", selection: $groupFilter) {
+                            Text("All groups").tag(ServiceGroup?.none)
+                            ForEach(ServiceGroup.allCases) { group in
+                                Text(group.rawValue).tag(Optional(group))
+                            }
+                        }
                     } label: {
                         Label(
                             "Filter",
-                            systemImage: filter == .all
+                            systemImage: filter == .all && groupFilter == nil
                                 ? "line.3.horizontal.decrease.circle"
                                 : "line.3.horizontal.decrease.circle.fill"
                         )
@@ -158,7 +186,7 @@ struct ServicesView: View {
         }
     }
 
-    private var filteredServices: [ServiceUnit] {
+    private var filteredItems: [GroupedService] {
         let base: [ServiceUnit]
         switch filter {
         case .all:
@@ -169,17 +197,35 @@ struct ServicesView: View {
             base = app.services.filter(\.isFailed)
         }
 
-        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let matching = query.isEmpty ? base : base.filter {
-            $0.unit.localizedCaseInsensitiveContains(query)
-                || $0.description.localizedCaseInsensitiveContains(query)
+        var items = base.map { GroupedService(service: $0, meta: ServiceGroups.meta(for: $0)) }
+
+        if let groupFilter {
+            items = items.filter { $0.meta.group == groupFilter }
         }
 
-        return matching.sorted { first, second in
-            if first.isFailed != second.isFailed {
-                return first.isFailed
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty {
+            items = items.filter { item in
+                item.service.unit.localizedCaseInsensitiveContains(query)
+                    || item.service.description.localizedCaseInsensitiveContains(query)
+                    || item.meta.group.rawValue.localizedCaseInsensitiveContains(query)
+                    || item.meta.tags.contains { $0.localizedCaseInsensitiveContains(query) }
             }
-            return first.unit.localizedStandardCompare(second.unit) == .orderedAscending
+        }
+
+        return items.sorted { first, second in
+            if first.service.isFailed != second.service.isFailed {
+                return first.service.isFailed
+            }
+            return first.service.unit.localizedStandardCompare(second.service.unit) == .orderedAscending
+        }
+    }
+
+    private var groupedServices: [ServiceSection] {
+        let items = filteredItems
+        return ServiceGroup.allCases.compactMap { group in
+            let bucket = items.filter { $0.meta.group == group }
+            return bucket.isEmpty ? nil : ServiceSection(group: group, items: bucket)
         }
     }
 
@@ -194,6 +240,7 @@ struct ServicesView: View {
 
 struct ServiceRow: View {
     let service: ServiceUnit
+    var tags: [String] = []
 
     var body: some View {
         HStack(spacing: 12) {
@@ -201,7 +248,7 @@ struct ServiceRow: View {
                 .fill(Color.serviceStatus(service.active))
                 .frame(width: 9, height: 9)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(service.shortName)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
@@ -210,6 +257,18 @@ struct ServiceRow: View {
                         .font(.caption)
                         .foregroundStyle(Theme.textSecondary)
                         .lineLimit(1)
+                }
+                if !tags.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.system(size: 9, weight: .semibold))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Theme.accent.opacity(0.12), in: Capsule())
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
                 }
             }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct StorageView: View {
     @EnvironmentObject private var app: AppState
     @State private var selectedPool: PoolSummary?
+    @State private var browsing: FilesystemInfo?
 
     var body: some View {
         NavigationStack {
@@ -56,6 +57,10 @@ struct StorageView: View {
             }
             .sheet(item: $selectedPool) { pool in
                 PoolStatusSheet(pool: pool)
+                    .environmentObject(app)
+            }
+            .sheet(item: $browsing) { filesystem in
+                FileExplorerView(filesystem: filesystem)
                     .environmentObject(app)
             }
         }
@@ -148,30 +153,43 @@ struct StorageView: View {
     private func filesystemsSection(_ storage: StorageSnapshot) -> some View {
         if !storage.filesystems.isEmpty {
             Card("Filesystems", systemImage: "internaldrive") {
+                Text("Tap a filesystem to browse its files.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textMuted)
+
                 ForEach(storage.filesystems) { filesystem in
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text(filesystem.mountpoint)
-                                .font(.subheadline.bold())
-                                .lineLimit(1)
-                            Spacer()
-                            Text(PercentFormat.zero(filesystem.usePercent))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(filesystem.usePercent >= 90 ? Theme.danger : Theme.textSecondary)
+                    Button {
+                        browsing = filesystem
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack {
+                                Text(filesystem.mountpoint)
+                                    .font(.subheadline.bold())
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(PercentFormat.zero(filesystem.usePercent))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(filesystem.usePercent >= 90 ? Theme.danger : Theme.textSecondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(Theme.textMuted)
+                            }
+                            UsageBar(
+                                fraction: filesystem.usePercent / 100,
+                                tint: filesystem.usePercent >= 90 ? Theme.danger : Theme.accent
+                            )
+                            HStack {
+                                Text("\(filesystem.source) · \(filesystem.fstype)")
+                                Spacer()
+                                Text("\(ByteFormat.string(filesystem.used)) of \(ByteFormat.string(filesystem.size))")
+                            }
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textMuted)
+                            .lineLimit(1)
                         }
-                        UsageBar(
-                            fraction: filesystem.usePercent / 100,
-                            tint: filesystem.usePercent >= 90 ? Theme.danger : Theme.accent
-                        )
-                        HStack {
-                            Text("\(filesystem.source) · \(filesystem.fstype)")
-                            Spacer()
-                            Text("\(ByteFormat.string(filesystem.used)) of \(ByteFormat.string(filesystem.size))")
-                        }
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textMuted)
-                        .lineLimit(1)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
 
                     if filesystem.id != storage.filesystems.last?.id {
                         Divider()

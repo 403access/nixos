@@ -19,14 +19,15 @@ import { useNixOSControl } from "../store";
 import type {
   ResourceEntry,
   ResourceHistory,
+  ResourceHistoryMetric,
   ResourceProcess,
   ResourceSeriesPoint,
   ResourceUsage,
 } from "../types";
 
 type Mode = "services" | "apps" | "processes";
-type SortKey = "cpu" | "memory" | "read" | "write";
-type HistoryMetric = "cpu" | "memory" | "read" | "write";
+type SortKey = "cpu" | "memory" | "read" | "write" | "rx" | "tx";
+type HistoryMetric = ResourceHistoryMetric;
 type HistoryKind = "services" | "apps";
 
 const CHART_COLORS = [
@@ -56,6 +57,8 @@ interface Row {
   memory: number;
   read: number;
   write: number;
+  rx: number;
+  tx: number;
 }
 
 function kindTone(kind: string): "good" | "warn" | "bad" | "muted" | "accent" {
@@ -86,6 +89,10 @@ function metricValue(
       return point.read_bps;
     case "write":
       return point.write_bps;
+    case "rx":
+      return point.network_rx_bps;
+    case "tx":
+      return point.network_tx_bps;
     default:
       return point.cpu_percent;
   }
@@ -97,6 +104,8 @@ function formatMetric(metric: HistoryMetric, value: number): string {
       return formatBytes(value);
     case "read":
     case "write":
+    case "rx":
+    case "tx":
       return formatRate(value);
     default:
       return formatPercent(value, 1);
@@ -117,6 +126,8 @@ function rowsFor(usage: ResourceUsage, mode: Mode): Row[] {
       memory: process.memory_bytes,
       read: process.read_bps,
       write: process.write_bps,
+      rx: process.network_rx_bps,
+      tx: process.network_tx_bps,
     }));
   }
 
@@ -132,6 +143,8 @@ function rowsFor(usage: ResourceUsage, mode: Mode): Row[] {
     memory: entry.memory_bytes,
     read: entry.read_bps,
     write: entry.write_bps,
+    rx: entry.network_rx_bps,
+    tx: entry.network_tx_bps,
   }));
 }
 
@@ -231,6 +244,10 @@ export default function ResourcesView() {
             return right.read - left.read;
           case "write":
             return right.write - left.write;
+          case "rx":
+            return right.rx - left.rx;
+          case "tx":
+            return right.tx - left.tx;
           default:
             return right.cpu - left.cpu;
         }
@@ -239,6 +256,8 @@ export default function ResourcesView() {
 
   const maxRead = Math.max(1, ...rows.map((row) => row.read));
   const maxWrite = Math.max(1, ...rows.map((row) => row.write));
+  const maxRx = Math.max(1, ...rows.map((row) => row.rx));
+  const maxTx = Math.max(1, ...rows.map((row) => row.tx));
   const maxCpu = Math.max(100, ...rows.map((row) => row.cpu));
 
   const historyChart = useMemo(() => {
@@ -295,6 +314,17 @@ export default function ResourcesView() {
               value={formatRate(usage.total_write_bps)}
               caption={`updated ${formatPreciseTimestamp(usage.at)}`}
             />
+            <MetricTile
+              label="Network in"
+              value={formatRate(usage.total_network_rx_bps)}
+              caption="TCP received"
+              tone="accent"
+            />
+            <MetricTile
+              label="Network out"
+              value={formatRate(usage.total_network_tx_bps)}
+              caption="TCP sent"
+            />
           </div>
 
           <Card
@@ -332,6 +362,8 @@ export default function ResourcesView() {
                   <option value="memory">Memory</option>
                   <option value="read">Disk read</option>
                   <option value="write">Disk write</option>
+                  <option value="rx">Network in</option>
+                  <option value="tx">Network out</option>
                 </select>
               </label>
               <label className="inline-field">
@@ -405,6 +437,8 @@ export default function ResourcesView() {
               <option value="memory">Sort by memory</option>
               <option value="read">Sort by disk read</option>
               <option value="write">Sort by disk write</option>
+              <option value="rx">Sort by network in</option>
+              <option value="tx">Sort by network out</option>
             </select>
             <button
               type="button"
@@ -419,7 +453,9 @@ export default function ResourcesView() {
           <p className="muted resource-note">
             CPU is relative to one core and can exceed 100% when a process uses
             several cores. Memory is resident memory (RSS) summed per process.
-            Disk values are actual block I/O.
+            Disk values are actual block I/O. Network values are TCP
+            receive/send rates derived from per-socket counters; UDP traffic is
+            not counted.
           </p>
 
           {rows.length === 0 ? (
@@ -437,6 +473,8 @@ export default function ResourcesView() {
                 <span>Memory</span>
                 <span>Read/s</span>
                 <span>Write/s</span>
+                <span>Net in/s</span>
+                <span>Net out/s</span>
               </div>
               {rows.map((row) => (
                 <div
@@ -489,6 +527,14 @@ export default function ResourcesView() {
                   <div className="resource-cell">
                     <span>{formatRate(row.write)}</span>
                     <UsageBar fraction={row.write / maxWrite} tone="warn" />
+                  </div>
+                  <div className="resource-cell">
+                    <span>{formatRate(row.rx)}</span>
+                    <UsageBar fraction={row.rx / maxRx} tone="good" />
+                  </div>
+                  <div className="resource-cell">
+                    <span>{formatRate(row.tx)}</span>
+                    <UsageBar fraction={row.tx / maxTx} tone="accent" />
                   </div>
                 </div>
               ))}
@@ -613,6 +659,8 @@ function ResourceDetail({
         <InfoRow label="Memory" value={formatBytes(row.memory)} />
         <InfoRow label="Disk read" value={formatRate(row.read)} />
         <InfoRow label="Disk write" value={formatRate(row.write)} />
+        <InfoRow label="Network in" value={formatRate(row.rx)} />
+        <InfoRow label="Network out" value={formatRate(row.tx)} />
       </div>
 
       {row.pid === undefined ? (
@@ -632,6 +680,8 @@ function ResourceDetail({
                 <option value="memory">Memory</option>
                 <option value="read">Disk read</option>
                 <option value="write">Disk write</option>
+                <option value="rx">Network in</option>
+                <option value="tx">Network out</option>
               </select>
             </label>
             <span className="muted">Last {historyMinutes} minutes</span>

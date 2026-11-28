@@ -210,6 +210,8 @@ impl MockResources {
                 total_memory_bytes: 3 * 1024 * 1024 * 1024,
                 total_read_bps: 1024.0,
                 total_write_bps: 2048.0,
+                total_network_rx_bps: 4096.0,
+                total_network_tx_bps: 8192.0,
                 services: vec![ResourceEntry {
                     name: "nixos-control".to_string(),
                     kind: "service".to_string(),
@@ -219,6 +221,8 @@ impl MockResources {
                     memory_bytes: 16 * 1024 * 1024,
                     read_bps: 100.0,
                     write_bps: 200.0,
+                    network_rx_bps: 300.0,
+                    network_tx_bps: 400.0,
                 }],
                 apps: vec![ResourceEntry {
                     name: "qemu-system-x86_64".to_string(),
@@ -229,6 +233,8 @@ impl MockResources {
                     memory_bytes: 2 * 1024 * 1024 * 1024,
                     read_bps: 900.0,
                     write_bps: 1800.0,
+                    network_rx_bps: 3500.0,
+                    network_tx_bps: 7000.0,
                 }],
                 processes: vec![ProcessEntry {
                     pid: 54655,
@@ -240,6 +246,8 @@ impl MockResources {
                     memory_bytes: 2 * 1024 * 1024 * 1024,
                     read_bps: 900.0,
                     write_bps: 1800.0,
+                    network_rx_bps: 3500.0,
+                    network_tx_bps: 7000.0,
                 }],
             }),
         }
@@ -278,6 +286,8 @@ impl ResourceProbe for MockResources {
                         memory_bytes: 16 * 1024 * 1024,
                         read_bps: 1.0,
                         write_bps: 2.0,
+                        network_rx_bps: 5.0,
+                        network_tx_bps: 6.0,
                     },
                     ResourceSeriesPoint {
                         at: "2026-01-01T00:00:10Z".to_string(),
@@ -285,6 +295,8 @@ impl ResourceProbe for MockResources {
                         memory_bytes: 18 * 1024 * 1024,
                         read_bps: 3.0,
                         write_bps: 4.0,
+                        network_rx_bps: 7.0,
+                        network_tx_bps: 8.0,
                     },
                 ],
             }],
@@ -295,6 +307,8 @@ impl ResourceProbe for MockResources {
                     memory_bytes: 1024 * 1024 * 1024,
                     read_bps: 10.0,
                     write_bps: 20.0,
+                    network_rx_bps: 50.0,
+                    network_tx_bps: 60.0,
                 },
                 ResourceSeriesPoint {
                     at: "2026-01-01T00:00:10Z".to_string(),
@@ -302,6 +316,8 @@ impl ResourceProbe for MockResources {
                     memory_bytes: 1024 * 1024 * 1024,
                     read_bps: 11.0,
                     write_bps: 21.0,
+                    network_rx_bps: 51.0,
+                    network_tx_bps: 61.0,
                 },
             ],
         }
@@ -1632,6 +1648,18 @@ async fn resource_history_validates_parameters() {
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(
         json(&body)["error"],
-        "metric must be cpu, memory, read or write"
+        "metric must be cpu, memory, read, write, rx or tx"
     );
+}
+
+#[tokio::test]
+async fn resource_history_accepts_network_metrics() {
+    let fixture = fixture();
+    let (status, _, body) = get(
+        &fixture,
+        "/api/resources/history?kind=apps&minutes=15&metric=rx&top=6",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json(&body)["kind"], "apps");
 }

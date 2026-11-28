@@ -32,7 +32,8 @@ iPhone ──HTTPS──► tailscale serve :443 ──HTTP──► nixos-contr
 The optional web dashboard reads the same API:
 
 ```text
-Browser ──HTTP/HTTPS──► nixos-control ── HID++ ──► /dev/hidraw*
+Browser ──HTTP/HTTPS──► nixos-control ──► systemctl / journalctl / zpool
+                              └─────────► HID++ ──► /dev/hidraw*
 ```
 
 - The phone talks to the machine over the tailnet using its MagicDNS HTTPS name.
@@ -40,8 +41,9 @@ Browser ──HTTP/HTTPS──► nixos-control ── HID++ ──► /dev/hidr
 - The server authenticates the bearer token, then invokes system commands
   with argument arrays (no shell interpolation of user input).
 - Results are returned as JSON.
-- The optional web dashboard reads `/api/peripherals` directly (the route is
-  CORS-enabled) or through its Bun proxy. The probe is read-only.
+- The optional web dashboard uses the same routes through its Bun proxy, so the
+  two clients stay at feature parity. `/api/peripherals` is additionally
+  CORS-readable; the probe is read-only.
 
 With a FRITZ!Box WireGuard VPN, the path is different but the server is the
 same:
@@ -85,8 +87,13 @@ perform every action the module allows.
   (up to six hours) for the dashboard charts. The history is not persisted
   across restarts.
 - A resource sampler reads `/proc` every five seconds and aggregates CPU,
-  resident memory and block I/O by cgroup unit and executable. It keeps one hour
-  of per-entity history for the Resources charts; it is read-only.
+  resident memory and block I/O by cgroup unit and executable. It also reads
+  per-socket TCP counters with `ss -i` and attributes the deltas to the owning
+  process, then rolls them up to apps and services. It keeps one hour of
+  per-entity history for the Resources charts; it is read-only.
+- The storage browser lists directories read-only beneath a selected
+  mountpoint. Symlinks are resolved and paths outside the mount are rejected;
+  search is bounded by depth, entry count and a time limit.
 - Journal pages are parsed from `journalctl -o json` into structured entries for
   the Logs views.
 - The Themes page writes `/etc/nixos/desktop/selected.nix` and triggers a
