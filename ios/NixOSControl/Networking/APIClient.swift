@@ -47,6 +47,25 @@ struct APIClient {
         return try await perform(request)
     }
 
+    func getSandboxes() async throws -> SandboxList {
+        try await get("/api/sandboxes")
+    }
+
+    func getSandboxLogs(name: String, lines: Int = 400) async throws -> LogsResponse {
+        try await get(
+            "/api/sandboxes/\(Self.encodePathComponent(name))/logs",
+            query: [URLQueryItem(name: "lines", value: String(lines))]
+        )
+    }
+
+    func sandboxAction(name: String, action: String) async throws -> ActionResponse {
+        try await post("/api/sandboxes/\(Self.encodePathComponent(name))/\(action)")
+    }
+
+    func createSandbox(_ body: SandboxCreateRequest) async throws -> Job {
+        try await post("/api/sandboxes", body: body)
+    }
+
     static func encodePathComponent(_ value: String) -> String {
         value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
     }

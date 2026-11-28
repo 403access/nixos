@@ -1,7 +1,7 @@
 # NixOS Control Web
 
 Bun + TypeScript + React console for the NixOS Control API. It mirrors the iOS
-app: Dashboard, Services, Storage, System, Peripherals and Settings.
+app: Dashboard, Services, Sandboxes, Storage, System, Peripherals and Settings.
 
 Each view has a hash deep link, for example `/#peripherals` opens the receiver
 view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
@@ -15,6 +15,8 @@ view directly. The `nixos-control.desktop` icon on the NixOS desktop uses
   panel.
 - **Services** — search, filter, start/stop/restart/reload/enable/disable and
   journal logs.
+- **Sandboxes** — create, start, stop, restart and remove agent microVMs, and
+  read their runtime logs.
 - **Resources** — CPU, memory, disk and network I/O by service, app and process,
   with sortable tables, time-series charts and per-consumer details.
 - **Logs** — parsed journals with severity filters, search, follow-tail,

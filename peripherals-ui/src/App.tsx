@@ -8,6 +8,7 @@ import DashboardView from "./views/DashboardView";
 import LogsView from "./views/LogsView";
 import PeripheralsView from "./views/PeripheralsView";
 import ResourcesView from "./views/ResourcesView";
+import SandboxesView from "./views/SandboxesView";
 import ServicesView from "./views/ServicesView";
 import SessionsView from "./views/SessionsView";
 import SettingsView from "./views/SettingsView";
@@ -19,6 +20,7 @@ const NAV: Array<{ id: AppTab; label: string; icon: string }> = [
   { id: "dashboard", label: "Dashboard", icon: "◈" },
   { id: "sessions", label: "Sessions", icon: "◷" },
   { id: "services", label: "Services", icon: "⚙" },
+  { id: "sandboxes", label: "Sandboxes", icon: "▣" },
   { id: "resources", label: "Resources", icon: "▥" },
   { id: "logs", label: "Logs", icon: "≣" },
   { id: "themes", label: "Themes", icon: "◑" },
@@ -83,6 +85,9 @@ function Shell() {
         break;
       case "services":
         void store.loadServices();
+        break;
+      case "sandboxes":
+        void store.loadSandboxes();
         break;
       case "storage":
         void store.loadStorage();
@@ -172,6 +177,7 @@ function Shell() {
         {tab === "dashboard" ? <DashboardView onNavigate={setTab} /> : null}
         {tab === "sessions" ? <SessionsView /> : null}
         {tab === "services" ? <ServicesView /> : null}
+        {tab === "sandboxes" ? <SandboxesView /> : null}
         {tab === "resources" ? <ResourcesView /> : null}
         {tab === "logs" ? <LogsView /> : null}
         {tab === "themes" ? <ThemesView /> : null}

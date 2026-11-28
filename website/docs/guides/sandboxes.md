@@ -146,6 +146,20 @@ port publishing is not available; publish the guest port with `--port`.
 No Docker socket, image or process from the guest is visible to the host or to
 another sandbox.
 
+## From the web and iOS apps
+
+The web console has a **Sandboxes** section and the iOS app has a **Sandboxes**
+tab. Both list running and stopped sandboxes, show their image, workspace,
+network mode, ports and shared folders, and let you create, start, stop,
+restart, remove and read logs without opening a terminal.
+
+Create requests use a workspace name below the configured workspace root; the
+API creates the directory. The CLI is still the way to mount an existing
+project directory outside that root, or to use arbitrary host shares.
+
+`start` replays the command that was saved with the sandbox. `stop` keeps the
+VM and workspace for later; `remove` deletes the VM but keeps the workspace.
+
 ## Verify
 
 ```bash

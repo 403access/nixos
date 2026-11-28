@@ -119,6 +119,10 @@ This cannot be enabled on an existing dataset. The safe migration is:
   dropped in the `inet agent_vm` nftables table.
 - Workspaces and `--share` folders are read-write. A compromised agent can
   delete project files; it cannot write elsewhere on the host. Keep backups.
+- The web/iOS sandbox API can create VMs and execute arbitrary commands inside
+  them. The bearer token is therefore root-equivalent for this feature too.
+  API-created workspaces are confined to the `mySandbox` workspace root and
+  shares to the share root; use the CLI for other host paths.
 - Images are pulled by root buildah. Use only trusted registries.
 - This is a KVM microVM, not a confidential VM: the boundary is the hypervisor
   plus the guest kernel.

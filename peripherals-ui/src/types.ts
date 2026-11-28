@@ -435,10 +435,76 @@ export interface ProbeReport {
   devices: DeviceInfo[];
 }
 
+export interface SandboxPort {
+  address: string;
+  host: number;
+  guest: number;
+}
+
+export interface SandboxShare {
+  name: string;
+  path: string;
+  read_only: boolean;
+}
+
+export interface Sandbox {
+  name: string;
+  status: string;
+  running: boolean;
+  image: string;
+  cpus: number;
+  memory: number;
+  dns: string;
+  online: boolean;
+  lan: boolean;
+  ephemeral: boolean;
+  docker: boolean;
+  workspace: string;
+  created: string;
+  pid?: number | null;
+  ports: SandboxPort[];
+  shares: SandboxShare[];
+}
+
+export interface SandboxList {
+  available: boolean;
+  workspace_root: string;
+  shared_root: string;
+  sandboxes: Sandbox[];
+}
+
+export interface SandboxPortRequest {
+  address?: string | null;
+  host: number;
+  guest: number;
+}
+
+export interface SandboxShareRequest {
+  name: string;
+  path: string;
+  read_only?: boolean;
+}
+
+export interface SandboxCreateRequest {
+  name: string;
+  image: string;
+  workspace?: string;
+  cpus?: number;
+  memory?: number;
+  online?: boolean;
+  lan?: boolean;
+  docker?: boolean;
+  ephemeral?: boolean;
+  ports?: SandboxPortRequest[];
+  shares?: SandboxShareRequest[];
+  command?: string[];
+}
+
 export type AppTab =
   | "dashboard"
   | "sessions"
   | "services"
+  | "sandboxes"
   | "resources"
   | "logs"
   | "themes"

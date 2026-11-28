@@ -147,7 +147,10 @@ mySandbox = {
 | `stateRoot` | `/var/lib/agent-vm` | Root-only sandbox metadata |
 
 The module enables IPv4 forwarding for guest egress and installs
-`agent-vm`, `krunvm`, `buildah`, `nftables`, `iproute2` and `socat`.
+`agent-vm`, `krunvm`, `buildah`, `nftables`, `iproute2` and `socat`. When
+`mySandbox` and `services.nixos-control` are both enabled, the API exposes the
+sandbox inventory and the web/iOS apps can create, start, stop and read logs;
+the workspace and share roots are passed to the server automatically.
 
 :::warning
 `agent-vm` must run as root: KVM, network namespaces, nftables and buildah

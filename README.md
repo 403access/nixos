@@ -23,7 +23,7 @@ An iPhone app and a matching web console for monitoring and managing a NixOS mac
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, filesystem usage, and a read-only file explorer that opens beside the list.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
-- **Agent sandboxes** — untrusted agents and their Docker containers run in KVM microVMs with a separate kernel and network namespace. The host can reach a sandbox; a sandbox cannot reach the host or another sandbox. Work is shared only through an exclusive workspace or explicit `--share` folders.
+- **Agent sandboxes** — untrusted agents and their Docker containers run in KVM microVMs with a separate kernel and network namespace. The host can reach a sandbox; a sandbox cannot reach the host or another sandbox. Work is shared only through an exclusive workspace or explicit `--share` folders. The web console and iOS app can list, create, start, stop, remove and read logs from sandboxes.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
 - **Tailscale or WireGuard** — the iPhone reaches the machine through the tailnet, or through the WireGuard VPN that already runs on your FRITZ!Box.
 
@@ -613,6 +613,10 @@ Authorization: Bearer <token>
 | `GET` | `/api/peripherals` | Logitech receiver and paired devices (read-only) |
 | `GET` | `/api/sessions?limit=50` | App action sessions and host logins |
 | `GET` | `/api/sessions/{id}?lines=300` | Session actions, logs and shell history |
+| `GET` | `/api/sandboxes` | Sandbox inventory, status, ports and shares |
+| `POST` | `/api/sandboxes` | Create and start a sandbox (returns a job) |
+| `GET` | `/api/sandboxes/{name}/logs?lines=200` | Sandbox runtime log |
+| `POST` | `/api/sandboxes/{name}/{action}` | `start`, `stop`, `restart` or `remove` |
 | `GET` | `/api/services` | systemd service units |
 | `POST` | `/api/services/{unit}/{action}` | `start`, `stop`, `restart`, `reload`, `enable`, `disable`, `reset-failed`, … |
 | `GET` | `/api/services/{unit}/logs?lines=200` | Service journal |
@@ -640,6 +644,33 @@ status, TTY and working directory, so the Sessions view can show execution time
 and whether each command succeeded. Older commands fall back to shell history.
 Open **Sessions** in either app to browse them.
 
+### Sandboxes
+
+`mySandbox.enable = true` also exposes the sandbox inventory when
+`nixos-control` is enabled. Create one with:
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "agent-task",
+    "image": "docker.io/library/alpine:latest",
+    "workspace": "agent-task",
+    "cpus": 2,
+    "memory": 1024,
+    "online": false,
+    "command": ["/bin/sh", "-c", "sleep 3600"]
+  }' \
+  http://127.0.0.1:8787/api/sandboxes
+```
+
+The response is a job; poll `GET /api/jobs/{id}` until it finishes, then use
+`GET /api/sandboxes`. The workspace is created below the `mySandbox`
+workspace root. Shared folders in API create requests must already exist below
+the configured share root. `POST /api/sandboxes/{name}/start` re-runs the
+original command, `stop` keeps the VM and workspace, and `remove` deletes the
+VM but leaves the workspace.
+
 ### Rotate the token
 
 ```bash
@@ -664,6 +695,7 @@ Update the token in the app afterwards.
 - Keep ZFS snapshots/backups before using `switch`; use the `test` action to validate a configuration first.
 - Do not expose port `8787` to the internet. If you use the LAN mode, keep it behind the firewall and on a trusted network.
 - Agent sandboxes are KVM microVMs, not confidential VMs, and the host can reach them by design. Keep the workspace read-write only for projects you can afford to lose, and read [`docs/sandbox.md`](docs/sandbox.md) before using `--lan` or `--publish`.
+- The sandbox API can create VMs and run arbitrary commands inside them. The bearer token is therefore root-equivalent here too. API-created workspaces are restricted to the `mySandbox` workspace root and shares to the share root; the CLI remains the way to expose other directories.
 
 ## Development
 

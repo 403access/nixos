@@ -15,6 +15,8 @@ import type {
   ResourceHistoryMetric,
   RdpResetResult,
   FileListing,
+  SandboxCreateRequest,
+  SandboxList,
   StatusHistoryResponse,
   StorageSnapshot,
   SystemStatus,
@@ -349,6 +351,48 @@ export function getLogs(
     serverUrl,
     token,
     withQuery("/api/logs", { lines }),
+  );
+}
+
+export function getSandboxes(
+  serverUrl: string,
+  token: string,
+): Promise<SandboxList> {
+  return request<SandboxList>(serverUrl, token, "/api/sandboxes");
+}
+
+export function createSandbox(
+  serverUrl: string,
+  token: string,
+  body: SandboxCreateRequest,
+): Promise<Job> {
+  return request<Job>(serverUrl, token, "/api/sandboxes", postJson(body));
+}
+
+export function sandboxAction(
+  serverUrl: string,
+  token: string,
+  name: string,
+  action: string,
+): Promise<ActionResponse> {
+  return request<ActionResponse>(
+    serverUrl,
+    token,
+    `/api/sandboxes/${encodeURIComponent(name)}/${action}`,
+    { method: "POST" },
+  );
+}
+
+export function getSandboxLogs(
+  serverUrl: string,
+  token: string,
+  name: string,
+  lines: number,
+): Promise<LogsResponse> {
+  return request<LogsResponse>(
+    serverUrl,
+    token,
+    withQuery(`/api/sandboxes/${encodeURIComponent(name)}/logs`, { lines }),
   );
 }
 

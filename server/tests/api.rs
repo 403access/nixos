@@ -27,6 +27,9 @@ use nixos_control::resources::{
     ProcessEntry, ResourceEntry, ResourceHistory, ResourceProbe, ResourceSeries,
     ResourceSeriesPoint, ResourceUsage,
 };
+use nixos_control::sandboxes::{
+    Sandbox, SandboxCreateRequest, SandboxList, SandboxPort, SandboxProbe, SandboxShare,
+};
 use nixos_control::system::SystemProbe;
 use tempfile::TempDir;
 use tower::ServiceExt;
@@ -93,6 +96,93 @@ impl JobLauncher for FakeJobs {
 
     fn list(&self) -> Vec<Job> {
         self.jobs.lock().unwrap().clone()
+    }
+}
+
+#[derive(Clone, Default)]
+struct MockSandboxes {
+    calls: Arc<Mutex<Vec<String>>>,
+}
+
+impl MockSandboxes {
+    fn record(&self, call: impl Into<String>) {
+        self.calls.lock().unwrap().push(call.into());
+    }
+
+    fn calls(&self) -> Vec<String> {
+        self.calls.lock().unwrap().clone()
+    }
+}
+
+impl SandboxProbe for MockSandboxes {
+    fn list(&self) -> SandboxList {
+        SandboxList {
+            available: true,
+            workspace_root: "/var/lib/agent-workspaces".to_string(),
+            shared_root: "/var/lib/agent-shares".to_string(),
+            sandboxes: vec![Sandbox {
+                name: "demo".to_string(),
+                status: "running".to_string(),
+                running: true,
+                image: "docker.io/library/alpine:latest".to_string(),
+                cpus: 2,
+                memory: 512,
+                dns: "1.1.1.1".to_string(),
+                online: true,
+                lan: false,
+                ephemeral: false,
+                docker: true,
+                workspace: "/var/lib/agent-workspaces/demo".to_string(),
+                created: "2026-01-01T00:00:00Z".to_string(),
+                pid: Some(42),
+                ports: vec![SandboxPort {
+                    address: "127.0.0.1".to_string(),
+                    host: 8080,
+                    guest: 80,
+                }],
+                shares: vec![SandboxShare {
+                    name: "team".to_string(),
+                    path: "/var/lib/agent-shares/team".to_string(),
+                    read_only: true,
+                }],
+            }],
+        }
+    }
+
+    fn logs(&self, name: &str, lines: usize) -> Result<LogsResponse, String> {
+        self.record(format!("logs {name} {lines}"));
+        Ok(LogsResponse {
+            lines: vec![
+                "sandbox line one".to_string(),
+                "sandbox line two".to_string(),
+            ],
+            entries: Vec::new(),
+        })
+    }
+
+    fn start(&self, name: &str) -> Result<(), String> {
+        self.record(format!("start {name}"));
+        Ok(())
+    }
+
+    fn stop(&self, name: &str) -> Result<(), String> {
+        self.record(format!("stop {name}"));
+        Ok(())
+    }
+
+    fn remove(&self, name: &str) -> Result<(), String> {
+        self.record(format!("remove {name}"));
+        Ok(())
+    }
+
+    fn create_args(&self, request: &SandboxCreateRequest) -> Result<Vec<String>, String> {
+        self.record(format!("create {}", request.name));
+        Ok(vec![
+            "run".to_string(),
+            "--detach".to_string(),
+            "--name".to_string(),
+            request.name.clone(),
+        ])
     }
 }
 
@@ -615,6 +705,7 @@ struct Fixture {
     _directory: TempDir,
     state: AppState,
     system: MockSystem,
+    sandboxes: MockSandboxes,
     jobs: FakeJobs,
     rdp: FakeRdp,
     files: FakeFiles,
@@ -633,6 +724,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
     std::fs::write(&token, "secret\n").unwrap();
 
     let system = MockSystem::default();
+    let sandboxes = MockSandboxes::default();
     let jobs = FakeJobs::default();
     let rdp = FakeRdp::default();
     let files = FakeFiles::default();
@@ -645,6 +737,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
         state: AppState {
             config,
             system: Arc::new(system.clone()),
+            sandboxes: Arc::new(sandboxes.clone()),
             jobs: Arc::new(jobs.clone()),
             peripherals: Arc::new(peripherals),
             activity: Arc::new(ActivityStore::new(None)),
@@ -655,6 +748,7 @@ fn fixture_with(configure: impl FnOnce(&mut AppConfig)) -> Fixture {
             version: "test-version".to_string(),
         },
         system,
+        sandboxes,
         jobs,
         rdp,
         files,
@@ -930,6 +1024,89 @@ async fn services_are_listed() {
     let value = json(&body);
     assert_eq!(value[0]["unit"], "nginx.service");
     assert_eq!(value[0]["active"], "active");
+}
+
+#[tokio::test]
+async fn sandboxes_are_listed() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/sandboxes").await;
+    assert_eq!(status, StatusCode::OK);
+    let value = json(&body);
+    assert_eq!(value["available"], true);
+    assert_eq!(value["workspace_root"], "/var/lib/agent-workspaces");
+    assert_eq!(value["sandboxes"][0]["name"], "demo");
+    assert_eq!(value["sandboxes"][0]["running"], true);
+    assert_eq!(value["sandboxes"][0]["ports"][0]["host"], 8080);
+    assert_eq!(value["sandboxes"][0]["shares"][0]["read_only"], true);
+}
+
+#[tokio::test]
+async fn sandbox_actions_are_forwarded() {
+    let fixture = fixture();
+    for action in ["start", "stop", "remove"] {
+        let (status, _, body) =
+            post(&fixture, &format!("/api/sandboxes/demo/{action}"), None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(json(&body)["ok"], true);
+    }
+    assert_eq!(
+        fixture.sandboxes.calls(),
+        vec!["start demo", "stop demo", "remove demo"]
+    );
+}
+
+#[tokio::test]
+async fn sandbox_logs_use_the_default_line_count() {
+    let fixture = fixture();
+    let (status, _, body) = get(&fixture, "/api/sandboxes/demo/logs").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json(&body)["lines"][0], "sandbox line one");
+    assert_eq!(fixture.sandboxes.calls(), vec!["logs demo 200"]);
+}
+
+#[tokio::test]
+async fn sandbox_create_starts_a_job() {
+    let fixture = fixture();
+    let (status, _, body) = post(
+        &fixture,
+        "/api/sandboxes",
+        Some(r#"{"name":"demo","image":"alpine","workspace":"demo"}"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    assert_eq!(json(&body)["kind"], "sandbox-create");
+    assert_eq!(fixture.sandboxes.calls(), vec!["create demo"]);
+    let started = fixture.jobs.started();
+    assert_eq!(started.len(), 1);
+    assert_eq!(started[0].kind, "sandbox-create");
+    assert_eq!(started[0].program, "agent-vm");
+    assert_eq!(started[0].args, vec!["run", "--detach", "--name", "demo"]);
+}
+
+#[tokio::test]
+async fn sandboxes_can_be_disabled() {
+    let fixture = fixture_with(|config| {
+        config.allow_sandboxes = false;
+    });
+    let (status, _, body) = get(&fixture, "/api/sandboxes").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json(&body)["available"], false);
+
+    let (status, _, body) = post(&fixture, "/api/sandboxes/demo/start", None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(json(&body)["error"], "sandbox support is disabled");
+}
+
+#[tokio::test]
+async fn sandbox_actions_reject_unknown_actions() {
+    let fixture = fixture();
+    let (status, _, body) = post(&fixture, "/api/sandboxes/demo/explode", None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json(&body)["error"],
+        "action must be start, stop, remove or restart"
+    );
+    assert!(fixture.sandboxes.calls().is_empty());
 }
 
 #[tokio::test]

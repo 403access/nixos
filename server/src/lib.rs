@@ -9,6 +9,7 @@ pub mod models;
 pub mod peripherals;
 pub mod rdp;
 pub mod resources;
+pub mod sandboxes;
 pub mod system;
 pub mod themes;
 pub mod util;

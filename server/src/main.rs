@@ -13,6 +13,7 @@ use nixos_control::jobs::JobManager;
 use nixos_control::peripherals::LocalPeripherals;
 use nixos_control::rdp::{LocalRdp, RdpReset};
 use nixos_control::resources::{ResourceMonitor, ResourceProbe, SAMPLE_INTERVAL};
+use nixos_control::sandboxes::{LocalSandboxes, SandboxProbe};
 use nixos_control::system::{LocalSystem, SystemProbe};
 use nixos_control::VERSION;
 
@@ -46,6 +47,30 @@ struct Args {
     /// JSONL file that keeps the action audit trail across restarts. Optional.
     #[arg(long)]
     activity_file: Option<PathBuf>,
+
+    /// Directory containing `agent-vm` sandbox state.
+    #[arg(long, default_value = "/var/lib/agent-vm")]
+    sandbox_state: PathBuf,
+
+    /// Directory containing sandbox logs and pid files.
+    #[arg(long, default_value = "/run/agent-vm")]
+    sandbox_run: PathBuf,
+
+    /// Directory under which API-created sandbox workspaces live.
+    #[arg(long, default_value = "/var/lib/agent-workspaces")]
+    sandbox_workspaces: PathBuf,
+
+    /// Directory under which API-created shared folders live.
+    #[arg(long, default_value = "/var/lib/agent-shares")]
+    sandbox_shares: PathBuf,
+
+    /// `agent-vm` executable name or absolute path.
+    #[arg(long, default_value = "agent-vm")]
+    agent_vm: String,
+
+    /// Allow listing and controlling agent sandboxes.
+    #[arg(long, default_value_t = true, action = ArgAction::Set)]
+    allow_sandboxes: bool,
 }
 
 #[tokio::main]
@@ -65,9 +90,16 @@ async fn main() {
     };
     let mut config = AppConfig::new(token_file, flake, args.allow_rebuild, args.allow_power);
     config.activity_file = args.activity_file;
+    config.sandbox_state = args.sandbox_state;
+    config.sandbox_run = args.sandbox_run;
+    config.sandbox_workspaces = args.sandbox_workspaces;
+    config.sandbox_shares = args.sandbox_shares;
+    config.agent_vm = args.agent_vm;
+    config.allow_sandboxes = args.allow_sandboxes;
 
     let system: Arc<dyn SystemProbe> = Arc::new(LocalSystem::new(&config, VERSION));
     let sampler_system = system.clone();
+    let sandboxes: Arc<dyn SandboxProbe> = Arc::new(LocalSandboxes::new(&config));
     let jobs = Arc::new(JobManager::new());
     let peripherals = Arc::new(LocalPeripherals::new());
     let activity = Arc::new(ActivityStore::new(config.activity_file.clone()));
@@ -80,6 +112,7 @@ async fn main() {
     let state = AppState {
         config,
         system,
+        sandboxes,
         jobs,
         peripherals,
         activity,

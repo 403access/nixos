@@ -4,6 +4,7 @@ enum AppTab: Hashable {
     case dashboard
     case sessions
     case services
+    case sandboxes
     case storage
     case system
     case settings
@@ -19,6 +20,8 @@ struct RootView: View {
                 return .sessions
             case "services":
                 return .services
+            case "sandboxes":
+                return .sandboxes
             case "storage":
                 return .storage
             case "system":
@@ -48,6 +51,10 @@ struct RootView: View {
                     ServicesView()
                         .tabItem { Label("Services", systemImage: "gearshape.2") }
                         .tag(AppTab.services)
+
+                    SandboxesView()
+                        .tabItem { Label("Sandboxes", systemImage: "shippingbox") }
+                        .tag(AppTab.sandboxes)
 
                     StorageView()
                         .tabItem { Label("Storage", systemImage: "internaldrive") }

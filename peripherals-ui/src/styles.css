@@ -3012,3 +3012,127 @@ code {
     display: none;
   }
 }
+
+/* Agent sandboxes */
+.sandbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 14px;
+}
+
+.sandbox-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, rgba(18, 26, 36, 0.96), rgba(13, 19, 27, 0.96));
+  box-shadow: var(--shadow);
+}
+
+.sandbox-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sandbox-card-head h2 {
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+
+.sandbox-image {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.sandbox-meta,
+.sandbox-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sandbox-meta span {
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sandbox-detail {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 11px;
+}
+
+.sandbox-detail > span {
+  color: var(--muted);
+}
+
+.sandbox-detail code {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sandbox-card > .row-actions {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.banner {
+  padding: 10px 14px;
+  border: 1px solid rgba(90, 169, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(90, 169, 255, 0.08);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.form-note {
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.form-note code {
+  color: var(--text);
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.form-grid > label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.form-grid > label > .search-input {
+  width: 100%;
+}
+
+.form-grid > .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}

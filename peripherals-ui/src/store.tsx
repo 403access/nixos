@@ -19,6 +19,9 @@ import type {
   ResourceHistory,
   ResourceHistoryMetric,
   ResourceUsage,
+  Sandbox,
+  SandboxCreateRequest,
+  SandboxList,
   ServiceUnit,
   SessionDetail,
   SessionSummary,
@@ -43,7 +46,8 @@ type LoadingKey =
   | "generations"
   | "peripherals"
   | "sessions"
-  | "jobs";
+  | "jobs"
+  | "sandboxes";
 
 const STORAGE_KEY = "nixos-control.settings";
 const LEGACY_STORAGE_KEY = "nixos-control.peripherals.settings";
@@ -55,12 +59,15 @@ const EMPTY_LOADING: Record<LoadingKey, boolean> = {
   peripherals: false,
   sessions: false,
   jobs: false,
+  sandboxes: false,
 };
 
 interface Store {
   settings: Settings | null;
   status: SystemStatus | null;
   services: ServiceUnit[];
+  sandboxes: Sandbox[];
+  sandboxList: SandboxList | null;
   storage: StorageSnapshot | null;
   generations: Generation[];
   peripherals: ProbeReport | null;
@@ -93,6 +100,10 @@ interface Store {
   }): Promise<ThemeApplyResult | null>;
   resetRdp(force?: boolean): Promise<RdpResetResult | null>;
   loadServices(): Promise<void>;
+  loadSandboxes(): Promise<void>;
+  performSandboxAction(name: string, action: string): Promise<string | null>;
+  createSandbox(request: SandboxCreateRequest): Promise<Job | null>;
+  fetchSandboxLogs(name: string, lines: number): Promise<LogsResponse | null>;
   loadStorage(): Promise<void>;
   loadGenerations(): Promise<void>;
   fetchGenerationDiff(from: number, to: number): Promise<GenerationDiff | null>;
@@ -126,6 +137,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings | null>(loadSettings);
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [services, setServices] = useState<ServiceUnit[]>([]);
+  const [sandboxes, setSandboxes] = useState<Sandbox[]>([]);
+  const [sandboxList, setSandboxList] = useState<SandboxList | null>(null);
   const [storage, setStorage] = useState<StorageSnapshot | null>(null);
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [peripherals, setPeripherals] = useState<ProbeReport | null>(null);
@@ -291,6 +304,90 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       setLoadingKey("services", false);
     }
   }, [settings, setLoadingKey]);
+
+  const loadSandboxes = useCallback(async () => {
+    if (!settings) {
+      return;
+    }
+    setLoadingKey("sandboxes", true);
+    try {
+      const next = await api.getSandboxes(settings.serverUrl, settings.token);
+      setSandboxList(next);
+      setSandboxes(next.sandboxes);
+      setError(null);
+    } catch (cause) {
+      setError(api.errorMessage(cause));
+    } finally {
+      setLoadingKey("sandboxes", false);
+    }
+  }, [settings, setLoadingKey]);
+
+  const performSandboxAction = useCallback(
+    async (name: string, action: string) => {
+      if (!settings) {
+        return "Not configured.";
+      }
+      try {
+        await api.sandboxAction(
+          settings.serverUrl,
+          settings.token,
+          name,
+          action,
+        );
+        await loadSandboxes();
+        return null;
+      } catch (cause) {
+        return api.errorMessage(cause);
+      }
+    },
+    [settings, loadSandboxes],
+  );
+
+  const createSandbox = useCallback(
+    async (request: SandboxCreateRequest) => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        const job = await api.createSandbox(
+          settings.serverUrl,
+          settings.token,
+          request,
+        );
+        setActiveJob(job);
+        setJobs((previous) => [
+          job,
+          ...previous.filter((item) => item.id !== job.id),
+        ]);
+        await loadSandboxes();
+        return job;
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings, loadSandboxes],
+  );
+
+  const fetchSandboxLogs = useCallback(
+    async (name: string, lines: number): Promise<LogsResponse | null> => {
+      if (!settings) {
+        return null;
+      }
+      try {
+        return await api.getSandboxLogs(
+          settings.serverUrl,
+          settings.token,
+          name,
+          lines,
+        );
+      } catch (cause) {
+        setError(api.errorMessage(cause));
+        return null;
+      }
+    },
+    [settings],
+  );
 
   const loadStorage = useCallback(async () => {
     if (!settings) {
@@ -481,6 +578,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
     setSettings(null);
     setStatus(null);
     setServices([]);
+    setSandboxes([]);
+    setSandboxList(null);
     setStorage(null);
     setGenerations([]);
     setPeripherals(null);
@@ -652,6 +751,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       settings,
       status,
       services,
+      sandboxes,
+      sandboxList,
       storage,
       generations,
       peripherals,
@@ -674,6 +775,10 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       applyTheme,
       resetRdp,
       loadServices,
+      loadSandboxes,
+      performSandboxAction,
+      createSandbox,
+      fetchSandboxLogs,
       loadStorage,
       loadGenerations,
       fetchGenerationDiff,
@@ -696,6 +801,8 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       settings,
       status,
       services,
+      sandboxes,
+      sandboxList,
       storage,
       generations,
       peripherals,
@@ -718,6 +825,10 @@ export function NixOSControlProvider({ children }: { children: ReactNode }) {
       applyTheme,
       resetRdp,
       loadServices,
+      loadSandboxes,
+      performSandboxAction,
+      createSandbox,
+      fetchSandboxLogs,
       loadStorage,
       loadGenerations,
       fetchGenerationDiff,

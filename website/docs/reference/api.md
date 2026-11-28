@@ -313,6 +313,66 @@ Content-Type: application/json
 
 Allowed actions: `reboot`, `shutdown`, `poweroff`.
 
+## Sandboxes
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/sandboxes` | Inventory, status, ports and shares |
+| `POST` | `/api/sandboxes` | Create and start a sandbox; returns a job |
+| `GET` | `/api/sandboxes/{name}/logs?lines=200` | Runtime log |
+| `POST` | `/api/sandboxes/{name}/{action}` | `start`, `stop`, `restart` or `remove` |
+
+`GET /api/sandboxes` returns:
+
+```json
+{
+  "available": true,
+  "workspace_root": "/var/lib/agent-workspaces",
+  "shared_root": "/var/lib/agent-shares",
+  "sandboxes": [
+    {
+      "name": "agent-task",
+      "status": "running",
+      "running": true,
+      "image": "docker.io/library/alpine:latest",
+      "cpus": 2,
+      "memory": 1024,
+      "dns": "1.1.1.1",
+      "online": false,
+      "lan": false,
+      "ephemeral": false,
+      "docker": false,
+      "workspace": "/var/lib/agent-workspaces/agent-task",
+      "created": "2026-11-28T16:30:06Z",
+      "pid": 1215805,
+      "ports": [],
+      "shares": []
+    }
+  ]
+}
+```
+
+Create requests accept `name`, `image`, `workspace`, `cpus`, `memory`,
+`online`, `lan`, `docker`, `ephemeral`, `ports` (`address`, `host`, `guest`),
+`shares` (`name`, `path`, `read_only`) and `command` (an argument array):
+
+```json
+{
+  "name": "agent-task",
+  "image": "docker.io/library/alpine:latest",
+  "workspace": "agent-task",
+  "cpus": 2,
+  "memory": 1024,
+  "online": false,
+  "command": ["/bin/sh", "-c", "sleep 3600"]
+}
+```
+
+The workspace is created below `workspace_root`; shares must exist below
+`shared_root`. The response is `202 Accepted` with a normal job object. Poll
+`GET /api/jobs/{id}` and then refresh the inventory. `start` replays the saved
+command, `stop` keeps the VM and workspace, and `remove` keeps the workspace.
+
 ## Logs
 
 | Method | Path | Purpose |

@@ -40,7 +40,19 @@ let
     "--activity-file" "/var/lib/nixos-control/activity.jsonl"
     "--allow-rebuild=${lib.boolToString cfg.allowRebuild}"
     "--allow-power=${lib.boolToString cfg.allowPower}"
-  ] ++ lib.optionals (cfg.flake != null) [ "--flake" cfg.flake ];
+  ] ++ lib.optionals (cfg.flake != null) [ "--flake" cfg.flake ]
+    # Expose the sandbox inventory only when the agent sandbox module is in
+    # the same configuration.  The paths come from mySandbox so a custom
+    # state/workspace root keeps working.
+    ++ lib.optionals (config ? mySandbox && config.mySandbox.enable) [
+      "--allow-sandboxes=true"
+      "--sandbox-state" config.mySandbox.stateRoot
+      "--sandbox-workspaces" config.mySandbox.workspaceRoot
+      "--sandbox-shares" config.mySandbox.sharedRoot
+    ]
+    ++ lib.optionals (!(config ? mySandbox && config.mySandbox.enable)) [
+      "--allow-sandboxes=false"
+    ];
 
   tokenScript = pkgs.writeShellScriptBin "nixos-control-token" ''
     if [ "$(id -u)" -ne 0 ]; then

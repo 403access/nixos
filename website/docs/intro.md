@@ -56,7 +56,8 @@ panel to the internet.
   names, battery, signal strength and firmware.
 - **Agent sandboxes** — run untrusted agents and their containers in KVM
   microVMs with a separate kernel and network namespace. The host can reach a
-  sandbox; a sandbox cannot reach the host or another sandbox.
+  sandbox; a sandbox cannot reach the host or another sandbox. Create, start,
+  stop and read logs from the web console or the iOS app.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every
   request with a 256-bit bearer token, and can be exposed over Tailscale Serve
   with automatic HTTPS. No router ports are opened.

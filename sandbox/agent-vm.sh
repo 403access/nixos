@@ -69,7 +69,7 @@ exec "$@"'
 usage() {
   cat <<'EOF'
 Usage: sudo agent-vm run [options] [-- COMMAND [ARG...]]
-       sudo agent-vm start NAME
+       sudo agent-vm start [--detach] NAME
        sudo agent-vm stop NAME
        sudo agent-vm list
        sudo agent-vm logs NAME
@@ -188,6 +188,8 @@ state_file() { printf '%s/state/%s.conf\n' "$state_root" "$1"; }
 ports_file() { printf '%s/state/%s.ports\n' "$state_root" "$1"; }
 shares_file() { printf '%s/state/%s.shares\n' "$state_root" "$1"; }
 pid_file() { printf '%s/state/%s.pid\n' "$state_root" "$1"; }
+command_file() { printf '%s/state/%s.cmd\n' "$state_root" "$1"; }
+env_file() { printf '%s/state/%s.env\n' "$state_root" "$1"; }
 log_file() { printf '%s/log/%s.log\n' "$run_root" "$1"; }
 socat_pid_file() { printf '%s/pids/%s.socat\n' "$run_root" "$1"; }
 host_socat_pid_file() { printf '%s/pids/%s.hostsocat\n' "$run_root" "$1"; }
@@ -204,9 +206,10 @@ load_state() {
 save_state() {
   local name="$1"
   shift
-  local file tmp
+  local file tmp created_value
   file="$(state_file "$name")"
   tmp="$file.tmp.$$"
+  created_value="${created:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
   {
     printf 'name=%q\n' "$name"
     printf 'idx=%q\n' "$idx"
@@ -220,7 +223,7 @@ save_state() {
     printf 'ephemeral=%q\n' "$ephemeral"
     printf 'docker=%q\n' "$docker"
     printf 'workspace=%q\n' "$workspace"
-    printf 'created=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'created=%q\n' "$created_value"
   } >"$tmp"
   chmod 0600 "$tmp"
   mv -f "$tmp" "$file"
@@ -553,7 +556,7 @@ cleanup_run() {
     teardown_netns "$name" "$idx"
     cleanup_shares "$name" || true
     unmark_workspace "${workspace:-}" 2>/dev/null || true
-    rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")" "$(pid_file "$name")"
+    rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")" "$(command_file "$name")" "$(env_file "$name")" "$(pid_file "$name")"
     nft_rebuild
     return 0
   fi
@@ -569,7 +572,7 @@ cleanup_run() {
   fi
   if [ "${ephemeral:-0}" = "1" ] && [ -f "$(state_file "$name")" ]; then
     krunvm delete "$name" >/dev/null 2>&1 || true
-    rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")"
+    rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")" "$(command_file "$name")" "$(env_file "$name")"
   fi
   nft_rebuild
 }
@@ -610,8 +613,12 @@ run_vm() {
   mkdir -p "$run_root/log"
   if [ "$detach" = "1" ]; then
     (
+      # Detach from the caller's stdout/stderr so a job runner or the API's
+      # command wrapper sees EOF immediately.  Everything the sandbox prints
+      # goes to its log file instead.
+      exec </dev/null >>"$(log_file "$name")" 2>&1
       trap '' HUP
-      ip netns exec "$ns" "${start_cmd[@]}" >>"$(log_file "$name")" 2>&1 &
+      ip netns exec "$ns" "${start_cmd[@]}" &
       child=$!
       trap 'kill "$child" >/dev/null 2>&1 || true' TERM INT
       set +e
@@ -640,7 +647,7 @@ run_vm() {
 }
 
 start_existing() {
-  local name="$1"
+  name="$1"
   load_state "$name" || die "no such sandbox: $name"
   [ "$status" = "stopped" ] || die "$name is already $status"
   [ -d "$workspace" ] || die "workspace no longer exists: $workspace"
@@ -672,8 +679,24 @@ start_existing() {
   mark_workspace "$name" "$workspace"
   trap 'cleanup_run "$name"' EXIT
   command_args=()
-  guest_env=("AGENT_VM_NAME=$name" "AGENT_HOST_GATEWAY=$(host_ip "$idx")")
-  detach=0
+  if [ -f "$(command_file "$name")" ]; then
+    while IFS= read -r line; do
+      command_args+=("$line")
+    done <"$(command_file "$name")"
+  fi
+  guest_env=()
+  if [ -f "$(env_file "$name")" ]; then
+    while IFS= read -r line; do
+      guest_env+=("$line")
+    done <"$(env_file "$name")"
+  fi
+  if [ "${#guest_env[@]}" -eq 0 ]; then
+    guest_env=("AGENT_VM_NAME=$name" "AGENT_HOST_GATEWAY=$(host_ip "$idx")")
+  fi
+  detach="$start_detach"
+  if [ "$detach" = "1" ]; then
+    trap - EXIT
+  fi
   run_vm "$name"
 }
 
@@ -697,6 +720,7 @@ stop_sandbox() {
 # --- argument parsing -------------------------------------------------------
 
 subcommand="${1:-run}"
+start_detach=0
 case "$subcommand" in
   list | ls)
     require_root
@@ -752,7 +776,7 @@ case "$subcommand" in
       unmark_workspace "$workspace" 2>/dev/null || true
       rm -f "$(pid_file "$name")"
       krunvm delete "$name" >/dev/null 2>&1 || true
-      rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")"
+      rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")" "$(command_file "$name")" "$(env_file "$name")"
     else
       krunvm delete "$name" >/dev/null 2>&1 || true
     fi
@@ -770,7 +794,7 @@ case "$subcommand" in
       if ! krunvm list 2>/dev/null | grep -qx -- "$name"; then
         teardown_netns "$name" "$idx"
         unmark_workspace "${workspace:-}" 2>/dev/null || true
-        rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")" "$(pid_file "$name")"
+        rm -f "$(state_file "$name")" "$(ports_file "$name")" "$(shares_file "$name")" "$(command_file "$name")" "$(env_file "$name")" "$(pid_file "$name")"
         printf 'agent-vm: pruned %s\n' "$name"
         continue
       fi
@@ -807,8 +831,15 @@ case "$subcommand" in
         usage
         exit 0
         ;;
+      --detach)
+        start_detach=1
+        shift
+        ;;
     esac
     if [ "${2:-}" = "" ]; then
+      if [ "$start_detach" = "1" ]; then
+        die "usage: sudo agent-vm start [--detach] NAME"
+      fi
       if [ "$#" -gt 0 ]; then shift; fi
     else
       require_root
@@ -1074,6 +1105,14 @@ idx="$(alloc_idx)"
 guest_env+=("AGENT_VM_NAME=$name" "AGENT_HOST_GATEWAY=$(host_ip "$idx")")
 status="starting"
 save_state "$name"
+if [ "${#command_args[@]}" -gt 0 ]; then
+  printf '%s\n' "${command_args[@]}" >"$(command_file "$name")"
+else
+  rm -f "$(command_file "$name")"
+fi
+if [ "${#guest_env[@]}" -gt 0 ]; then
+  printf '%s\n' "${guest_env[@]}" >"$(env_file "$name")"
+fi
 printf '%s\n' "${shares_meta[@]}" >"$(shares_file "$name")"
 
 # Fill in the internal TSI port for every mapping.  The port lives inside the

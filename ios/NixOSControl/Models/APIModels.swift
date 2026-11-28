@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct HealthResponse: Decodable {
     let ok: Bool
@@ -435,4 +436,96 @@ struct RdpResetResult: Decodable {
     let force: Bool
     let exitCode: Int?
     let output: String
+}
+
+// MARK: - Agent sandboxes
+
+struct SandboxPort: Decodable, Hashable, Identifiable {
+    let address: String
+    let host: Int
+    let guest: Int
+
+    var id: String { "\(address):\(host):\(guest)" }
+}
+
+struct SandboxShare: Decodable, Hashable, Identifiable {
+    let name: String
+    let path: String
+    let readOnly: Bool
+
+    var id: String { name }
+}
+
+struct Sandbox: Decodable, Identifiable, Hashable {
+    let name: String
+    let status: String
+    let running: Bool
+    let image: String
+    let cpus: Int
+    let memory: Int
+    let dns: String
+    let online: Bool
+    let lan: Bool
+    let ephemeral: Bool
+    let docker: Bool
+    let workspace: String
+    let created: String
+    let pid: Int?
+    let ports: [SandboxPort]
+    let shares: [SandboxShare]
+
+    var id: String { name }
+
+    var statusTint: Color {
+        switch status {
+        case "running": return Theme.success
+        case "starting": return Theme.warning
+        default: return Theme.textMuted
+        }
+    }
+
+    var networkLabel: String {
+        if !online { return "offline" }
+        return lan ? "online + LAN" : "online"
+    }
+}
+
+struct SandboxList: Decodable {
+    let available: Bool
+    let workspaceRoot: String
+    let sharedRoot: String
+    let sandboxes: [Sandbox]
+}
+
+struct SandboxPortRequest: Encodable {
+    var address: String?
+    let host: Int
+    let guest: Int
+}
+
+struct SandboxShareRequest: Encodable {
+    let name: String
+    let path: String
+    let readOnly: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case path
+        case readOnly = "read_only"
+    }
+}
+
+struct SandboxCreateRequest: Encodable {
+    let name: String
+    let image: String
+    let workspace: String
+    let cpus: Int
+    let memory: Int
+    let online: Bool
+    let lan: Bool
+    let docker: Bool
+    let ephemeral: Bool
+    let ports: [SandboxPortRequest]
+    let shares: [SandboxShareRequest]
+    let command: [String]
 }

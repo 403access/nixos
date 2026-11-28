@@ -118,6 +118,29 @@ traffic therefore follows the same host firewall as the sandbox.  Container
 port publishing (`docker run -p`) is not available — publish the guest port
 with `agent-vm --port` instead.
 
+## From the web and iOS apps
+
+The API exposes the sandbox inventory when `mySandbox` and `nixos-control` are
+enabled together:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/sandboxes` | Inventory, status, ports, shares and roots |
+| `POST` | `/api/sandboxes` | Create and start a sandbox; returns a job |
+| `GET` | `/api/sandboxes/{name}/logs?lines=200` | Runtime log |
+| `POST` | `/api/sandboxes/{name}/{action}` | `start`, `stop`, `restart`, `remove` |
+
+The web console has a **Sandboxes** section, and the iOS app has a
+**Sandboxes** tab with a create sheet, start/stop/restart/remove actions and a
+log viewer. Create requests may only use a workspace name below the workspace
+root; the directory is created and owned by the workspace-root owner. Shared
+folders must already exist below the share root. The CLI is still the way to
+mount an arbitrary project directory or share.
+
+`start` replays the original command saved with the sandbox. `stop` keeps the
+VM definition, workspace and command; `remove` deletes the VM definition but
+leaves the workspace files.
+
 ## Verify
 
 ```bash

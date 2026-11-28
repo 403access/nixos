@@ -27,6 +27,7 @@ use crate::models::{
 use crate::peripherals::PeripheralProbe;
 use crate::rdp::RdpReset;
 use crate::resources::ResourceProbe;
+use crate::sandboxes::{SandboxCreateRequest, SandboxList, SandboxProbe};
 use crate::system::SystemProbe;
 use crate::themes::{self, ThemeApplyRequest};
 use crate::util::{
@@ -37,6 +38,7 @@ use crate::util::{
 pub struct AppState {
     pub config: AppConfig,
     pub system: Arc<dyn SystemProbe>,
+    pub sandboxes: Arc<dyn SandboxProbe>,
     pub jobs: Arc<dyn JobLauncher>,
     pub peripherals: Arc<dyn PeripheralProbe>,
     pub activity: Arc<ActivityStore>,
@@ -71,6 +73,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/logs", get(system_logs))
         .route("/api/sessions", get(sessions))
         .route("/api/sessions/{id}", get(session_detail))
+        .route("/api/sandboxes", get(sandbox_list).post(sandbox_create))
+        .route("/api/sandboxes/{name}/logs", get(sandbox_logs))
+        .route("/api/sandboxes/{name}/{action}", post(sandbox_action))
         .route("/api/jobs", get(jobs))
         .route("/api/jobs/{id}", get(job))
         .route("/api/jobs/{id}/cancel", post(job_cancel))
@@ -353,6 +358,8 @@ fn describe_action(
 
     match segments.as_slice() {
         ["services", unit, action] => (action.to_string(), Some(unit.to_string())),
+        ["sandboxes", name, action] => (action.to_string(), Some(name.to_string())),
+        ["sandboxes"] => ("create sandbox".to_string(), body_action),
         ["system", "rebuild"] => ("rebuild".to_string(), body_action),
         ["system", "power"] => ("power".to_string(), body_action),
         ["themes", "apply"] => ("apply theme".to_string(), body_action),
@@ -1156,6 +1163,109 @@ async fn power(State(state): State<AppState>, body: Bytes) -> Response {
     match blocking(move || system.power(&action)).await {
         Ok(Ok(())) => json_response(StatusCode::OK, &serde_json::json!({ "ok": true })),
         Ok(Err(message)) => error_response(StatusCode::INTERNAL_SERVER_ERROR, message),
+        Err(()) => internal_error(),
+    }
+}
+
+async fn sandbox_list(State(state): State<AppState>) -> Response {
+    if !state.config.allow_sandboxes {
+        return json_response(
+            StatusCode::OK,
+            &SandboxList {
+                available: false,
+                workspace_root: state
+                    .config
+                    .sandbox_workspaces
+                    .to_string_lossy()
+                    .to_string(),
+                shared_root: state.config.sandbox_shares.to_string_lossy().to_string(),
+                sandboxes: Vec::new(),
+            },
+        );
+    }
+    let sandboxes = state.sandboxes.clone();
+    match blocking(move || sandboxes.list()).await {
+        Ok(list) => json_response(StatusCode::OK, &list),
+        Err(()) => internal_error(),
+    }
+}
+
+async fn sandbox_create(State(state): State<AppState>, body: Bytes) -> Response {
+    if !state.config.allow_sandboxes {
+        return error_response(StatusCode::FORBIDDEN, "sandbox support is disabled");
+    }
+    let request: SandboxCreateRequest = match decode_json(body) {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
+    let sandboxes = state.sandboxes.clone();
+    let args = match blocking(move || sandboxes.create_args(&request)).await {
+        Ok(Ok(args)) => args,
+        Ok(Err(message)) => return error_response(StatusCode::BAD_REQUEST, message),
+        Err(()) => return internal_error(),
+    };
+    let job = state
+        .jobs
+        .start("sandbox-create", &state.config.agent_vm, args, None);
+    json_response(StatusCode::ACCEPTED, &job)
+}
+
+async fn sandbox_action(
+    State(state): State<AppState>,
+    Path((name, action)): Path<(String, String)>,
+) -> Response {
+    if !state.config.allow_sandboxes {
+        return error_response(StatusCode::FORBIDDEN, "sandbox support is disabled");
+    }
+    if !matches!(action.as_str(), "start" | "stop" | "remove" | "restart") {
+        return error_response(
+            StatusCode::BAD_REQUEST,
+            "action must be start, stop, remove or restart",
+        );
+    }
+    let sandboxes = state.sandboxes.clone();
+    let name_for_task = name.clone();
+    let action_for_task = action.clone();
+    match blocking(move || match action_for_task.as_str() {
+        "start" => sandboxes.start(&name_for_task),
+        "stop" => sandboxes.stop(&name_for_task),
+        "remove" => sandboxes.remove(&name_for_task),
+        "restart" => sandboxes
+            .stop(&name_for_task)
+            .and_then(|_| sandboxes.start(&name_for_task)),
+        _ => unreachable!(),
+    })
+    .await
+    {
+        Ok(Ok(())) => json_response(StatusCode::OK, &serde_json::json!({ "ok": true })),
+        Ok(Err(message)) => error_response(StatusCode::BAD_REQUEST, message),
+        Err(()) => internal_error(),
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SandboxLogsQuery {
+    lines: Option<String>,
+}
+
+async fn sandbox_logs(
+    State(state): State<AppState>,
+    Path(name): Path<String>,
+    Query(query): Query<SandboxLogsQuery>,
+) -> Response {
+    if !state.config.allow_sandboxes {
+        return error_response(StatusCode::FORBIDDEN, "sandbox support is disabled");
+    }
+    let lines = query
+        .lines
+        .as_deref()
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(200)
+        .clamp(1, 2000);
+    let sandboxes = state.sandboxes.clone();
+    match blocking(move || sandboxes.logs(&name, lines)).await {
+        Ok(Ok(logs)) => json_response(StatusCode::OK, &logs),
+        Ok(Err(message)) => error_response(StatusCode::BAD_REQUEST, message),
         Err(()) => internal_error(),
     }
 }

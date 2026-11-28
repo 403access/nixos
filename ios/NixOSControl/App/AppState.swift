@@ -24,6 +24,8 @@ final class AppState: ObservableObject {
 
     @Published private(set) var status: SystemStatus?
     @Published private(set) var services: [ServiceUnit] = []
+    @Published private(set) var sandboxes: [Sandbox] = []
+    @Published private(set) var sandboxList: SandboxList?
     @Published private(set) var storage: StorageSnapshot?
     @Published private(set) var generations: [Generation] = []
     @Published private(set) var peripherals: PeripheralsReport?
@@ -40,6 +42,7 @@ final class AppState: ObservableObject {
     @Published private(set) var connectionState: ConnectionState = .unknown
     @Published private(set) var isRefreshingStatus = false
     @Published private(set) var isLoadingServices = false
+    @Published private(set) var isLoadingSandboxes = false
     @Published private(set) var isLoadingStorage = false
     @Published private(set) var isLoadingGenerations = false
     @Published var lastError: String?
@@ -169,6 +172,9 @@ final class AppState: ObservableObject {
         connectionMethod = .tailscale
         status = nil
         services = []
+        sandboxes = []
+        sandboxList = nil
+        isLoadingSandboxes = false
         storage = nil
         generations = []
         peripherals = nil
@@ -222,6 +228,73 @@ final class AppState: ObservableObject {
             lastError = nil
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    func loadSandboxes() async {
+        guard let client, !isLoadingSandboxes else { return }
+        isLoadingSandboxes = true
+        defer { isLoadingSandboxes = false }
+
+        do {
+            let list = try await client.getSandboxes()
+            sandboxList = list
+            sandboxes = list.sandboxes
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Start, stop, remove or restart a sandbox. Returns an error message on
+    /// failure, or nil when the action succeeded.
+    func performSandboxAction(_ name: String, action: String) async -> String? {
+        guard let client else { return "Not configured." }
+        do {
+            _ = try await client.sandboxAction(name: name, action: action)
+            await loadSandboxes()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// Create a sandbox and wait for the server-side create job so the list is
+    /// up to date when the sheet closes. Returns an error message on failure.
+    func createSandbox(_ request: SandboxCreateRequest) async -> String? {
+        guard let client else { return "Not configured." }
+        do {
+            let job = try await client.createSandbox(request)
+            activeJob = job
+
+            var current = job
+            for _ in 0..<60 {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                if let next: Job = try? await client.get("/api/jobs/\(job.id)") {
+                    current = next
+                    if !next.isRunning {
+                        break
+                    }
+                }
+            }
+            await loadSandboxes()
+            if let error = current.error, !error.isEmpty {
+                return error
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func fetchSandboxLogs(_ name: String, lines: Int = 400) async -> [String]? {
+        guard let client else { return nil }
+        do {
+            let response = try await client.getSandboxLogs(name: name, lines: lines)
+            return response.lines
+        } catch {
+            lastError = error.localizedDescription
+            return nil
         }
     }
 
