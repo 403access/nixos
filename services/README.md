@@ -82,8 +82,9 @@ networks:
 ```
 
 The app then has no egress; only the trusted proxy does.  Agents use the KVM
-microVM sandbox instead, which has no network at all unless `--online` is
-passed.
+microVM sandbox instead: offline by default, internet-only with `--online`,
+and never able to initiate a connection to the host or another sandbox.  See
+[`docs/sandbox.md`](../docs/sandbox.md).
 
 ## Verify the sandbox
 
@@ -93,7 +94,8 @@ sudo ./scripts/sandbox-smoke-test.sh
 
 It starts a throwaway project from the template, checks the published port,
 read-only rootfs, dropped capabilities and the denial of direct Docker access,
-then removes everything.
+and also exercises the agent microVM isolation model (offline guest, host-only
+access, peer isolation and shared folders), then removes everything.
 
 ## Remote access
 

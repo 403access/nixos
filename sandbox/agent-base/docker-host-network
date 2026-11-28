@@ -1,0 +1,44 @@
+#!/bin/sh
+# Inside the sandbox there is no Docker bridge: dockerd runs with
+# --iptables=false --ip6tables=false --bridge=none.  Containers therefore use
+# the guest network, which is already confined by the host firewall.
+#
+# This wrapper adds --network host to `docker run` and `docker create` unless
+# the caller asked for a network explicitly.
+set -eu
+
+if [ "$#" -eq 0 ]; then
+  exec /usr/bin/docker
+fi
+
+cmd="$1"
+shift
+
+case "$cmd" in
+  run | create)
+    for arg in "$@"; do
+      case "$arg" in
+        --network | --network=* | --net | --net=*)
+          exec /usr/bin/docker "$cmd" "$@"
+          ;;
+      esac
+    done
+    exec /usr/bin/docker "$cmd" --network host "$@"
+    ;;
+  container)
+    if [ "${1:-}" = "run" ] || [ "${1:-}" = "create" ]; then
+      sub="$1"
+      shift
+      for arg in "$@"; do
+        case "$arg" in
+          --network | --network=* | --net | --net=*)
+            exec /usr/bin/docker container "$sub" "$@"
+            ;;
+        esac
+      done
+      exec /usr/bin/docker container "$sub" --network host "$@"
+    fi
+    ;;
+esac
+
+exec /usr/bin/docker "$cmd" "$@"

@@ -54,6 +54,9 @@ panel to the internet.
   output and cancellation, reboot, and shutdown.
 - **Peripherals** — read the Logitech receiver and paired devices over HID++:
   names, battery, signal strength and firmware.
+- **Agent sandboxes** — run untrusted agents and their containers in KVM
+  microVMs with a separate kernel and network namespace. The host can reach a
+  sandbox; a sandbox cannot reach the host or another sandbox.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every
   request with a 256-bit bearer token, and can be exposed over Tailscale Serve
   with automatic HTTPS. No router ports are opened.
@@ -123,6 +126,8 @@ plain HTTP. See [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md).
   and pair your phone.
 - [Configuration](./guides/configuration.md) — every module option.
 - [Desktop profiles](./guides/desktop.md) — choose the host desktop.
+- [Agent sandboxes](./guides/sandboxes.md) — run agents and containers in
+  isolated KVM microVMs.
 - <Link to="/docs/guides/windows-11-slim-image">Ultra-slim Windows 11</Link> —
   build a lean, unattended Windows ISO in Docker or natively on NixOS.
 - [FRITZ!Box WireGuard](./guides/fritzbox-wireguard.md) — use an existing router

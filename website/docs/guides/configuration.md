@@ -1,7 +1,7 @@
 ---
 title: Configuration
 sidebar_position: 1
-description: All services.nixos-control options and example configurations.
+description: NixOS Control, desktop and agent sandbox module options and example configurations.
 ---
 
 # Configuration
@@ -114,6 +114,47 @@ myDesktop = {
 
 See [Desktop profiles](./desktop.md) for the theme options, screenshots,
 keybindings and remote-access notes.
+
+## Agent sandboxes
+
+`mySandbox` is independent of the API and desktop modules. It runs untrusted
+agents in KVM microVMs with a per-sandbox network namespace:
+
+```nix
+mySandbox = {
+  enable = true;
+  user = "your-user";
+  cpus = 4;
+  memory = 4096;
+  image = "docker.io/library/debian:bookworm-slim";
+  dns = "1.1.1.1";
+  workspaceRoot = "/var/lib/agent-workspaces";
+  sharedRoot = "/var/lib/agent-shares";
+  stateRoot = "/var/lib/agent-vm";
+};
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `enable` | `false` | Install `agent-vm` and the sandbox support |
+| `user` | `nixos` | Owner of the workspace and share directories |
+| `cpus` | `4` | Default vCPUs per sandbox (1–8) |
+| `memory` | `4096` | Default guest RAM in MiB (256–16384) |
+| `image` | `debian:bookworm-slim` | Default OCI image |
+| `dns` | `1.1.1.1` | Guest resolver, reachable with `--online` |
+| `workspaceRoot` | `/var/lib/agent-workspaces` | Workspace directory |
+| `sharedRoot` | `/var/lib/agent-shares` | Convention for shared folders |
+| `stateRoot` | `/var/lib/agent-vm` | Root-only sandbox metadata |
+
+The module enables IPv4 forwarding for guest egress and installs
+`agent-vm`, `krunvm`, `buildah`, `nftables`, `iproute2` and `socat`.
+
+:::warning
+`agent-vm` must run as root: KVM, network namespaces, nftables and buildah
+require it. Do not add a passwordless sudo rule unless you accept that the
+user can boot arbitrary OCI images inside the VM boundary. See
+[Agent sandboxes](./sandboxes.md) for the network model and verification.
+:::
 
 ## Units
 

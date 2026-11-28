@@ -106,6 +106,26 @@ This cannot be enabled on an existing dataset. The safe migration is:
 
 **Decision:** unchanged; no space for a second full copy today (81% used).
 
+## Agent sandboxes
+
+`mySandbox` is deliberately asymmetric and root-run:
+
+- `agent-vm` needs root for KVM, network namespaces, nftables and buildah.
+  There is no passwordless sudo rule by default; adding one grants the user
+  the ability to boot arbitrary OCI images inside the VM boundary.
+- The host can reach a sandbox (published ports and the guest IP by design).
+  A sandbox cannot initiate a connection to the host, the LAN or another
+  sandbox. New connections to host addresses, including `127.0.0.1`, are
+  dropped in the `inet agent_vm` nftables table.
+- Workspaces and `--share` folders are read-write. A compromised agent can
+  delete project files; it cannot write elsewhere on the host. Keep backups.
+- Images are pulled by root buildah. Use only trusted registries.
+- This is a KVM microVM, not a confidential VM: the boundary is the hypervisor
+  plus the guest kernel.
+
+See [`docs/sandbox.md`](docs/sandbox.md) and
+[`sandbox/README.md`](sandbox/README.md) for the full model.
+
 ## Not a risk, but worth knowing
 
 - `/etc/nixos` is **not** a git checkout. Pulling the GitHub repo into

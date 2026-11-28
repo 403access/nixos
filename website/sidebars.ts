@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
         'guides/configuration',
         'guides/desktop',
         'guides/peripherals',
+        'guides/sandboxes',
         'guides/windows-11-slim-image',
         'guides/tailscale',
         'guides/fritzbox-wireguard',

@@ -1,0 +1,47 @@
+# A ready-to-use agent image: Docker inside the sandbox plus common tooling.
+#
+# Build it as root so krunvm's root buildah can reuse the image:
+#
+#   sudo ./sandbox/build-agent-image.sh
+#   sudo agent-vm --image localhost/nixos-agent:latest --docker -- ./test.sh
+#
+# Containers run on the guest network.  The docker wrapper adds
+# `--network host` to `docker run`/`docker create` unless a network is given,
+# because dockerd is started with --bridge=none (the guest kernel cannot load
+# the legacy xtables modules Docker's bridge networking expects).
+FROM docker.io/library/debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      git \
+      jq \
+      ripgrep \
+      docker.io \
+      build-essential \
+      pkg-config \
+      python3 \
+      python3-pip \
+      python3-venv \
+      nodejs \
+      npm \
+      unzip \
+      xz-utils \
+      zstd \
+      openssh-client \
+      procps \
+      iproute2 \
+      less \
+      tmux \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY docker-host-network /usr/local/bin/docker
+RUN chmod 0755 /usr/local/bin/docker
+
+WORKDIR /workspace
+CMD ["/bin/bash"]

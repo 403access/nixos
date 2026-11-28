@@ -66,9 +66,9 @@ const config: Config = {
       {
         name: 'description',
         content:
-          'An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, and a Docker-first toolkit for building a lean Windows 11 ISO.',
+          'An open-source iPhone app, a tiny Rust API server, selectable Catppuccin desktop profiles, KVM agent sandboxes, and a Docker-first toolkit for building a lean Windows 11 ISO.',
       },
-      {name: 'keywords', content: 'NixOS, Docker, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop, Windows 11, slim Windows, wimlib, unattend, ISO, debloat'},
+      {name: 'keywords', content: 'NixOS, Docker, Tailscale, WireGuard, FRITZ!Box, iOS, SwiftUI, Rust, ZFS, systemd, self-hosted, Catppuccin, KDE Plasma, Hyprland, desktop, Windows 11, slim Windows, wimlib, unattend, ISO, debloat, sandbox, microVM, KVM, krunvm, agent'},
       {name: 'theme-color', content: '#080b14'},
       {property: 'og:type', content: 'website'},
     ],
@@ -125,6 +125,7 @@ const config: Config = {
             {label: 'Introduction', to: '/docs/'},
             {label: 'Server quickstart', to: '/docs/getting-started/quickstart'},
             {label: 'iOS app', to: '/docs/getting-started/ios-app'},
+            {label: 'Agent sandboxes', to: '/docs/guides/sandboxes'},
             {label: 'Windows 11', to: '/docs/guides/windows-11-slim-image'},
             {label: 'API reference', to: '/docs/reference/api'},
           ],

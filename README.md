@@ -23,8 +23,37 @@ An iPhone app and a matching web console for monitoring and managing a NixOS mac
 - **Storage** — ZFS pool usage and health, `zpool status`, datasets, filesystem usage, and a read-only file explorer that opens beside the list.
 - **System** — NixOS generations with package-level configuration diffs, `nixos-rebuild switch/boot/test` with live job output and cancellation, reboot, and shutdown.
 - **Peripherals** — Logitech receiver details, paired devices, battery, signal strength, and firmware, read over HID++.
+- **Agent sandboxes** — untrusted agents and their Docker containers run in KVM microVMs with a separate kernel and network namespace. The host can reach a sandbox; a sandbox cannot reach the host or another sandbox. Work is shared only through an exclusive workspace or explicit `--share` folders.
 - **Secure by default** — the server binds to `127.0.0.1`, authenticates every request with a 256-bit bearer token, and is exposed over Tailscale Serve with automatic HTTPS. No router ports are opened.
 - **Tailscale or WireGuard** — the iPhone reaches the machine through the tailnet, or through the WireGuard VPN that already runs on your FRITZ!Box.
+
+## Agent sandboxes
+
+`mySandbox` runs untrusted agents and their Docker containers in KVM
+microVMs. Each sandbox has its own kernel and its own network namespace:
+
+```bash
+cd ~/src/project
+sudo agent-vm                        # interactive
+sudo agent-vm --ephemeral -- pytest  # one-shot
+sudo agent-vm --online -- npm ci     # internet, but not the host
+sudo agent-vm --name web --detach --port 8080:8080 -- my-server
+```
+
+- The host can reach a sandbox: published ports and the guest IP work.
+- A sandbox cannot reach the host, the LAN or another sandbox. New
+  connections to any host address, including `127.0.0.1`, are dropped.
+- The workspace is exclusive while a sandbox runs. `--share` adds explicit
+  host folders; giving two sandboxes the same share is the only way for A and
+  B to exchange files.
+- `--online` is internet-only; `--lan` also allows private ranges, never the
+  host.
+- `--docker` starts `dockerd` inside the guest. Build the included image with
+  `sudo ./sandbox/build-agent-image.sh`.
+
+See [docs/sandbox.md](docs/sandbox.md) for the threat model, the operator
+guide and troubleshooting, or [sandbox/README.md](sandbox/README.md) for the
+design notes.
 
 ## Desktop profiles
 
@@ -335,9 +364,11 @@ install/                   Interactive installer and layout module
 nixos-control.nix          NixOS module: packages and runs the server
 nixos-control-web.nix      Systemd web dashboard on port 3050
 desktop/                   Desktop profile selector, Catppuccin themes, wallpaper
-sandbox/                   Agent sandbox: KVM microVMs via krunvm (agent-vm)
+sandbox/                   Agent sandbox: KVM microVMs and per-sandbox networks
+sandbox/agent-base/        Docker-capable agent image (Containerfile)
 services/                  Isolated Docker project services (project-up/down)
 SECURITY.md                Known exposures and accepted risks
+docs/sandbox.md            Sandbox operator guide: network model, verify, limits
 docs/backup.md             Snapshot and offsite backup status for tank
 docs/apple-keyboard.md     Apple keyboard: Bluetooth pairing, RDP and InputLeap bridges
 docs/peripherals.md        Logitech receiver, HID++ probe, API and UIs
@@ -632,6 +663,7 @@ Update the token in the app afterwards.
 - The shell audit log (`commandLog.enable`, enabled by default) stores interactive bash/zsh commands, working directories, exit statuses and timings in each user's `~/.local/state/nixos-control/commands.jsonl` (mode 0600). The root API service reads it for the Sessions view; disable it if you do not want that history exposed to the bearer token.
 - Keep ZFS snapshots/backups before using `switch`; use the `test` action to validate a configuration first.
 - Do not expose port `8787` to the internet. If you use the LAN mode, keep it behind the firewall and on a trusted network.
+- Agent sandboxes are KVM microVMs, not confidential VMs, and the host can reach them by design. Keep the workspace read-write only for projects you can afford to lose, and read [`docs/sandbox.md`](docs/sandbox.md) before using `--lan` or `--publish`.
 
 ## Development
 
@@ -776,6 +808,6 @@ Use the connector name from `xrandr --query` (`HDMI-2`, `DP-1`, …). `journalct
 - Logs and status are polled, not streamed.
 - Rebuild jobs are kept in memory and are lost if the server restarts.
 - Single-host only.
-- No Docker/container management yet; the server is structured so new endpoints can be added easily.
+- No Docker/container management in the API yet; sandboxes are managed with `agent-vm` on the host. The server is structured so new endpoints can be added easily.
 - Token rotation is manual.
 - No push notifications for failed units or completed rebuilds.

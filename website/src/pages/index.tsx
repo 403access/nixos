@@ -141,6 +141,11 @@ const features: {icon: IconName; title: string; body: string}[] = [
     body: 'The server requires a 256-bit bearer token on every request. Tailscale Serve adds automatic HTTPS, or use the WireGuard VPN already running on your FRITZ!Box.',
   },
   {
+    icon: 'host',
+    title: 'Agents in their own kernel',
+    body: 'Run untrusted agents and their containers in KVM microVMs with a per-sandbox network namespace. The host can reach the sandbox; the sandbox cannot reach the host or another sandbox. Only explicit folders and published ports cross the line.',
+  },
+  {
     icon: 'code',
     title: 'Small enough to audit',
     body: 'A small Rust server, a SwiftUI app, and a single NixOS module. No cloud, no account, no telemetry. Read the whole thing over a coffee.',
@@ -269,7 +274,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Your NixOS machine, in your pocket"
-      description="An open-source iPhone app and web console, a tiny Rust API server, selectable Catppuccin desktop profiles, and a Docker-first toolkit for building a lean Windows 11 ISO.">
+      description="An open-source iPhone app and web console, a tiny Rust API server, selectable Catppuccin desktop profiles, KVM agent sandboxes, and a Docker-first toolkit for building a lean Windows 11 ISO.">
       <main>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
